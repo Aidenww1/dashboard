@@ -18,15 +18,17 @@ class HealthReader(context: Context) {
         val now = Instant.now()
         val range30 = TimeRangeFilter.between(now.minus(30, ChronoUnit.DAYS), now)
         val range7 = TimeRangeFilter.between(now.minus(7, ChronoUnit.DAYS), now)
+        val errors = JSONObject()
         return JSONObject().apply {
-            try { put("steps", readSteps(range30)) } catch (_: Exception) {}
-            try { put("heartRate", readHeartRate(range7)) } catch (_: Exception) {}
-            try { put("sleep", readSleep(range30)) } catch (_: Exception) {}
-            try { put("calories", readCalories(range30)) } catch (_: Exception) {}
-            try { put("weight", readWeight(range30)) } catch (_: Exception) {}
-            try { put("oxygenSat", readOxygenSat(range7)) } catch (_: Exception) {}
-            try { put("exercises", readExercises(range30)) } catch (_: Exception) {}
+            try { put("steps", readSteps(range30)) } catch (e: Exception) { errors.put("steps", e.toString()) }
+            try { put("heartRate", readHeartRate(range7)) } catch (e: Exception) { errors.put("heartRate", e.toString()) }
+            try { put("sleep", readSleep(range30)) } catch (e: Exception) { errors.put("sleep", e.toString()) }
+            try { put("calories", readCalories(range30)) } catch (e: Exception) { errors.put("calories", e.toString()) }
+            try { put("weight", readWeight(range30)) } catch (e: Exception) { errors.put("weight", e.toString()) }
+            try { put("oxygenSat", readOxygenSat(range7)) } catch (e: Exception) { errors.put("oxygenSat", e.toString()) }
+            try { put("exercises", readExercises(range30)) } catch (e: Exception) { errors.put("exercises", e.toString()) }
             put("syncTime", now.toEpochMilli())
+            if (errors.length() > 0) put("errors", errors)
         }
     }
 
