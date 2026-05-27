@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Watch — Dashboard</title>
+  <style>
+    :root {
+      --accent: #34D399;
+      --accent-dim: rgba(52,211,153,0.12);
+      --bg: #0A0A0B;
+      --card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --text: #E8E6E0;
+      --muted: #76746E;
+      --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      background-image: radial-gradient(ellipse at 30% 0%, rgba(52,211,153,0.08) 0%, transparent 60%);
+      min-height: 100dvh;
+    }
+    .page {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 16px 16px 120px;
+    }
+    .section-header {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin: 16px 0 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 12px;
+      backdrop-filter: blur(8px);
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .stat-big {
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: -1.5px;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    .stat-mini { flex: 1; }
+    .stat-mini .val { font-size: 20px; font-weight: 700; }
+    .stat-mini .lbl { font-size: 11px; color: var(--muted); }
+    /* Connection */
+    .conn-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .conn-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
+    }
+    .conn-dot.online { background: var(--accent); box-shadow: 0 0 6px rgba(52,211,153,0.6); }
+    .conn-dot.offline { background: #F87171; }
+    .conn-text { font-size: 14px; color: var(--muted); }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 18px; border-radius: 10px;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; border: none; text-decoration: none;
+      touch-action: manipulation; transition: opacity 0.15s;
+      font-family: var(--font);
+    }
+    .btn:active { opacity: 0.75; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary { background: var(--accent); color: #0A0A0B; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .last-sync { font-size: 12px; color: var(--muted); margin-top: 10px; }
+    /* Bar chart */
+    .bar-chart {
+      display: flex; align-items: flex-end; gap: 3px;
+      height: 64px; margin-top: 14px;
+    }
+    .bar-wrap {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 4px; height: 100%; justify-content: flex-end;
+    }
+    .bar {
+      width: 100%; background: rgba(52,211,153,0.3);
+      border-radius: 3px 3px 0 0; min-height: 3px;
+    }
+    .bar.today { background: var(--accent); }
+    .bar.sleep-bar { background: rgba(129,140,248,0.5); }
+    .bar-day { font-size: 9px; color: var(--muted); }
+    /* Grid */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    /* Exercises */
+    .ex-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+    }
+    .ex-item:last-child { border-bottom: none; }
+    .ex-name { font-weight: 600; }
+    .ex-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .ex-dur { color: var(--accent); font-size: 13px; font-weight: 600; }
+    .no-data { font-size: 26px; font-weight: 700; color: var(--muted); }
+    .empty { text-align: center; color: var(--muted); padding: 16px 0; font-size: 14px; }
+    /* Setup steps */
+    .setup-steps { list-style: none; counter-reset: s; }
+    .setup-steps li {
+      counter-increment: s; display: flex; gap: 12px;
+      align-items: flex-start; padding: 10px 0;
+      border-bottom: 1px solid var(--border); font-size: 14px; color: var(--muted);
+    }
+    .setup-steps li:last-child { border-bottom: none; }
+    .setup-steps li::before {
+      content: counter(s);
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--accent-dim); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .apk-note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+<script src="topbar.js"></script>
+<div class="page">
+  <div class="section-header">Samsung Watch</div>
+
+  <!-- Connection + sync -->
+  <div class="card">
+    <div class="card-title">Tasker Sync</div>
+    <div class="conn-row">
+      <span class="conn-dot" id="connDot"></span>
+      <span class="conn-text" id="connText">Checking...</span>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="syncBtn" onclick="syncData()">Refresh</button>
+    </div>
+    <div class="last-sync" id="lastSync"></div>
+  </div>
+
+  <!-- Steps -->
+  <div class="card">
+    <div class="card-title">Steps — Last 7 Days</div>
+    <div id="stepsContent"><div class="no-data">--</div></div>
+  </div>
+
+  <!-- Heart Rate -->
+  <div class="card">
+    <div class="card-title">Heart Rate</div>
+    <div id="hrContent"><div class="no-data">--</div></div>
+  </div>
+
+  <!-- Sleep -->
+  <div class="card">
+    <div class="card-title">Sleep — Last 7 Days</div>
+    <div id="sleepContent"><div class="no-data">--</div></div>
+  </div>
+
+  <!-- Calories + Weight -->
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Calories</div>
+      <div id="calContent"><div class="no-data">--</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Weight</div>
+      <div id="weightContent"><div class="no-data">--</div></div>
+    </div>
+  </div>
+
+  <!-- SpO2 -->
+  <div class="card">
+    <div class="card-title">Blood Oxygen (SpO2)</div>
+    <div id="spo2Content"><div class="no-data">--</div></div>
+  </div>
+
+  <!-- Exercises -->
+  <div class="card">
+    <div class="card-title">Recent Exercises</div>
+    <div id="exContent"><div class="empty">No exercises synced yet</div></div>
+  </div>
+
+  <!-- Setup guide -->
+  <div class="card">
+    <div class="card-title">Setup Guide</div>
+    <ol class="setup-steps">
+      <li>Install Tasker and the TaskerHealthConnect plugin (APK from GitHub)</li>
+      <li>In Samsung Health: Settings &rarr; Connected services &rarr; Health Connect &rarr; enable all data types</li>
+      <li>In Tasker: create a task using TaskerHealthConnect actions to read steps, heart rate, sleep, calories, weight, SpO2</li>
+      <li>Add an HTTP Request action: POST to <strong>https://dashboard-pi-green-48.vercel.app/api/health-sync</strong> with JSON body (see format below)</li>
+      <li>Schedule the task to run daily or on demand</li>
+    </ol>
+    <div class="apk-note" style="display:block;margin-top:12px">
+      POST body format:<br>
+      { "date": "%DATE", "steps": %steps, "heart_rate_bpm": %hr, "sleep_hours": %sleep_h,
+      "sleep_start_ms": %sleep_start, "sleep_end_ms": %sleep_end,
+      "calories_kcal": %cals, "weight_kg": %weight, "spo2_pct": %spo2 }
+    </div>
+  </div>
+</div>
+
+<script src="bus.js"></script>
+<script src="tabbar.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const API = '/api/health-sync';
+  const KEY = 'watch:data';
+
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } }
+  function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+
+  function fmtDate(ms) {
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  function fmtWeekday(dateStr) {
+    return new Date(dateStr + 'T12:00').toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
+  }
+
+  async function checkConnection() {
+    const dot = document.getElementById('connDot');
+    const txt = document.getElementById('connText');
+    const cached = load();
+    if (cached?.syncTime) {
+      dot.className = 'conn-dot online';
+      txt.textContent = 'Data from Tasker sync';
+    } else {
+      dot.className = 'conn-dot offline';
+      txt.textContent = 'No data yet — run Tasker sync task';
+    }
+  }
+
+  async function syncData() {
+    const btn = document.getElementById('syncBtn');
+    btn.textContent = 'Fetching...';
+    btn.disabled = true;
+    const dot = document.getElementById('connDot');
+    const txt = document.getElementById('connText');
+    try {
+      const r = await fetch(API, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) throw new Error('Server returned ' + r.status);
+      const data = await r.json();
+      if (!data.syncTime) throw new Error('No data synced yet — run Tasker task first');
+      save(data);
+      dot.className = 'conn-dot online';
+      txt.textContent = 'Loaded from cloud';
+      renderAll(data);
+    } catch (e) {
+      dot.className = 'conn-dot offline';
+      txt.textContent = 'Failed: ' + (e.message || 'unknown error');
+    } finally {
+      btn.textContent = 'Refresh';
+      btn.disabled = false;
+    }
+  }
+  window.syncData = syncData;
+
+  function renderAll(data) {
+    if (!data) return;
+    if (data.syncTime) {
+      document.getElementById('lastSync').textContent =
+        'Last synced: ' + new Date(data.syncTime).toLocaleString();
+    }
+    renderSteps(data.steps || []);
+    renderHR(data.heartRate || []);
+    renderSleep(data.sleep || []);
+    renderCalories(data.calories || []);
+    renderWeight(data.weight || []);
+    renderSpo2(data.oxygenSat || []);
+    renderExercises(data.exercises || []);
+  }
+
+  function renderSteps(steps) {
+    const el = document.getElementById('stepsContent');
+    if (!steps.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const last7 = steps.slice(-7);
+    const today = last7[last7.length - 1];
+    const maxVal = Math.max(...last7.map(s => s.steps), 1);
+    const avg = Math.round(last7.reduce((s, d) => s + d.steps, 0) / last7.length);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const bars = last7.map(d => {
+      const h = Math.max(3, Math.round((d.steps / maxVal) * 60));
+      return `<div class="bar-wrap">
+        <div class="bar${d.date === todayStr ? ' today' : ''}" style="height:${h}px"></div>
+        <div class="bar-day">${fmtWeekday(d.date)}</div>
+      </div>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="stat-big">${(today?.steps || 0).toLocaleString()}</div>
+      <div class="stat-label">today &bull; avg ${avg.toLocaleString()}/day</div>
+      <div class="bar-chart">${bars}</div>`;
+  }
+
+  function renderHR(samples) {
+    const el = document.getElementById('hrContent');
+    if (!samples.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const bpms = samples.map(s => s.bpm);
+    const latest = bpms[bpms.length - 1];
+    const avg = Math.round(bpms.reduce((a, b) => a + b, 0) / bpms.length);
+    const min = Math.min(...bpms), max = Math.max(...bpms);
+    el.innerHTML = `
+      <div class="stat-big" style="color:#F87171">${latest}</div>
+      <div class="stat-label">latest BPM</div>
+      <div class="stats-row">
+        <div class="stat-mini"><div class="val">${avg}</div><div class="lbl">avg</div></div>
+        <div class="stat-mini"><div class="val">${min}</div><div class="lbl">min</div></div>
+        <div class="stat-mini"><div class="val">${max}</div><div class="lbl">max</div></div>
+      </div>`;
+  }
+
+  function renderSleep(sessions) {
+    const el = document.getElementById('sleepContent');
+    if (!sessions.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const last7 = sessions.slice(-7);
+    const maxH = Math.max(...last7.map(s => s.hours), 0.1);
+    const avg = (last7.reduce((s, d) => s + d.hours, 0) / last7.length).toFixed(1);
+    const latest = last7[last7.length - 1].hours;
+    const bars = last7.map(s => {
+      const h = Math.max(3, Math.round((s.hours / maxH) * 60));
+      const day = new Date(s.start).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
+      return `<div class="bar-wrap">
+        <div class="bar sleep-bar" style="height:${h}px"></div>
+        <div class="bar-day">${day}</div>
+      </div>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="stat-big" style="color:#818CF8">${latest}h</div>
+      <div class="stat-label">last night &bull; avg ${avg}h</div>
+      <div class="bar-chart">${bars}</div>`;
+  }
+
+  function renderCalories(cals) {
+    const el = document.getElementById('calContent');
+    if (!cals.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const today = cals[cals.length - 1];
+    el.innerHTML = `
+      <div class="stat-big" style="font-size:28px">${(today.kcal || 0).toLocaleString()}</div>
+      <div class="stat-label">kcal today</div>`;
+  }
+
+  function renderWeight(weights) {
+    const el = document.getElementById('weightContent');
+    if (!weights.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const latest = weights[weights.length - 1];
+    el.innerHTML = `
+      <div class="stat-big" style="font-size:28px">${latest.kg.toFixed(1)}</div>
+      <div class="stat-label">kg latest</div>`;
+  }
+
+  function renderSpo2(readings) {
+    const el = document.getElementById('spo2Content');
+    if (!readings.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const latest = readings[readings.length - 1];
+    const avg = (readings.reduce((s, r) => s + r.pct, 0) / readings.length).toFixed(1);
+    el.innerHTML = `
+      <div class="stat-big">${latest.pct.toFixed(1)}<span style="font-size:20px">%</span></div>
+      <div class="stat-label">latest &bull; avg ${avg}%</div>`;
+  }
+
+  const EX_NAMES = {
+    1: 'Walking', 2: 'Running', 3: 'Biking', 4: 'Cycling',
+    5: 'Elliptical', 56: 'Strength Training', 79: 'Yoga',
+    80: 'HIIT', 97: 'Sport'
+  };
+
+  function renderExercises(exs) {
+    const el = document.getElementById('exContent');
+    if (!exs.length) { el.innerHTML = '<div class="empty">No exercises synced</div>'; return; }
+    el.innerHTML = exs.slice(-5).reverse().map(e => {
+      const name = e.title || EX_NAMES[e.type] || 'Exercise';
+      const dur = e.durationMin >= 60
+        ? `${Math.floor(e.durationMin / 60)}h ${e.durationMin % 60}m`
+        : `${e.durationMin}m`;
+      return `<div class="ex-item">
+        <div>
+          <div class="ex-name">${name}</div>
+          <div class="ex-date">${fmtDate(e.start)}</div>
+        </div>
+        <div class="ex-dur">${dur}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Init: render cached data immediately, then check live connection
+  renderAll(load());
+  checkConnection();
+})();
+</script>
+</body>
+</html>
