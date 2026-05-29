@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Settings</title>
+<script src="topbar.js" defer></script>
+<style>
+:root{--bg:#0A0A0B;--bg-card:rgba(255,255,255,0.04);--text-primary:#FAFAFA;--text-secondary:#B8B6B0;--text-tertiary:#76746E;--accent:#E07658;--success:#6BE3A4;--danger:#FF6B6B;--radius-md:12px;--radius-lg:16px;--font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text-primary);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100%}
+body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-gradient(60% 45% at 82% 14%,rgba(224,118,88,.14) 0%,transparent 55%),linear-gradient(180deg,#0A0A0B 0%,#050506 100%);filter:blur(40px);pointer-events:none}
+.shell{max-width:640px;margin:0 auto;padding:20px 16px 100px}
+.page-title{font-size:22px;font-weight:800;margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--text-tertiary);margin-bottom:20px}
+.section-title{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:10px}
+.card{background:var(--bg-card);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px;box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 12px 40px rgba(0,0,0,.45)}
+.row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.row:last-child{border-bottom:none}
+.row-label{font-size:14px;font-weight:600;color:var(--text-primary)}
+.row-sub{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+.row-right{display:flex;align-items:center;gap:8px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.12);border-radius:12px;cursor:pointer;transition:.2s}
+.toggle input:checked~.toggle-slider{background:var(--accent)}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked~.toggle-slider::before{transform:translateX(20px)}
+.s-input{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:6px 10px;color:#FAFAFA;font-size:13px;font-family:var(--font);outline:none;width:120px}
+.s-btn{padding:8px 16px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.s-btn-ghost{padding:8px 16px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--text-secondary);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.danger-btn{padding:8px 16px;border-radius:10px;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.25);color:#FF9999;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.status-line{font-size:12px;color:var(--success);margin-top:8px;min-height:16px}
+.kbd{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:1px 6px;font-size:11px;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="page-title">Settings</div>
+  <div class="page-sub">Goals, reminders, AI context, integrations, data export.</div>
+
+  <!-- Goals & Targets -->
+  <div class="section-title">Goals &amp; Targets</div>
+  <div class="card">
+    <div class="row">
+      <div><div class="row-label">Daily calories target</div><div class="row-sub">Used for nutrition surplus/deficit</div></div>
+      <div class="row-right"><input class="s-input" type="number" id="goalCalories" placeholder="2000"></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">Protein target</div><div class="row-sub">grams per day</div></div>
+      <div class="row-right"><input class="s-input" type="number" id="goalProtein" placeholder="150"></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">Sleep target</div><div class="row-sub">hours per night</div></div>
+      <div class="row-right"><input class="s-input" type="number" id="goalSleep" step="0.5" placeholder="8"></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">Water target</div><div class="row-sub">glasses per day</div></div>
+      <div class="row-right"><input class="s-input" type="number" id="goalWater" placeholder="8"></div>
+    </div>
+    <div style="margin-top:12px"><button class="s-btn" onclick="saveGoals()">Save goals</button></div>
+    <div class="status-line" id="goalStatus"></div>
+  </div>
+
+  <!-- AI Context -->
+  <div class="section-title">AI Context</div>
+  <div class="card">
+    <p style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:12px">Controls what data is included when the AI generates briefings and insights. Only the last N days of each domain are sent.</p>
+    <div class="row">
+      <div><div class="row-label">Health data window</div><div class="row-sub">Days of metrics sent to AI</div></div>
+      <div class="row-right"><input class="s-input" type="number" id="aiContextDays" placeholder="14" style="width:80px"></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">Include finance in AI context</div><div class="row-sub">Allow AI to see expense and income data</div></div>
+      <div class="row-right"><label class="toggle"><input type="checkbox" id="aiIncludeFinance"><span class="toggle-slider"></span></label></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">Include bloodwork in AI context</div><div class="row-sub">Sensitive — allow AI to see lab values</div></div>
+      <div class="row-right"><label class="toggle"><input type="checkbox" id="aiIncludeBloodwork" checked><span class="toggle-slider"></span></label></div>
+    </div>
+    <div style="margin-top:12px"><button class="s-btn" onclick="saveAIContext()">Save</button></div>
+    <div class="status-line" id="aiCtxStatus"></div>
+  </div>
+
+  <!-- Integrations -->
+  <div class="section-title">Integrations</div>
+  <div class="card">
+    <div class="row">
+      <div><div class="row-label">Samsung Health</div><div class="row-sub">Synced via watch.html bridge</div></div>
+      <div class="row-right"><a href="watch.html" style="font-size:12px;color:var(--accent)">Configure</a></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">Google Calendar</div><div class="row-sub">Two-way sync via calendar.html</div></div>
+      <div class="row-right"><a href="calendar.html" style="font-size:12px;color:var(--accent)">Configure</a></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">GoCardless bank sync</div><div class="row-sub">Automatic transaction import</div></div>
+      <div class="row-right"><a href="finance.html" style="font-size:12px;color:var(--accent)">Configure</a></div>
+    </div>
+    <div class="row">
+      <div><div class="row-label">Supplement reminders</div><div class="row-sub">Browser push notifications</div></div>
+      <div class="row-right"><a href="reminders.html" style="font-size:12px;color:var(--accent)">Configure</a></div>
+    </div>
+  </div>
+
+  <!-- Data Export / Backup -->
+  <div class="section-title">Data Export &amp; Backup</div>
+  <div class="card">
+    <p style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:14px">Export all your local data as JSON. All data is also backed up to Supabase automatically.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="s-btn-ghost" onclick="exportAll()">Export all data (JSON)</button>
+      <a href="export.html"><button class="s-btn-ghost" style="cursor:pointer">Full export page</button></a>
+    </div>
+    <div class="status-line" id="exportStatus"></div>
+  </div>
+
+  <!-- Security -->
+  <div class="section-title">Security &amp; Privacy</div>
+  <div class="card">
+    <div class="row">
+      <div>
+        <div class="row-label">RLS status</div>
+        <div class="row-sub">events, app_state, health tables — anon role has full access (single-user app). No Supabase Auth. To add per-user scoping: enable Auth and replace anon policies with <span class="kbd">auth.uid() = user_id</span> checks.</div>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <div class="row-label">Service role key</div>
+        <div class="row-sub">Server-only (Vercel env vars). Never exposed to the browser. Anon/publishable key is safe to embed in frontend HTML.</div>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <div class="row-label">Sensitive data</div>
+        <div class="row-sub">Bloodwork, skin, supplements stored in Supabase JSONB. No column-level encryption. Protected by Supabase project access keys only. Consider enabling Supabase Auth + RLS for multi-device or shared environments.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Danger Zone -->
+  <div class="section-title">Danger Zone</div>
+  <div class="card">
+    <div class="row">
+      <div><div class="row-label">Clear all local data</div><div class="row-sub">Wipes localStorage — Supabase backup is NOT deleted</div></div>
+      <div class="row-right"><button class="danger-btn" onclick="clearLocal()">Clear local</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="tabbar.js" defer></script>
+<script>
+(function() {
+  'use strict';
+  var SETTINGS_KEY = 'settings:v1';
+  function load() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; } }
+  function save(d) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(d)); }
+
+  function init() {
+    var s = load();
+    document.getElementById('goalCalories').value = s.goalCalories || '';
+    document.getElementById('goalProtein').value  = s.goalProtein  || '';
+    document.getElementById('goalSleep').value    = s.goalSleep    || '';
+    document.getElementById('goalWater').value    = s.goalWater    || '';
+    document.getElementById('aiContextDays').value = s.aiContextDays || 14;
+    document.getElementById('aiIncludeFinance').checked  = s.aiIncludeFinance  ?? false;
+    document.getElementById('aiIncludeBloodwork').checked = s.aiIncludeBloodwork ?? true;
+  }
+
+  window.saveGoals = function() {
+    var s = load();
+    s.goalCalories = parseInt(document.getElementById('goalCalories').value) || null;
+    s.goalProtein  = parseInt(document.getElementById('goalProtein').value)  || null;
+    s.goalSleep    = parseFloat(document.getElementById('goalSleep').value)  || null;
+    s.goalWater    = parseInt(document.getElementById('goalWater').value)    || null;
+    save(s);
+    // Propagate to existing keys used by nutrition/water modules
+    if (s.goalCalories) {
+      var nt = JSON.parse(localStorage.getItem('nt:tdee') || '{}');
+      nt.calories = s.goalCalories;
+      if (s.goalProtein) nt.protein = s.goalProtein;
+      localStorage.setItem('nt:tdee', JSON.stringify(nt));
+    }
+    flash('goalStatus', 'Saved');
+  };
+
+  window.saveAIContext = function() {
+    var s = load();
+    s.aiContextDays      = parseInt(document.getElementById('aiContextDays').value) || 14;
+    s.aiIncludeFinance   = document.getElementById('aiIncludeFinance').checked;
+    s.aiIncludeBloodwork = document.getElementById('aiIncludeBloodwork').checked;
+    save(s);
+    flash('aiCtxStatus', 'Saved');
+  };
+
+  window.exportAll = function() {
+    var keys = [], out = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      try { out[k] = JSON.parse(localStorage.getItem(k)); } catch { out[k] = localStorage.getItem(k); }
+    }
+    var blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lifeos-export-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    flash('exportStatus', 'Downloaded');
+  };
+
+  window.clearLocal = function() {
+    if (!confirm('Clear ALL local data? (Supabase backup is safe)')) return;
+    localStorage.clear();
+    flash('exportStatus', 'Local data cleared — reload to reset UI');
+    setTimeout(function() { location.reload(); }, 1500);
+  };
+
+  function flash(id, msg) {
+    var el = document.getElementById(id); if (!el) return;
+    el.textContent = msg;
+    setTimeout(function() { el.textContent = ''; }, 3000);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

@@ -685,6 +685,21 @@ body { padding-bottom: 90px; }
 .stat-chip { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 8px 10px; text-align: center; }
 .stat-chip-val { font-size: 15px; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .stat-chip-lbl { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-top: 2px; }
+/* Module sparkline tiles */
+.module-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.mtile { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 12px; cursor: default; }
+.mtile-label { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 4px; }
+.mtile-val { font-size: 18px; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 6px; }
+.mtile-unit { font-size: 11px; font-weight: 400; color: var(--text-tertiary); margin-left: 2px; }
+.mtile-spark { width: 100%; height: 28px; display: block; }
+@media (max-width: 480px) {
+  .module-tiles { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .mtile-val { font-size: 16px; }
+  .uib-panel { width: 260px; }
+  .home-layout { flex-direction: column; gap: 10px; }
+  .home-right { min-width: unset !important; }
+  .ai-summary-card { padding: 12px; }
+}
 
 .card-eyebrow { font-family: ui-monospace,'SF Mono',Menlo,Consolas,monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 10px; }
 
@@ -823,6 +838,9 @@ body { padding-bottom: 90px; }
 
   <!-- ── AI INSIGHT STRIP ──────────────────────────────────────── -->
   <div id="aiInsightStrip" style="display:none;margin:0 0 12px;padding:0 16px"></div>
+
+  <!-- ── MODULE SPARKLINE TILES ────────────────────────────────── -->
+  <div class="module-tiles" id="moduleTiles"></div>
 
   <!-- ── GOALS ─────────────────────────────────────────────────── -->
   <div class="section">
@@ -1932,6 +1950,122 @@ setInterval(refreshStatChips, 60000);
 })();
 </script>
 
+
+<!-- ── Module Sparkline Tiles ─────────────────────────────────────────── -->
+<script>
+(function() {
+  function dayKey(offset) {
+    var d = new Date();
+    d.setDate(d.getDate() - (offset || 0));
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function tryParse(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+
+  function sparkSVG(vals, color) {
+    if (!vals || vals.length < 2) return '';
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    var range = max - min || 1;
+    var W = 120, H = 28, pad = 2;
+    var pts = vals.map(function(v, i) {
+      var x = pad + i * (W - pad * 2) / (vals.length - 1);
+      var y = H - pad - (v - min) / range * (H - pad * 2);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return '<svg class="mtile-spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none">'
+      + '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round" opacity="0.7"/>'
+      + '<circle cx="' + (pad + (vals.length-1)*(W-pad*2)/(vals.length-1)).toFixed(1) + '" cy="' + (H - pad - (vals[vals.length-1]-min)/range*(H-pad*2)).toFixed(1) + '" r="2.5" fill="' + color + '"/>'
+      + '</svg>';
+  }
+
+  function tile(label, val, unit, sparkVals, color) {
+    if (val === null || val === undefined) return '';
+    return '<div class="mtile">'
+      + '<div class="mtile-label">' + label + '</div>'
+      + '<div class="mtile-val">' + val + (unit ? '<span class="mtile-unit">' + unit + '</span>' : '') + '</div>'
+      + sparkSVG(sparkVals, color || '#5B8DEF')
+      + '</div>';
+  }
+
+  function buildTiles() {
+    var el = document.getElementById('moduleTiles'); if (!el) return;
+    var html = '';
+
+    // Weight (last 7 days from po_coach_weights)
+    var wLogs = tryParse('po_coach_weights') || [];
+    if (wLogs.length) {
+      var wSorted = wLogs.slice().sort(function(a,b){ return a.dateKey > b.dateKey ? 1 : -1; }).slice(-7);
+      var wVals = wSorted.map(function(x){ return x.weight; });
+      html += tile('Weight', wVals[wVals.length-1].toFixed(1), 'kg', wVals, '#4BC9A0');
+    }
+
+    // Sleep (last 7 days from sleep:manual:v1)
+    var slpLogs = tryParse('sleep:manual:v1') || [];
+    if (slpLogs.length) {
+      var slpSorted = slpLogs.slice().sort(function(a,b){ return a.date > b.date ? 1 : -1; }).slice(-7);
+      var slpVals = slpSorted.map(function(x){ return x.duration || 0; });
+      var slpLast = slpVals[slpVals.length-1];
+      html += tile('Sleep', slpLast ? (slpLast/60).toFixed(1) : '—', 'h', slpVals, '#7DD3FC');
+    }
+
+    // Mood (last 7 days from mood:logs:v1)
+    var moodLogs = tryParse('mood:logs:v1') || [];
+    if (moodLogs.length) {
+      var moodDays = [];
+      for (var i = 6; i >= 0; i--) {
+        var dk = dayKey(i);
+        var entry = moodLogs.slice().reverse().find(function(x){ return x.date === dk; });
+        if (entry) moodDays.push({ v: entry.mood });
+      }
+      if (moodDays.length) {
+        var moodVals = moodDays.map(function(x){ return x.v; });
+        html += tile('Mood', moodVals[moodVals.length-1], '/5', moodVals, '#F59E0B');
+      }
+    }
+
+    // Calories (last 7 days from nt:logs)
+    var ntLogs = tryParse('nt:logs') || [];
+    if (ntLogs.length) {
+      var calDays = [];
+      for (var j = 6; j >= 0; j--) {
+        var ntDk = dayKey(j);
+        var dayKcal = ntLogs.filter(function(x){ return x.dateKey === ntDk; }).reduce(function(s,x){ return s + (x.calories||0); }, 0);
+        if (dayKcal > 0) calDays.push(dayKcal);
+      }
+      if (calDays.length >= 2) html += tile('Calories', Math.round(calDays[calDays.length-1]), 'kcal', calDays, '#E07658');
+    }
+
+    // Supplement streak (from supps:taken)
+    var suppTaken = tryParse('supps:taken') || [];
+    if (suppTaken.length) {
+      var suppDays = [];
+      var streak = 0;
+      for (var k = 6; k >= 0; k--) {
+        var sDk = dayKey(k);
+        var n = suppTaken.filter(function(x){ return x.date === sDk; }).length;
+        suppDays.push(n);
+      }
+      for (var si = 0; si < suppTaken.length; si++) { if (suppTaken[si].date === dayKey(si)) streak++; else break; }
+      // compute streak properly
+      var streakCount = 0;
+      var allDates = new Set(suppTaken.map(function(x){ return x.date; }));
+      var cur = new Date();
+      if (!allDates.has(dayKey(0))) cur.setDate(cur.getDate()-1);
+      while (allDates.has(cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0')+'-'+String(cur.getDate()).padStart(2,'0'))) {
+        streakCount++; cur.setDate(cur.getDate()-1);
+      }
+      if (suppDays.some(function(n){ return n > 0; })) html += tile('Supps', streakCount + '-day', '', suppDays, '#A78BFA');
+    }
+
+    el.innerHTML = html || '';
+  }
+
+  buildTiles();
+  window.addEventListener('storage', function(e) {
+    var keys = ['po_coach_weights','sleep:manual:v1','mood:logs:v1','nt:logs','supps:taken'];
+    if (keys.indexOf(e.key) !== -1) buildTiles();
+  });
+})();
+</script>
 
 <!-- ── AI Insight Strip + Briefing from events ───────────────────────── -->
 <script>
