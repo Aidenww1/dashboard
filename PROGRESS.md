@@ -22,7 +22,7 @@ Env vars used: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (server-side); anon/publis
 5. **`calendar_events`** (id, data, created_at) — AI-queued Google Calendar events
 6. **`api_usage`** (id, data, created_at) — API cost tracking
 
-**No `events` table. No unified write path. No Realtime subscriptions.**
+**`events` table exists (migration in `supabase/migrations/001_events_table.sql`). `addEvent()` write path exists. No Realtime subscriptions yet.**
 
 ### API Routes (`api/`)
 | File | Purpose |
@@ -34,7 +34,7 @@ Env vars used: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (server-side); anon/publis
 | `life-context.js` | Aggregates recent data from all health tables for AI context |
 | `nutrition-ai.js` | Food photo/description → nutritional breakdown (Claude Haiku vision) |
 | `gcal-nlp.js` | Natural language → calendar event JSON (Claude Haiku) |
-| `gcal-config.js` | Returns GOOGLE_CLIENT_ID for frontend OAuth |
+| `gcal-config.js` | ~~Deleted~~ — merged into `gcal-nlp.js` GET handler to free a function slot |
 | `gc-link.js` / `gc-sync.js` | GoCardless bank transaction sync |
 | `se-link.js` / `se-sync.js` | Salt Edge bank transaction sync |
 | `sleep-ingest.js` | Receives sleep data from Samsung Health bridge |
@@ -92,13 +92,13 @@ None committed.
 
 ### Phase 0 — Discovery & Foundation
 - [x] Discovery pass complete; CURRENT STATE written in PROGRESS.md. _(this file)_
-- [ ] Unified `events` table + RLS + indexes. Migrate to section 5 schema. Keep existing health tables intact — they receive Samsung Health data. `events` is the new write path for manual/NLP entries. Migration file in `supabase/migrations/`.
-- [ ] Single `addEvent()` write path — serverless function `api/events/add.js` + client-side `addEvent()` helper used by manual forms and (later) the AI parser.
+- [x] Unified `events` table + RLS + indexes. `supabase/migrations/001_events_table.sql`. No user_id (no Supabase Auth); anon-role RLS policies allow full access; 4 indexes (ts, type, domains GIN, data GIN). Note: replace policies with auth.uid() scope when auth is added.
+- [x] Single `addEvent()` write path. `api/events/add.js` (POST, service key, returns row). `events.js` client helper (window.addEvent). Note: freed one Vercel function slot by merging `api/gcal-config.js` GET handler into `api/gcal-nlp.js` (GET = clientId, POST = NLP); `calendar.html` fetch updated to `/api/gcal-nlp`. Function count: 12/12.
 - [ ] Realtime subscription helper — client-side `subscribeToEvents(callback)` using Supabase Realtime on the `events` table. Auth note: single-user app, no Supabase Auth; use service key server-side, anon key client-side with RLS policy that allows all reads/inserts for anon role (single-user acceptable — revisit if multi-user needed).
 - [ ] Universal Input Bar widget (structured fallback) — a persistent bottom bar added to `index.html` that creates real events via `addEvent()`. Manual structured form (no NLP yet). Include domain selector + type + value fields.
 - [ ] `/api/health` route — basic health check endpoint returning `{ status: 'ok', ts }`.
-- [ ] `.env.example` committed with all required env var names.
-- [ ] Wire `CLAUDE_MODEL` env var into all AI API routes (replace hardcoded model strings).
+- [x] `.env.example` committed with all required env var names. Added `CLAUDE_MODEL` and `CLAUDE_MODEL_FAST`.
+- [x] Wire `CLAUDE_MODEL` env var into all AI API routes. `agent.js` MODELS const, `nutrition-ai.js`, `gcal-nlp.js` — all read from `process.env.CLAUDE_MODEL[_FAST]` with hardcoded fallback.
 
 ### Phase 1 — Core Modules (extend existing HTML pages with `events` data)
 - [ ] Training & Workout: wire `addEvent()` into gym.html manual log form so sets/sessions also write to `events` table (keep existing localStorage behavior). Add `events`-backed selector for recent sessions tile.
@@ -138,4 +138,4 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. Discovery run — no code changes yet._
+_Last updated: 2026-05-30. Phase 0: events table, addEvent() write path, .env.example, CLAUDE_MODEL wiring done. Next: Realtime subscription helper._
