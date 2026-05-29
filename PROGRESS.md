@@ -106,7 +106,7 @@ None committed.
 - [x] Mood & Energy: wire mood.html ratings into `events` (type `mood.rating`). Added `events.js` script tag; saveMoodBtn writes `mood.rating` event (date, mood 1-5, mood_label, tags[], note) alongside existing localStorage+Samsung Health writes. Added Trend stat chip (↑/→/↓, last-3-day avg vs prior-4-day avg) to the stats row.
 - [x] Body Composition: wire body.html weight/measurement logs into `events`. Three addEvent calls: `body.weight` in gym.html `wtSaveEntry` (fires on weight log), `body.measurement` in gym.html `measFSave` (fires on circumference log), `body.bodyfat` in health.html `bfSaveBtn` (fires on BF% log). Added `targetDate` field to gym:goals:v1 via new date input in gym.html Goals form. body.html goal pacing section: reads `gym:goals:v1` + `po_coach_weights`, computes 14-day kg/wk rate, shows ahead/on-pace/behind vs target date, or estimated weeks-to-goal if no date set.
 - [x] Nutrition: wire nutrition.html manual meal logs into `events` (type `nutrition.meal`). Both saveLog definitions patched (script block 1: doLog+doQuickAdd; script block 2: AI photo log+recipe+meal templates+copy-yesterday). 7-day running surplus/deficit chip added to Today tab header (computes from nt:logs vs calorie target; shows when ≥2 days logged). Event shape: { name, dateKey, calories, protein, carbs, fat, alcohol_g }, domains: ['nutrition'].
-- [ ] Finance: wire finance.html manual expense entry into `events` (type `finance.expense`). Monthly burn from events.
+- [x] Finance: wire finance.html manual expense entry into `events` (type `finance.expense`). Monthly burn from events. Added `events.js` script tag; `doOrdAdd()` fires `addEvent('finance.expense', ['finance'], { name, amount, currency, amount_chf, category, date })` after localStorage write. `renderOrderMonthlySummary()` defined inside IIFE; populates `#ordMonthlySummary` with 30-day order spend chip after each `renderOrders()` call.
 
 ### Phase 2 — Health Modules
 - [ ] Supplements: wire reminders.html supplement logs into `events` (type `supplements.taken`). Adherence streak from events.
@@ -138,4 +138,4 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. Phase 1 in progress. Training, Sleep, Mood, Body Composition, Nutrition wired. Next: Finance._
+_Last updated: 2026-05-30. Phase 1 complete. Training, Sleep, Mood, Body Composition, Nutrition, Finance wired. Next: Phase 2 — Supplements._
