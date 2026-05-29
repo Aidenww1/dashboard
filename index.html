@@ -821,6 +821,9 @@ body { padding-bottom: 90px; }
     </div>
   </div>
 
+  <!-- ── AI INSIGHT STRIP ──────────────────────────────────────── -->
+  <div id="aiInsightStrip" style="display:none;margin:0 0 12px;padding:0 16px"></div>
+
   <!-- ── GOALS ─────────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-title">To Do List</div>
@@ -1930,6 +1933,70 @@ setInterval(refreshStatChips, 60000);
 </script>
 
 
+<!-- ── AI Insight Strip + Briefing from events ───────────────────────── -->
+<script>
+(function() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+
+  // Load latest ai.briefing from events table and show if fresher than cache
+  async function loadBriefingFromEvents() {
+    try {
+      var today = new Date().toISOString().slice(0, 10);
+      var url = SUPA_URL + '/rest/v1/events?select=data,ts&type=eq.ai.briefing&order=ts.desc&limit=1&ts=gte.' + encodeURIComponent(today + 'T00:00:00Z');
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (!r.ok) return;
+      var rows = await r.json();
+      if (!rows.length || !rows[0].data?.text) return;
+      var textEl = document.getElementById('aiSummaryText');
+      var catsEl = document.getElementById('aiSummaryCats');
+      if (!textEl) return;
+      var cached = null;
+      try { cached = JSON.parse(localStorage.getItem('_aiSummaryCache')); } catch (_) {}
+      if (cached && cached.text) return; // local cache takes priority if already populated
+      textEl.textContent = rows[0].data.text;
+      if (catsEl) catsEl.innerHTML = '';
+    } catch (_) {}
+  }
+
+  // Load ai.flag and ai.insight events from last 7 days and render insight strip
+  async function loadInsightStrip() {
+    try {
+      var since = new Date(Date.now() - 7 * 86400000).toISOString();
+      var url = SUPA_URL + '/rest/v1/events?select=type,data,ts&type=in.(ai.flag,ai.insight)&order=ts.desc&limit=10&ts=gte=' + encodeURIComponent(since);
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (!r.ok) return;
+      var rows = await r.json();
+      if (!rows.length) return;
+      var stripEl = document.getElementById('aiInsightStrip');
+      if (!stripEl) return;
+      var flags = rows.filter(function(x) { return x.type === 'ai.flag'; });
+      var insights = rows.filter(function(x) { return x.type === 'ai.insight'; });
+      var html = '';
+      flags.slice(0, 3).forEach(function(f) {
+        var sev = f.data?.severity || 'warning';
+        var col = sev === 'alert' ? '#FF6B6B' : '#F2C063';
+        html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:10px;background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.2);margin-bottom:6px">'
+          + '<span style="color:' + col + ';font-size:14px;flex-shrink:0">' + (sev === 'alert' ? '⚠' : '○') + '</span>'
+          + '<div style="font-size:12px;color:#FAFAFA;line-height:1.4">' + (f.data?.text || '') + '</div></div>';
+      });
+      insights.slice(0, 2).forEach(function(i) {
+        html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:10px;background:rgba(107,227,164,0.06);border:1px solid rgba(107,227,164,0.15);margin-bottom:6px">'
+          + '<span style="color:#6BE3A4;font-size:14px;flex-shrink:0">↗</span>'
+          + '<div style="font-size:12px;color:#FAFAFA;line-height:1.4">' + (i.data?.text || '') + '</div></div>';
+      });
+      if (html) {
+        stripEl.innerHTML = html;
+        stripEl.style.display = '';
+      }
+    } catch (_) {}
+  }
+
+  loadBriefingFromEvents();
+  loadInsightStrip();
+})();
+</script>
+
 <!-- ── Universal Input Bar ──────────────────────────────────────────────── -->
 <style>
 .uib { position: fixed; bottom: 68px; right: 14px; z-index: 190; display: flex; flex-direction: column; align-items: flex-end; }
@@ -1970,6 +2037,18 @@ setInterval(refreshStatChips, 60000);
 
 <div id="uib" class="uib">
   <div class="uib-panel" id="uib-panel">
+    <!-- NL mode (primary) -->
+    <div id="uib-nl-section">
+      <div class="uib-label">Natural Language</div>
+      <input type="text" id="uib-nl" placeholder="bench 82.5kg 3x8, slept 7h, mood 4" style="font-size:13px" />
+      <button class="uib-submit" id="uib-nl-submit" style="margin-top:6px;width:100%" onclick="uibNLSubmit()">Parse &amp; Log</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin:6px 0">
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08)"></div>
+      <span style="font-size:10px;color:#76746E;letter-spacing:.1em">OR STRUCTURED</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,0.08)"></div>
+    </div>
+    <!-- Structured mode (fallback) -->
     <div>
       <div class="uib-label">Domain</div>
       <select id="uib-domain">
@@ -1984,10 +2063,6 @@ setInterval(refreshStatChips, 60000);
         <option value="skin">Skin</option>
         <option value="general">General</option>
       </select>
-    </div>
-    <div>
-      <div class="uib-label">Type</div>
-      <input type="text" id="uib-type" placeholder="e.g. workout.set" value="workout.set" />
     </div>
     <div>
       <div class="uib-label">Value / Note</div>
@@ -2007,13 +2082,42 @@ setInterval(refreshStatChips, 60000);
     supplement:'supplements.taken', bloodwork:'bloodwork.panel',
     skin:'skin.routine', general:'note'
   };
-  document.getElementById('uib-domain').addEventListener('change', function () {
-    document.getElementById('uib-type').value = TYPE_DEFAULTS[this.value] || this.value + '.entry';
-  });
 
+  // NL submit — POST text to /api/events/add for Claude parsing
+  window.uibNLSubmit = async function () {
+    var text = (document.getElementById('uib-nl').value || '').trim();
+    if (!text) return;
+    var btn    = document.getElementById('uib-nl-submit');
+    var status = document.getElementById('uib-status');
+    btn.disabled = true; btn.textContent = 'Parsing…'; status.textContent = '';
+    try {
+      var r = await fetch('/api/events/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      var d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || 'Failed');
+      document.getElementById('uib-nl').value = '';
+      document.getElementById('uib').classList.remove('uib-open');
+      status.style.color = '#6BE3A4';
+      status.textContent = d.parsed_count + ' event' + (d.parsed_count !== 1 ? 's' : '') + ' logged';
+      setTimeout(function () { status.textContent = ''; btn.disabled = false; btn.textContent = 'Parse & Log'; }, 2500);
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Parse & Log';
+      status.style.color = '#FF6B6B'; status.textContent = err.message || 'Failed';
+      setTimeout(function () { status.textContent = ''; }, 3000);
+    }
+  };
+
+  // Enter key on NL input
+  var nlInput = document.getElementById('uib-nl');
+  if (nlInput) nlInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') window.uibNLSubmit(); });
+
+  // Structured submit
   window.uibSubmit = async function () {
     var domain  = document.getElementById('uib-domain').value;
-    var type    = (document.getElementById('uib-type').value.trim()) || TYPE_DEFAULTS[domain];
+    var type    = TYPE_DEFAULTS[domain] || (domain + '.entry');
     var value   = document.getElementById('uib-value').value.trim();
     var btn     = document.getElementById('uib-submit');
     var status  = document.getElementById('uib-status');
@@ -2033,6 +2137,9 @@ setInterval(refreshStatChips, 60000);
       setTimeout(function () { status.textContent = ''; }, 3000);
     }
   };
+
+  var valInput = document.getElementById('uib-value');
+  if (valInput) valInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') window.uibSubmit(); });
 })();
 </script>
 

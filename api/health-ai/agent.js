@@ -124,6 +124,45 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: 'read_events',
+    description: 'Read recent rows from the unified events table. Covers manually-logged data across all domains: training, sleep, mood, body, nutrition, finance, supplements, skin, bloodwork, ai. Use to find cross-domain patterns.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        type_prefix: { type: 'string', description: 'Filter by event type prefix, e.g. "workout", "sleep", "mood", "nutrition", "bloodwork", "ai". Omit to get all.' },
+        days: { type: 'number', description: 'How many days back (default 7)' },
+        limit: { type: 'number', description: 'Max rows (default 30)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'save_briefing',
+    description: 'Save the daily briefing as an ai.briefing event so it can be displayed on the dashboard. Call once per briefing run with the final text.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Full briefing text to display on the dashboard.' },
+        sections: { type: 'array', items: { type: 'string' }, description: 'Optional array of section labels covered.' },
+      },
+      required: ['text'],
+    },
+  },
+  {
+    name: 'save_flag',
+    description: 'Save an anomaly, out-of-range marker, or important warning as an ai.flag event. Flags surface prominently on the dashboard.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'The flag message shown to the user. Be specific: what, why it matters, what to do.' },
+        severity: { type: 'string', enum: ['info', 'warning', 'alert'], description: 'warning=watch this, alert=act now' },
+        domains: { type: 'array', items: { type: 'string' }, description: 'Domains this flag touches, e.g. ["bloodwork","supplements"]' },
+        metric: { type: 'string', description: 'Specific metric or marker name, e.g. "hematocrit", "weight", "hba1c"' },
+      },
+      required: ['text', 'severity'],
+    },
+  },
 ];
 
 async function sbRead(metric, days = 7, limit = 20) {
@@ -215,6 +254,49 @@ async function executeTool(name, input) {
       case 'read_finance_data':
         return await sbReadAppState('finance-app');
 
+      case 'read_events': {
+        const since = new Date(Date.now() - (input.days || 7) * 86400000).toISOString();
+        let url = `${SUPA_URL}/rest/v1/events?select=type,domains,data,ts,source,note&order=ts.desc&limit=${input.limit || 30}&ts=gte.${encodeURIComponent(since)}`;
+        if (input.type_prefix) url += `&type=like.${encodeURIComponent(input.type_prefix + '*')}`;
+        const r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } });
+        if (!r.ok) return { error: await r.text() };
+        return await r.json();
+      }
+
+      case 'save_briefing': {
+        const row = {
+          type: 'ai.briefing',
+          domains: ['ai'],
+          data: { text: input.text, sections: input.sections || [], generated_at: new Date().toISOString() },
+          source: 'ai',
+          note: null,
+          ts: new Date().toISOString(),
+        };
+        const r = await fetch(`${SUPA_URL}/rest/v1/events`, {
+          method: 'POST',
+          headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(row),
+        });
+        return r.ok ? { ok: true } : { error: await r.text() };
+      }
+
+      case 'save_flag': {
+        const row = {
+          type: 'ai.flag',
+          domains: Array.isArray(input.domains) ? input.domains : ['ai'],
+          data: { text: input.text, severity: input.severity, metric: input.metric || null },
+          source: 'ai',
+          note: input.text,
+          ts: new Date().toISOString(),
+        };
+        const r = await fetch(`${SUPA_URL}/rest/v1/events`, {
+          method: 'POST',
+          headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify(row),
+        });
+        return r.ok ? { ok: true } : { error: await r.text() };
+      }
+
       default:
         return { error: `Unknown tool: ${name}` };
     }
@@ -225,20 +307,20 @@ async function executeTool(name, input) {
 
 const SYSTEM = `You are an autonomous personal health intelligence agent. You have full read and write access to the user's health database and can queue Google Calendar events.
 
-When you receive a health event you MUST proactively:
-1. Call get_today_summary or read relevant context first
-2. Derive ALL secondary data without being asked — examples:
-   - Food logged → estimate water content (200-400ml per main meal, 100-200ml snacks, fruit/veg add more) and call add_water
-   - Food logged → estimate energy curve: peak timing, expected energy dip
-   - Workout logged → call add_water for sweat compensation (~500ml per 30min intense, ~300ml per 30min light), create a calendar event
-   - Sleep synced → save insight about sleep quality and energy forecast for the day
-   - Weight logged → check trend over last 30 days, save insight if trending up/down
-   - Bloodwork imported → check every marker against previous readings, flag anything changing direction, create follow-up reminders
-3. Write all derived data using write_health_data or the specific tools
-4. Save insights whenever you spot a pattern, trend, or have advice
-5. Create calendar events for workouts, significant meals (>600 kcal), bloodwork follow-ups
+When you receive a health event or daily_summary trigger you MUST:
+1. Call get_today_summary and read_events (last 7-14 days) for cross-domain context
+2. Derive ALL secondary data without being asked:
+   - Food logged → add_water (200-400ml per main meal), estimate energy curve
+   - Workout logged → add_water for sweat compensation (~500ml/30min intense), calendar event
+   - Sleep synced → save insight on quality + energy forecast
+   - Weight logged → check 30-day trend, save insight if trending
+   - Bloodwork imported → check every marker against reference ranges; call save_flag (severity=alert) for any out-of-range value with the marker name and context
+3. Cross-domain pattern analysis: look at sleep vs mood, training load vs weight, nutrition vs energy — call save_insight for any real pattern you find spanning ≥2 domains
+4. Anomaly detection: weight swings >1kg/day, sleep <5h consecutive nights, no nutrition logged in 3+ days, bloodwork markers outside range → save_flag
+5. For daily_summary trigger: call read_events broadly, synthesize a concise morning briefing (what happened yesterday, what to focus on today, 1-2 specific action items), then call save_briefing with the final text
+6. Save insights for patterns; save flags for anomalies and out-of-range markers
 
-Be specific in insights — not "you slept well" but "7.2h sleep last night — you typically perform better on days with >7h. Today looks good for a hard workout."
+Be specific — not "you slept well" but "7.2h sleep — your avg is 6.8h. High readiness day, good for a hard session."
 
 Today is ${new Date().toISOString().slice(0, 10)}. Act now, don't ask for confirmation.`;
 
