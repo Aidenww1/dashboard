@@ -2382,6 +2382,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     <span class="section-title-text">INCOMING ORDERS</span>
   </div>
 
+  <!-- CSV import -->
+  <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
+    <label style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer" title="CSV columns: date,name,amount,currency,category (header row optional)">
+      ⬆ Import CSV
+      <input type="file" id="expCsvFile" accept=".csv,text/csv" style="display:none">
+    </label>
+    <span id="expCsvStatus" style="font-size:12px;color:var(--text-tertiary)">date, name, amount, currency, category</span>
+  </div>
+
   <!-- Add card with cost + currency + from-category + arrival date -->
   <div class="card ord-add-card">
     <div class="ord-add-eyebrow">+ NEW ORDER</div>
@@ -5329,6 +5338,59 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   bizRenderPL();
   bizRenderRevenue();
   bizRenderExpenses();
+
+  // CSV expense import
+  (function() {
+    var fileEl = document.getElementById('expCsvFile');
+    var statusEl = document.getElementById('expCsvStatus');
+    if (!fileEl) return;
+    fileEl.addEventListener('change', function() {
+      var f = fileEl.files[0]; if (!f) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var lines = e.target.result.replace(/\r/g,'').split('\n').filter(function(l){ return l.trim(); });
+        if (!lines.length) { statusEl.textContent = 'Empty file.'; return; }
+        var start = 0;
+        var header = lines[0].toLowerCase();
+        if (header.indexOf('date') !== -1 || header.indexOf('name') !== -1 || header.indexOf('amount') !== -1) start = 1;
+        var imported = 0, skipped = 0;
+        var arr = storeGet('incoming_orders') || [];
+        lines.slice(start).forEach(function(line) {
+          var parts = line.split(',').map(function(s){ return s.replace(/^"|"$/g,'').trim(); });
+          var date = parts[0] || '';
+          var name = parts[1] || 'Imported expense';
+          var amount = parseFloat(parts[2]);
+          var ccy  = parts[3] || 'EUR';
+          var cat  = parts[4] || '';
+          if (!name || isNaN(amount)) { skipped++; return; }
+          arr.push({
+            id: 'csv_' + Date.now() + '_' + Math.floor(Math.random()*9999),
+            name: name, amount: amount, entered_amount: amount,
+            entered_currency: ccy, category: cat,
+            fromCat: 'bank', fromAccount: null,
+            date: date || null, ts: Date.now(),
+            deductedAt: null, pctAtDeduction: null, deductedFrom: null,
+          });
+          imported++;
+          if (window.addEvent) window.addEvent('finance.expense', ['finance'], {
+            name: name, amount: amount, currency: ccy, amount_chf: amount, category: cat,
+            date: date || new Date().toISOString().slice(0,10),
+          }).catch(function(){});
+        });
+        if (imported) {
+          storeSet('incoming_orders', arr);
+          renderOrders();
+          statusEl.style.color = '#6BE3A4';
+          statusEl.textContent = imported + ' expenses imported' + (skipped ? ', ' + skipped + ' skipped' : '') + '.';
+        } else {
+          statusEl.style.color = '#F2C063';
+          statusEl.textContent = 'No valid rows found. Format: date,name,amount,currency,category';
+        }
+        fileEl.value = '';
+      };
+      reader.readAsText(f);
+    });
+  })();
 
   function renderOrderMonthlySummary() {
     var el = document.getElementById('ordMonthlySummary');

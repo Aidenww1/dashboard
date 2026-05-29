@@ -1123,6 +1123,11 @@ main {
     <div class="bld-sub">Track lab results and watch trends over time</div>
 
     <button class="bld-log-btn" id="bloodLogBtn">+ Log test results</button>
+    <label style="display:inline-block;margin-left:8px;padding:8px 14px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--text-secondary);font-size:12px;font-weight:700;cursor:pointer" title="Upload a photo of your lab report to pre-fill values">
+      📷 Upload lab image
+      <input type="file" id="labImageUpload" accept="image/*" style="display:none">
+    </label>
+    <div id="labOcrStatus" style="font-size:12px;color:var(--text-tertiary);margin:4px 0 8px;display:none"></div>
 
     <div class="bld-form" id="bloodForm">
       <div style="margin-bottom:10px">
@@ -2698,6 +2703,46 @@ main {
   function render() { const logs = load(); renderCharts(logs); renderHistory(logs); }
 
   buildFormGroups();
+
+  // Lab image OCR → pre-fill form
+  const labImageInput = document.getElementById('labImageUpload');
+  const labOcrStatus  = document.getElementById('labOcrStatus');
+  if (labImageInput) {
+    labImageInput.addEventListener('change', async () => {
+      const file = labImageInput.files[0];
+      if (!file) return;
+      labOcrStatus.style.display = '';
+      labOcrStatus.textContent = 'Extracting values from image…';
+      try {
+        const base64 = await new Promise((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = () => res(reader.result.split(',')[1]);
+          reader.onerror = rej;
+          reader.readAsDataURL(file);
+        });
+        const r = await fetch('/api/events/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: 'lab_ocr', image_base64: base64, media_type: file.type || 'image/jpeg' }),
+        });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.error || 'OCR failed');
+        const markers = d.markers || {};
+        let filled = 0;
+        Object.entries(markers).forEach(([k, v]) => {
+          const el = document.getElementById('bld_' + k);
+          if (el && v != null) { el.value = v; filled++; }
+        });
+        labOcrStatus.style.color = filled ? '#6BE3A4' : '#F2C063';
+        labOcrStatus.textContent = filled ? filled + ' values extracted — review and save.' : 'No values detected — enter manually.';
+        if (filled) openForm();
+      } catch (e) {
+        labOcrStatus.style.color = '#FF6B6B';
+        labOcrStatus.textContent = 'Error: ' + e.message;
+      }
+      labImageInput.value = '';
+    });
+  }
 
   const logBtn = document.getElementById('bloodLogBtn');
   const form   = document.getElementById('bloodForm');
