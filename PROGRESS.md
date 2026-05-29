@@ -101,7 +101,7 @@ None committed.
 - [x] Wire `CLAUDE_MODEL` env var into all AI API routes. `agent.js` MODELS const, `nutrition-ai.js`, `gcal-nlp.js` — all read from `process.env.CLAUDE_MODEL[_FAST]` with hardcoded fallback.
 
 ### Phase 1 — Core Modules (extend existing HTML pages with `events` data)
-- [ ] Training & Workout: wire `addEvent()` into gym.html manual log form so sets/sessions also write to `events` table (keep existing localStorage behavior). Add `events`-backed selector for recent sessions tile.
+- [x] Training & Workout: wire `addEvent()` into gym.html manual log form so sets/sessions also write to `events` table (keep existing localStorage behavior). Added `events.js` script tag to gym.html; logBtn click writes `workout.set` event (exercise, muscle, kg, reps, rpe, bw); "Mark workout done" button writes `workout.session` event (date, sets array, totalSets, totalVol). All localStorage behavior preserved; addEvent failures are swallowed so they never break the UI.
 - [ ] Sleep: wire sleep manual-entry into `events` (type `sleep.night`). Show events-backed rolling 7-day avg and readiness score.
 - [ ] Mood & Energy: wire mood.html ratings into `events` (type `mood.rating`). Show events-backed trend.
 - [ ] Body Composition: wire body.html weight/measurement logs into `events`. Show events-backed goal pacing.
@@ -138,4 +138,4 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. Phase 0 complete. All foundation tasks done. Next: Phase 1 — wire addEvent() into existing modules._
+_Last updated: 2026-05-30. Phase 1 in progress. Training & Workout wired. Next: Sleep._
