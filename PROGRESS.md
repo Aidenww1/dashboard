@@ -94,7 +94,7 @@ None committed.
 - [x] Discovery pass complete; CURRENT STATE written in PROGRESS.md. _(this file)_
 - [x] Unified `events` table + RLS + indexes. `supabase/migrations/001_events_table.sql`. No user_id (no Supabase Auth); anon-role RLS policies allow full access; 4 indexes (ts, type, domains GIN, data GIN). Note: replace policies with auth.uid() scope when auth is added.
 - [x] Single `addEvent()` write path. `api/events/add.js` (POST, service key, returns row). `events.js` client helper (window.addEvent). Note: freed one Vercel function slot by merging `api/gcal-config.js` GET handler into `api/gcal-nlp.js` (GET = clientId, POST = NLP); `calendar.html` fetch updated to `/api/gcal-nlp`. Function count: 12/12.
-- [ ] Realtime subscription helper — client-side `subscribeToEvents(callback)` using Supabase Realtime on the `events` table. Auth note: single-user app, no Supabase Auth; use service key server-side, anon key client-side with RLS policy that allows all reads/inserts for anon role (single-user acceptable — revisit if multi-user needed).
+- [x] Realtime subscription helper. `realtime.js` — window.subscribeToEvents(callback, opts), window.unsubscribeEvents(name), window.getSupabase(). Exposes shared Supabase client (anon key). Migration updated to add events table to supabase_realtime publication.
 - [ ] Universal Input Bar widget (structured fallback) — a persistent bottom bar added to `index.html` that creates real events via `addEvent()`. Manual structured form (no NLP yet). Include domain selector + type + value fields.
 - [ ] `/api/health` route — basic health check endpoint returning `{ status: 'ok', ts }`.
 - [x] `.env.example` committed with all required env var names. Added `CLAUDE_MODEL` and `CLAUDE_MODEL_FAST`.

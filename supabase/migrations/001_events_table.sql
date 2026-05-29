@@ -25,3 +25,10 @@ create index if not exists events_ts      on events (ts desc);
 create index if not exists events_type    on events (type);
 create index if not exists events_domains on events using gin (domains);
 create index if not exists events_data    on events using gin (data);
+
+-- Enable Supabase Realtime for this table.
+-- Wrapped in DO block so it's idempotent if the table is already in the publication.
+do $$ begin
+  alter publication supabase_realtime add table events;
+exception when others then null;
+end $$;
