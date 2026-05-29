@@ -104,7 +104,7 @@ None committed.
 - [x] Training & Workout: wire `addEvent()` into gym.html manual log form so sets/sessions also write to `events` table (keep existing localStorage behavior). Added `events.js` script tag to gym.html; logBtn click writes `workout.set` event (exercise, muscle, kg, reps, rpe, bw); "Mark workout done" button writes `workout.session` event (date, sets array, totalSets, totalVol). All localStorage behavior preserved; addEvent failures are swallowed so they never break the UI.
 - [x] Sleep: wire sleep manual-entry into `events` (type `sleep.night`). Added `events.js` script tag to health.html; slpFormSave writes `sleep.night` event (date, bedtime, waketime, duration_mins, score, rem/deep/light_pct) to Supabase alongside existing localStorage+Samsung Health writes. Added Readiness score (0-100, derived from duration + sleep score + deep% + bedtime consistency) as 4th stat in the 2x2 consistency grid.
 - [x] Mood & Energy: wire mood.html ratings into `events` (type `mood.rating`). Added `events.js` script tag; saveMoodBtn writes `mood.rating` event (date, mood 1-5, mood_label, tags[], note) alongside existing localStorage+Samsung Health writes. Added Trend stat chip (↑/→/↓, last-3-day avg vs prior-4-day avg) to the stats row.
-- [ ] Body Composition: wire body.html weight/measurement logs into `events`. Show events-backed goal pacing.
+- [x] Body Composition: wire body.html weight/measurement logs into `events`. Three addEvent calls: `body.weight` in gym.html `wtSaveEntry` (fires on weight log), `body.measurement` in gym.html `measFSave` (fires on circumference log), `body.bodyfat` in health.html `bfSaveBtn` (fires on BF% log). Added `targetDate` field to gym:goals:v1 via new date input in gym.html Goals form. body.html goal pacing section: reads `gym:goals:v1` + `po_coach_weights`, computes 14-day kg/wk rate, shows ahead/on-pace/behind vs target date, or estimated weeks-to-goal if no date set.
 - [ ] Nutrition: wire nutrition.html manual meal logs into `events` (type `nutrition.meal`). Running surplus/deficit from events.
 - [ ] Finance: wire finance.html manual expense entry into `events` (type `finance.expense`). Monthly burn from events.
 
@@ -138,4 +138,4 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. Phase 1 in progress. Training, Sleep, Mood wired. Next: Body Composition._
+_Last updated: 2026-05-30. Phase 1 in progress. Training, Sleep, Mood, Body Composition wired. Next: Nutrition._

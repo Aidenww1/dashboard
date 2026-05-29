@@ -2998,6 +2998,9 @@ renderLabs();
       render();
       try { fetch('/api/health/bodyfat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch (_) {}
       try { fetch('/api/health/weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: entry.date, body_fat_pct: entry.bf, waist_cm: entry.waist }) }).catch(() => {}); } catch (_) {}
+      if (window.addEvent) window.addEvent('body.bodyfat', ['body'], {
+        date: entry.date, bf_pct: entry.bf, waist_cm: entry.waist,
+      }).catch(() => {});
     });
   }
 

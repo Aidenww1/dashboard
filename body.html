@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Body</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root {
+  --bg:#050506; --bg-card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.06);
+  --border-strong:rgba(255,255,255,0.12); --text-primary:#FAFAFA; --text-secondary:#B8B6B0;
+  --text-tertiary:#76746E; --accent:#E07658; --green:#1D9E75; --blue:#5B8DEF;
+  --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text-secondary);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(60% 50% at 80% 15%,rgba(91,141,239,0.10) 0%,transparent 60%),radial-gradient(50% 40% at 15% 85%,rgba(29,158,117,0.08) 0%,transparent 60%);filter:blur(40px);pointer-events:none;z-index:0}
+main{position:relative;z-index:2;max-width:680px;margin:0 auto;padding:56px 16px 120px;padding-top:max(56px,env(safe-area-inset-top,56px))}
+
+h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
+.sub{font-size:13px;color:var(--text-tertiary);margin-bottom:24px}
+
+.hero-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.hero-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px}
+.hero-card.blue{border-color:rgba(91,141,239,0.22)}
+.hero-card.green{border-color:rgba(29,158,117,0.22)}
+.hero-value{font-size:28px;font-weight:800;color:var(--text-primary);letter-spacing:-0.02em;line-height:1.1}
+.hero-unit{font-size:14px;font-weight:600;color:var(--text-tertiary)}
+.hero-label{font-size:12px;color:var(--text-tertiary);margin-top:4px}
+.hero-delta{font-size:11px;font-weight:700;margin-top:3px}
+.hero-delta.good{color:#4BC9A0}
+.hero-delta.bad{color:#FF6B6B}
+
+.section{margin-bottom:20px}
+.section-title{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:10px}
+
+.chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px 14px 12px}
+.chart-row{display:flex;align-items:flex-end;gap:2px;height:60px}
+.chart-bar-wrap{flex:1;display:flex;align-items:flex-end;height:100%}
+.chart-bar{width:100%;border-radius:3px 3px 0 0;min-height:3px;transition:height 0.3s}
+.chart-foot{display:flex;justify-content:space-between;margin-top:7px}
+.chart-foot-label{font-size:10px;color:var(--text-tertiary)}
+
+.meas-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media(max-width:400px){.meas-grid{grid-template-columns:repeat(2,1fr)}}
+.meas-tile{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.meas-label{font-size:10px;color:var(--text-tertiary);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:3px}
+.meas-val{font-size:17px;font-weight:800;color:var(--text-primary);line-height:1.1}
+.meas-unit{font-size:10px;font-weight:600;color:var(--text-tertiary)}
+.meas-delta{font-size:10px;font-weight:700;margin-top:2px}
+.meas-delta.pos{color:#4BC9A0}
+.meas-delta.neg{color:#FF6B6B}
+
+.log-links{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}
+.log-link{display:block;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;text-decoration:none;color:var(--text-secondary);font-size:13px;font-weight:600;text-align:center;transition:border-color 0.15s}
+.log-link:hover{border-color:var(--border-strong)}
+.log-link span{display:block;font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px}
+
+.empty-note{text-align:center;padding:32px 20px;color:var(--text-tertiary);font-size:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;grid-column:span 2}
+
+.pacing-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:20px}
+.pacing-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pacing-verdict{font-size:14px;font-weight:700}
+.pacing-verdict.ahead{color:#4BC9A0}
+.pacing-verdict.on-pace{color:#5B8DEF}
+.pacing-verdict.behind{color:#FF6B6B}
+.pacing-verdict.no-goal{color:var(--text-tertiary)}
+.pacing-meta{font-size:12px;color:var(--text-tertiary);margin-top:4px}
+.pacing-track{height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;margin-top:10px}
+.pacing-fill{height:100%;border-radius:2px;transition:width 0.4s ease}
+</style>
+</head>
+<body>
+<main>
+  <h1>Body</h1>
+  <div class="sub" id="lastUpdated"></div>
+
+  <div class="hero-grid" id="heroGrid"></div>
+
+  <div id="pacingSection" style="display:none">
+    <div class="section-title">Goal pacing</div>
+    <div class="pacing-card">
+      <div class="pacing-row">
+        <div>
+          <div class="pacing-verdict" id="pacingVerdict">—</div>
+          <div class="pacing-meta" id="pacingMeta"></div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:20px;font-weight:800;color:var(--text-primary)" id="pacingGoal"></div>
+          <div style="font-size:11px;color:var(--text-tertiary)" id="pacingGoalLabel">goal</div>
+        </div>
+      </div>
+      <div class="pacing-track"><div class="pacing-fill" id="pacingFill" style="width:0%;background:#5B8DEF"></div></div>
+    </div>
+  </div>
+
+  <div class="section" id="weightSection">
+    <div class="section-title">Weight trend</div>
+    <div class="chart-card">
+      <div class="chart-row" id="weightChart"></div>
+      <div class="chart-foot"><span class="chart-foot-label" id="weightOldest"></span><span class="chart-foot-label" id="weightNewest"></span></div>
+    </div>
+  </div>
+
+  <div class="section" id="bfSection">
+    <div class="section-title">Body fat % trend</div>
+    <div class="chart-card">
+      <div class="chart-row" id="bfChart"></div>
+      <div class="chart-foot"><span class="chart-foot-label" id="bfOldest"></span><span class="chart-foot-label" id="bfNewest"></span></div>
+    </div>
+  </div>
+
+  <div class="section" id="measSection">
+    <div class="section-title">Measurements</div>
+    <div class="meas-grid" id="measGrid"></div>
+  </div>
+
+  <div class="log-links">
+    <a class="log-link" href="gym.html">Log Weight<span>&amp; measurements</span></a>
+    <a class="log-link" href="health.html">Log Body Fat<span>% &amp; waist</span></a>
+  </div>
+</main>
+<script src="tabbar.js"></script>
+<script src="topbar.js"></script>
+<script>
+(function () {
+'use strict';
+
+function tryParse(k, fb) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } }
+
+var weightLogs = tryParse('po_coach_weights', [])
+  .filter(function(e) { return e.dateKey && e.weight > 0; })
+  .sort(function(a,b) { return a.dateKey.localeCompare(b.dateKey); })
+  .slice(-60);
+
+var bfLogs = tryParse('health:body:v1', [])
+  .filter(function(e) { return e.date && e.bf > 0; })
+  .sort(function(a,b) { return a.date.localeCompare(b.date); })
+  .slice(-60);
+
+var measLogs = tryParse('body:logs', [])
+  .sort(function(a,b) { return b.date.localeCompare(a.date); });
+
+var latestW = weightLogs.length ? weightLogs[weightLogs.length - 1] : null;
+var latestBF = bfLogs.length ? bfLogs[bfLogs.length - 1] : null;
+var latestM = measLogs.length ? measLogs[0] : null;
+
+// last updated
+var dates = [];
+if (latestW) dates.push(latestW.dateKey);
+if (latestBF) dates.push(latestBF.date);
+if (latestM) dates.push(latestM.date);
+if (dates.length) {
+  dates.sort();
+  document.getElementById('lastUpdated').textContent = 'Updated ' + dates[dates.length - 1];
+}
+
+// ---- HERO ----
+var heroGrid = document.getElementById('heroGrid');
+var items = [];
+
+if (latestW) {
+  var prevW = weightLogs.length >= 2 ? weightLogs[weightLogs.length - 2].weight : null;
+  var wDiff = prevW != null ? parseFloat((latestW.weight - prevW).toFixed(1)) : null;
+  items.push('<div class="hero-card">' +
+    '<div class="hero-value">' + latestW.weight + '<span class="hero-unit"> kg</span></div>' +
+    '<div class="hero-label">Body weight</div>' +
+    (wDiff != null && wDiff !== 0 ? '<div class="hero-delta">' + (wDiff > 0 ? '+' : '') + wDiff + ' kg vs prev</div>' : '') +
+    '</div>');
+}
+
+if (latestBF) {
+  var prevBF = bfLogs.length >= 2 ? bfLogs[bfLogs.length - 2].bf : null;
+  var bfDiff = prevBF != null ? parseFloat((latestBF.bf - prevBF).toFixed(1)) : null;
+  var bfCls = bfDiff != null ? (bfDiff < 0 ? 'good' : bfDiff > 0 ? 'bad' : '') : '';
+  items.push('<div class="hero-card blue">' +
+    '<div class="hero-value">' + latestBF.bf.toFixed(1) + '<span class="hero-unit">%</span></div>' +
+    '<div class="hero-label">Body fat</div>' +
+    (bfDiff != null && bfDiff !== 0 ? '<div class="hero-delta ' + bfCls + '">' + (bfDiff > 0 ? '+' : '') + bfDiff + '% vs prev</div>' : '') +
+    '</div>');
+}
+
+if (latestW && latestBF) {
+  var lean = (latestW.weight * (1 - latestBF.bf / 100)).toFixed(1);
+  var fat  = (latestW.weight * latestBF.bf / 100).toFixed(1);
+  items.push('<div class="hero-card green">' +
+    '<div class="hero-value">' + lean + '<span class="hero-unit"> kg</span></div>' +
+    '<div class="hero-label">Lean mass</div>' +
+    '</div>');
+  items.push('<div class="hero-card">' +
+    '<div class="hero-value">' + fat + '<span class="hero-unit"> kg</span></div>' +
+    '<div class="hero-label">Fat mass</div>' +
+    '</div>');
+}
+
+if (!items.length) {
+  items.push('<div class="empty-note">No data yet. Log weight in Gym and body fat % in Health.</div>');
+}
+heroGrid.innerHTML = items.join('');
+
+// ---- WEIGHT CHART ----
+if (weightLogs.length >= 3) {
+  var wSlice = weightLogs.slice(-40);
+  var wVals = wSlice.map(function(e) { return e.weight; });
+  var wMin = Math.min.apply(null, wVals);
+  var wMax = Math.max.apply(null, wVals);
+  var wRange = wMax - wMin || 1;
+  document.getElementById('weightChart').innerHTML = wSlice.map(function(e) {
+    var h = Math.max(5, ((e.weight - wMin) / wRange) * 100);
+    return '<div class="chart-bar-wrap"><div class="chart-bar" style="height:' + h + '%;background:#5B8DEF;opacity:0.75" title="' + e.dateKey + ': ' + e.weight + 'kg"></div></div>';
+  }).join('');
+  document.getElementById('weightOldest').textContent = wSlice[0].dateKey;
+  document.getElementById('weightNewest').textContent = wSlice[wSlice.length-1].dateKey;
+} else {
+  document.getElementById('weightSection').style.display = 'none';
+}
+
+// ---- BF% CHART ----
+if (bfLogs.length >= 3) {
+  var bSlice = bfLogs.slice(-40);
+  var bVals = bSlice.map(function(e) { return e.bf; });
+  var bMin = Math.min.apply(null, bVals);
+  var bMax = Math.max.apply(null, bVals);
+  var bRange = bMax - bMin || 1;
+  document.getElementById('bfChart').innerHTML = bSlice.map(function(e) {
+    var h = Math.max(5, ((e.bf - bMin) / bRange) * 100);
+    var col = e.bf < 15 ? '#5B8DEF' : e.bf < 25 ? '#4BC9A0' : '#FF8A4D';
+    return '<div class="chart-bar-wrap"><div class="chart-bar" style="height:' + h + '%;background:' + col + ';opacity:0.8" title="' + e.date + ': ' + e.bf + '%"></div></div>';
+  }).join('');
+  document.getElementById('bfOldest').textContent = bSlice[0].date;
+  document.getElementById('bfNewest').textContent = bSlice[bSlice.length-1].date;
+} else {
+  document.getElementById('bfSection').style.display = 'none';
+}
+
+// ---- MEASUREMENTS ----
+var MEAS = [
+  { key:'waist',     label:'Waist',     better:'down' },
+  { key:'chest',     label:'Chest',     better:'up'   },
+  { key:'shoulders', label:'Shoulders', better:'up'   },
+  { key:'arms',      label:'Arms',      better:'up'   },
+  { key:'quads',     label:'Quads',     better:'up'   },
+  { key:'hips',      label:'Hips',      better:'neu'  },
+  { key:'calves',    label:'Calves',    better:'up'   },
+  { key:'neck',      label:'Neck',      better:'up'   },
+];
+
+if (latestM) {
+  var prevM = measLogs.length >= 2 ? measLogs[1] : null;
+  var tiles = MEAS.map(function(m) {
+    var val = latestM[m.key];
+    if (val == null) return null;
+    var d = prevM && prevM[m.key] != null ? parseFloat((val - prevM[m.key]).toFixed(1)) : null;
+    var dHtml = '';
+    if (d != null && d !== 0) {
+      var good = (m.better === 'up' && d > 0) || (m.better === 'down' && d < 0);
+      dHtml = '<div class="meas-delta ' + (good ? 'pos' : 'neg') + '">' + (d > 0 ? '+' : '') + d + ' cm</div>';
+    }
+    return '<div class="meas-tile"><div class="meas-label">' + m.label + '</div>' +
+      '<div class="meas-val">' + val + '<span class="meas-unit"> cm</span></div>' + dHtml + '</div>';
+  }).filter(Boolean);
+
+  if (tiles.length) {
+    document.getElementById('measGrid').innerHTML = tiles.join('');
+  } else {
+    document.getElementById('measSection').style.display = 'none';
+  }
+} else {
+  document.getElementById('measSection').style.display = 'none';
+}
+
+// ---- GOAL PACING ----
+(function() {
+  var goals = {};
+  try { goals = JSON.parse(localStorage.getItem('gym:goals:v1')) || {}; } catch(_) {}
+
+  var goalWeight = goals.weight ? parseFloat(goals.weight) : null;
+  if (!goalWeight || !weightLogs.length) return;
+
+  var currWeight = weightLogs[weightLogs.length - 1].weight;
+
+  // weekly rate from last 14 days of data (or all if fewer)
+  var slice = weightLogs.slice(-14);
+  var weeklyRate = 0;
+  if (slice.length >= 2) {
+    var first = slice[0], last = slice[slice.length - 1];
+    var daysDiff = (new Date(last.dateKey) - new Date(first.dateKey)) / 86400000 || 1;
+    weeklyRate = ((last.weight - first.weight) / daysDiff) * 7;
+  }
+
+  var needed = goalWeight - currWeight; // positive = need to gain, negative = need to lose
+  var goingRight = (needed > 0 && weeklyRate > 0) || (needed < 0 && weeklyRate < 0);
+
+  var verdict = document.getElementById('pacingVerdict');
+  var meta = document.getElementById('pacingMeta');
+  var fill = document.getElementById('pacingFill');
+  var goalEl = document.getElementById('pacingGoal');
+  var goalLbl = document.getElementById('pacingGoalLabel');
+
+  goalEl.textContent = goalWeight + ' kg';
+
+  var targetDate = goals.targetDate || null;
+
+  if (targetDate) {
+    var today = new Date(); today.setHours(0,0,0,0);
+    var tDate = new Date(targetDate + 'T00:00:00');
+    var daysLeft = Math.round((tDate - today) / 86400000);
+    if (daysLeft <= 0) {
+      verdict.className = 'pacing-verdict no-goal';
+      verdict.textContent = 'Target date passed';
+      meta.textContent = 'Update your goal in Gym';
+    } else {
+      var weeksLeft = daysLeft / 7;
+      var projectedChange = weeklyRate * weeksLeft;
+      var projectedWeight = currWeight + projectedChange;
+      var projectedNeeded = goalWeight - currWeight;
+      var accuracy = projectedNeeded !== 0 ? (projectedChange / projectedNeeded) : 1;
+      var absNeeded = Math.abs(projectedNeeded);
+      var absChange = Math.abs(projectedChange);
+
+      if (accuracy >= 0.9 && accuracy <= 1.1 && goingRight) {
+        verdict.className = 'pacing-verdict on-pace';
+        verdict.textContent = 'On pace';
+        fill.style.background = '#5B8DEF';
+      } else if (goingRight && accuracy > 1.1) {
+        verdict.className = 'pacing-verdict ahead';
+        verdict.textContent = 'Ahead of pace';
+        fill.style.background = '#4BC9A0';
+      } else if (goingRight && accuracy < 0.9) {
+        verdict.className = 'pacing-verdict behind';
+        verdict.textContent = 'Behind pace';
+        fill.style.background = '#FF6B6B';
+      } else {
+        verdict.className = 'pacing-verdict behind';
+        verdict.textContent = 'Off track';
+        fill.style.background = '#FF6B6B';
+      }
+      var byTarget = targetDate.slice(5).replace('-', '/');
+      meta.textContent = currWeight.toFixed(1) + ' kg now · ' + (weeklyRate >= 0 ? '+' : '') + weeklyRate.toFixed(2) + ' kg/wk · by ' + byTarget + ': ' + projectedWeight.toFixed(1) + ' kg projected';
+      var startWeight = slice.length ? slice[0].weight : currWeight;
+      var totalNeeded = Math.abs(goalWeight - startWeight) || 1;
+      var progress = Math.min(100, Math.max(0, Math.round(Math.abs(currWeight - startWeight) / totalNeeded * 100)));
+      fill.style.width = progress + '%';
+      document.getElementById('pacingSection').style.display = '';
+      return;
+    }
+  } else {
+    // No target date — show time-to-goal estimate
+    if (!goingRight || Math.abs(weeklyRate) < 0.01) {
+      verdict.className = 'pacing-verdict no-goal';
+      verdict.textContent = weeklyRate === 0 ? 'Stable' : 'Moving away from goal';
+      meta.textContent = 'Set a target date in Gym → Goals to see pacing';
+      fill.style.width = '0%';
+    } else {
+      var weeksEst = Math.abs(needed / weeklyRate);
+      verdict.className = 'pacing-verdict on-pace';
+      verdict.textContent = '~' + (weeksEst < 52 ? Math.round(weeksEst) + ' wks to goal' : (weeksEst / 52).toFixed(1) + ' yrs to goal');
+      meta.textContent = currWeight.toFixed(1) + ' kg now · ' + (weeklyRate >= 0 ? '+' : '') + weeklyRate.toFixed(2) + ' kg/wk · Set a target date for pacing';
+      fill.style.background = '#5B8DEF';
+      var startWt = slice.length ? slice[0].weight : currWeight;
+      var tot = Math.abs(goalWeight - startWt) || 1;
+      var prog = Math.min(100, Math.max(0, Math.round(Math.abs(currWeight - startWt) / tot * 100)));
+      fill.style.width = prog + '%';
+    }
+    goalLbl.textContent = 'goal (no date set)';
+  }
+  document.getElementById('pacingSection').style.display = '';
+})();
+
+})();
+</script>
+</body>
+</html>

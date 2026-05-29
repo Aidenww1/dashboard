@@ -2041,6 +2041,10 @@ img, video, canvas, svg { max-width: 100%; }
           <input type="number" class="goals-form-inp" id="gfCalves" step="0.5" placeholder="e.g. 40">
         </div>
       </div>
+      <div class="goals-form-field" style="margin-bottom:8px">
+        <div class="goals-form-lbl">Target date</div>
+        <input type="date" class="goals-form-inp" id="gfTargetDate">
+      </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
         <button class="meas-log-btn" id="goalsFormCancel">Cancel</button>
         <button class="meas-save-btn" id="goalsFormSave">Save goals</button>
@@ -3787,6 +3791,9 @@ img, video, canvas, svg { max-width: 100%; }
     wtRender();
     const wKg = state.units === 'lb' ? weight / 2.20462 : weight;
     try { fetch('/api/health/weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ weight_kg: +wKg.toFixed(2), date: key, source: 'manual', unit: state.units }) }).catch(function() {}); } catch (_) {}
+    if (window.addEvent) window.addEvent('body.weight', ['body'], {
+      kg: +wKg.toFixed(2), date: key,
+    }, { ts: new Date(key + 'T08:00:00').toISOString() }).catch(() => {});
   }
 
   function wtRender() {
@@ -4667,6 +4674,10 @@ img, video, canvas, svg { max-width: 100%; }
         .forEach(function(id) { document.getElementById(id).value = ''; });
       measRender();
       try { fetch('/api/health/bodyfat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(function() {}); } catch(_) {}
+      if (window.addEvent) window.addEvent('body.measurement', ['body'], {
+        date: entry.date, waist: entry.waist, chest: entry.chest, shoulders: entry.shoulders,
+        arms: entry.arms, quads: entry.quads, hips: entry.hips, calves: entry.calves, neck: entry.neck,
+      }).catch(() => {});
     });
 
     measRender();
@@ -5641,6 +5652,7 @@ renderPRBoard();
     ['Waist','Chest','Shoulders','Arms','Quads','Calves'].forEach(k => {
       document.getElementById('gf' + k).value = g['m_' + k.toLowerCase()] || '';
     });
+    document.getElementById('gfTargetDate').value = g.targetDate || '';
     goalsForm.classList.add('open');
     goalsEditBtn.style.display = 'none';
   });
@@ -5656,6 +5668,7 @@ renderPRBoard();
     g.weight = v('gfWeight'); g.bf = v('gfBf');
     g.m_waist = v('gfWaist'); g.m_chest = v('gfChest'); g.m_shoulders = v('gfShoulders');
     g.m_arms = v('gfArms'); g.m_quads = v('gfQuads'); g.m_calves = v('gfCalves');
+    g.targetDate = document.getElementById('gfTargetDate').value || null;
     saveGoals(g);
     goalsForm.classList.remove('open');
     goalsEditBtn.style.display = '';
