@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Skin</title>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-secondary: rgba(255,255,255,0.035);
+  --bg-input: rgba(0,0,0,0.28);
+  --bg-input-focus: rgba(0,0,0,0.36);
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.12);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --text-quaternary: #4D4B47;
+  --accent: #7DD3FC;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+*::-webkit-scrollbar { display: none !important; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text-secondary); font-family: var(--font); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; overflow-x: hidden; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background: radial-gradient(60% 50% at 72% 12%, rgba(125,211,252,0.12) 0%, transparent 60%),
+              radial-gradient(50% 40% at 22% 88%, rgba(180,180,200,0.06) 0%, transparent 60%);
+  filter: blur(40px); pointer-events: none; z-index: 0;
+  animation: drift 36s ease-in-out infinite alternate;
+}
+body::after { content: ''; position: fixed; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.014) 1px, transparent 1px); background-size: 3px 3px; pointer-events: none; z-index: 1; }
+@keyframes drift { 0% { transform: translate(0,0); } 100% { transform: translate(-2%,2%); } }
+main { position: relative; z-index: 2; max-width: 720px; margin: 0 auto; padding: 56px 20px 120px; padding-top: max(56px, env(safe-area-inset-top, 56px)); }
+
+.page-title { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin: 0 0 20px; }
+
+.s-head { font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary); margin: 28px 0 10px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.05); }
+
+.sk-card { background: var(--bg-card); border-radius: 16px; padding: 18px 20px; backdrop-filter: blur(24px) saturate(1.2); border: 1px solid rgba(255,255,255,0.05); margin-bottom: 12px; }
+
+/* Overview stats */
+.sk-stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 0; }
+@media (min-width: 480px) { .sk-stats { grid-template-columns: repeat(4,1fr); } }
+.sk-stat { background: var(--bg-secondary); border-radius: 12px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.05); }
+.sk-stat-val { font-size: 24px; font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 4px; }
+.sk-stat-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+
+/* Inputs */
+.sk-input { width: 100%; padding: 9px 11px; border-radius: 9px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; margin-bottom: 10px; }
+.sk-input:focus { border-color: var(--border-strong); background: var(--bg-input-focus); }
+textarea.sk-input { resize: vertical; min-height: 60px; }
+.sk-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 5px; }
+.sk-select { width: 100%; padding: 9px 11px; border-radius: 9px; background: var(--bg-input); border: 1px solid var(--border); color: var(--text-primary); font-size: 14px; font-family: inherit; outline: none; margin-bottom: 10px; -webkit-appearance: none; }
+.sk-select option { background: #1a1a1b; }
+
+/* Buttons */
+.sk-btn-primary { padding: 9px 18px; border-radius: 10px; border: none; background: var(--accent); color: #0a0a0b; font-weight: 700; font-size: 13px; font-family: inherit; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
+.sk-btn-primary:hover { opacity: 0.85; }
+.sk-btn-ghost { padding: 9px 14px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: var(--text-secondary); font-size: 13px; font-family: inherit; cursor: pointer; transition: background 0.15s; }
+.sk-btn-ghost:hover { background: rgba(255,255,255,0.08); }
+.sk-btn-add { width: 100%; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); color: var(--text-tertiary); font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; text-align: center; transition: background 0.15s, color 0.15s; }
+.sk-btn-add:hover { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+.sk-del-btn { background: none; border: none; color: var(--text-quaternary); cursor: pointer; font-size: 14px; padding: 2px 5px; transition: color 0.15s; }
+.sk-del-btn:hover { color: #FF6B6B; }
+
+/* Forms */
+.sk-form { display: none; border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 16px; margin: 10px 0 14px; background: rgba(255,255,255,0.02); }
+.sk-form.open { display: block; }
+.sk-form-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+.sk-form-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 420px) { .sk-form-cols { grid-template-columns: 1fr; } }
+
+/* Rating row */
+.sk-rating-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.sk-rating-btn { flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); font-size: 20px; cursor: pointer; text-align: center; transition: background 0.15s, border-color 0.15s; font-family: inherit; }
+.sk-rating-btn.selected { border-color: var(--accent); background: rgba(125,211,252,0.12); }
+
+/* Badges (concerns, locations) */
+.sk-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.sk-badge { padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: var(--text-secondary); cursor: pointer; transition: all 0.15s; user-select: none; }
+.sk-badge.on { background: rgba(125,211,252,0.15); border-color: var(--accent); color: var(--accent); }
+
+/* Routine */
+.sk-rt-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.sk-rt-tab { flex: 1; padding: 8px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); color: var(--text-tertiary); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; text-align: center; transition: all 0.15s; font-family: inherit; }
+.sk-rt-tab.active { background: rgba(125,211,252,0.12); border-color: var(--accent); color: var(--accent); }
+.sk-progress-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-bottom: 14px; overflow: hidden; }
+.sk-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+.sk-routine-list { list-style: none; margin: 0; padding: 0; }
+.sk-routine-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; margin-bottom: 6px; background: rgba(255,255,255,0.02); border: 1px solid transparent; cursor: pointer; transition: all 0.15s; }
+.sk-routine-item:hover { background: rgba(255,255,255,0.04); }
+.sk-routine-item.done { background: rgba(125,211,252,0.06); border-color: rgba(125,211,252,0.15); }
+.sk-routine-check { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: all 0.15s; color: #0a0a0b; }
+.sk-routine-item.done .sk-routine-check { background: var(--accent); border-color: var(--accent); }
+.sk-routine-name { flex: 1; font-size: 13px; color: var(--text-secondary); }
+.sk-routine-item.done .sk-routine-name { color: var(--text-tertiary); text-decoration: line-through; }
+.sk-routine-freq { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--text-quaternary); white-space: nowrap; }
+.sk-routine-empty { font-size: 12px; color: var(--text-quaternary); text-align: center; padding: 16px 0; }
+
+/* Product list */
+.sk-group-label { font-size: 10px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-quaternary); margin: 10px 0 6px; }
+.sk-product-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; margin-bottom: 6px; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05); }
+.sk-product-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(125,211,252,0.08); border: 1px solid rgba(125,211,252,0.12); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.sk-product-info { flex: 1; min-width: 0; }
+.sk-product-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-product-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+.sk-time-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 7px; border-radius: 5px; flex-shrink: 0; }
+.sk-time-am { background: rgba(251,191,36,0.12); color: #FBBF24; }
+.sk-time-pm { background: rgba(167,139,250,0.12); color: #A78BFA; }
+.sk-time-both { background: rgba(125,211,252,0.12); color: var(--accent); }
+
+/* Trend chart */
+.sk-trend-wrap { display: flex; flex-direction: column; gap: 0; }
+.sk-trend-bars { display: flex; gap: 4px; align-items: flex-end; height: 64px; }
+.sk-trend-labels { display: flex; gap: 4px; margin-top: 4px; }
+.sk-trend-lbl { flex: 1; text-align: center; font-size: 9px; color: var(--text-quaternary); }
+.sk-trend-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+.sk-trend-stat { font-size: 11px; color: var(--text-tertiary); }
+.sk-trend-stat strong { color: var(--text-primary); }
+
+/* Log history entries */
+.sk-entry { padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.sk-entry:last-child { border-bottom: none; }
+.sk-entry-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.sk-entry-meta { display: flex; align-items: center; gap: 8px; }
+.sk-entry-date { font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+.sk-entry-rating { font-size: 18px; }
+.sk-entry-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 5px; }
+.sk-entry-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(125,211,252,0.08); color: var(--accent); }
+.sk-entry-line { font-size: 12px; color: var(--text-secondary); margin-bottom: 3px; }
+.sk-entry-notes { font-size: 12px; color: var(--text-tertiary); font-style: italic; margin-bottom: 3px; }
+.sk-entry-nutrition { padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: var(--text-tertiary); margin-top: 6px; }
+.sk-entry-photo { max-width: 100%; max-height: 180px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: block; }
+
+/* Breakout entries */
+.sk-bkout-item { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.sk-bkout-item:last-child { border-bottom: none; }
+.sk-bkout-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.sk-bkout-date { font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+.sk-bkout-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 4px; }
+.sk-tag-red { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(255,107,107,0.12); color: #FF9999; border: 1px solid rgba(255,107,107,0.2); }
+.sk-bkout-notes { font-size: 11px; color: var(--text-tertiary); font-style: italic; }
+
+/* Photo */
+.sk-photo-label { display: inline-block; padding: 8px 14px; border-radius: 8px; cursor: pointer; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); font-size: 12px; color: var(--text-secondary); }
+.sk-photo-label input { display: none; }
+.sk-photo-preview { max-width: 100%; border-radius: 8px; margin-top: 8px; display: none; }
+
+.sk-empty { text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 20px 0; }
+.sk-sub-head { font-size: 10px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-quaternary); margin: 14px 0 6px; }
+
+@media (max-width: 540px) {
+  main { padding: 16px 12px calc(70px + env(safe-area-inset-bottom)) !important; }
+  .sk-rating-row { gap: 4px; }
+}
+
+@media (min-width: 900px) {
+  main { max-width: 1280px !important; padding-left: 32px !important; padding-right: 32px !important; }
+  /* Skin log + history side by side */
+  .sk-layout { display: grid; grid-template-columns: 440px 1fr; gap: 20px; align-items: start; }
+}
+</style>
+<script src="bus.js" defer></script>
+<script src="topbar.js" defer></script>
+<script src="events.js" defer></script>
+<script src="tabbar.js" defer></script>
+</head>
+<body>
+<main>
+  <div class="page-title">Skin Health</div>
+
+  <!-- Overview -->
+  <div class="sk-stats">
+    <div class="sk-stat"><div class="sk-stat-val" id="ovStreak">—</div><div class="sk-stat-lbl">Day Streak</div></div>
+    <div class="sk-stat"><div class="sk-stat-val" id="ovAvg">—</div><div class="sk-stat-lbl">Avg Rating (30d)</div></div>
+    <div class="sk-stat"><div class="sk-stat-val" id="ovProducts">—</div><div class="sk-stat-lbl">Products</div></div>
+    <div class="sk-stat"><div class="sk-stat-val" id="ovBreakouts">—</div><div class="sk-stat-lbl">Breakouts (30d)</div></div>
+  </div>
+
+  <!-- Today's Routine -->
+  <div class="s-head">Today's Routine</div>
+  <div class="sk-card">
+    <div class="sk-rt-tabs">
+      <button class="sk-rt-tab active" id="rtabAm">Morning</button>
+      <button class="sk-rt-tab" id="rtabPm">Evening</button>
+    </div>
+    <div class="sk-progress-bar"><div class="sk-progress-fill" id="routineProgress" style="width:0%"></div></div>
+    <ul class="sk-routine-list" id="routineList"></ul>
+  </div>
+
+  <!-- Product Library -->
+  <div class="s-head">Product Library</div>
+  <div class="sk-card">
+    <div id="productList"></div>
+    <button class="sk-btn-add" id="addProductBtn">+ Add product</button>
+    <div class="sk-form" id="productForm">
+      <div class="sk-form-cols">
+        <div>
+          <div class="sk-label">Product name</div>
+          <input class="sk-input" type="text" id="prdName" placeholder="e.g. CeraVe Moisturizer">
+        </div>
+        <div>
+          <div class="sk-label">Brand</div>
+          <input class="sk-input" type="text" id="prdBrand" placeholder="e.g. CeraVe">
+        </div>
+      </div>
+      <div class="sk-form-cols">
+        <div>
+          <div class="sk-label">Type</div>
+          <select class="sk-select" id="prdType">
+            <option value="cleanser">Cleanser</option>
+            <option value="toner">Toner / Mist</option>
+            <option value="serum">Serum / Essence</option>
+            <option value="moisturizer" selected>Moisturizer</option>
+            <option value="spf">SPF / Sunscreen</option>
+            <option value="treatment">Treatment / Spot</option>
+            <option value="eye">Eye Cream</option>
+            <option value="exfoliant">Exfoliant / AHA-BHA</option>
+            <option value="retinol">Retinol / Retinoid</option>
+            <option value="mask">Mask</option>
+            <option value="oil">Face Oil</option>
+            <option value="lip">Lip care</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <div class="sk-label">Use time</div>
+          <select class="sk-select" id="prdTime">
+            <option value="am">Morning (AM)</option>
+            <option value="pm">Evening (PM)</option>
+            <option value="both" selected>Both AM &amp; PM</option>
+          </select>
+        </div>
+      </div>
+      <div class="sk-form-cols">
+        <div>
+          <div class="sk-label">Frequency</div>
+          <select class="sk-select" id="prdFreq">
+            <option value="daily" selected>Daily</option>
+            <option value="alt">Every other day</option>
+            <option value="2x">2x per week</option>
+            <option value="weekly">Once a week</option>
+            <option value="asNeeded">As needed</option>
+          </select>
+        </div>
+        <div>
+          <div class="sk-label">Targets (optional)</div>
+          <input class="sk-input" type="text" id="prdConcern" placeholder="e.g. anti-aging, acne">
+        </div>
+      </div>
+      <div class="sk-label">Notes (ingredients to avoid, usage tips)</div>
+      <textarea class="sk-input" id="prdNotes" placeholder="e.g. Avoid with vitamin C, apply to damp skin…" style="min-height:48px"></textarea>
+      <div class="sk-form-row">
+        <button class="sk-btn-ghost" id="prdCancel">Cancel</button>
+        <button class="sk-btn-primary" id="prdSave">Save product</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Check-in -->
+  <div class="s-head">Daily Check-in</div>
+  <div class="sk-card">
+    <button class="sk-btn-add" id="logToggleBtn">+ Log today's skin check</button>
+    <div class="sk-form" id="logForm">
+      <div class="sk-label">Date</div>
+      <input class="sk-input" type="date" id="logDate">
+
+      <div class="sk-label">How does your skin feel?</div>
+      <div class="sk-rating-row" id="logRatingRow"></div>
+
+      <div class="sk-label">Concerns today</div>
+      <div class="sk-badges" id="logConcerns">
+        <span class="sk-badge" data-c="oily">Oily</span>
+        <span class="sk-badge" data-c="dry">Dry</span>
+        <span class="sk-badge" data-c="sensitive">Sensitive</span>
+        <span class="sk-badge" data-c="red">Redness</span>
+        <span class="sk-badge" data-c="textured">Texture</span>
+        <span class="sk-badge" data-c="dull">Dull</span>
+        <span class="sk-badge" data-c="breakout">Breakout</span>
+        <span class="sk-badge" data-c="tight">Tight</span>
+        <span class="sk-badge" data-c="itchy">Itchy</span>
+        <span class="sk-badge" data-c="flaky">Flaky</span>
+      </div>
+
+      <div class="sk-label">Products / treatments used</div>
+      <input class="sk-input" type="text" id="logTreatments" placeholder="e.g. niacinamide, SPF 50, retinol…">
+
+      <div class="sk-label">Water today (glasses)</div>
+      <input class="sk-input" type="number" id="logWater" placeholder="e.g. 8" min="0" max="30">
+
+      <div class="sk-label">Sleep last night (hours)</div>
+      <input class="sk-input" type="number" id="logSleep" placeholder="e.g. 7.5" min="0" max="24" step="0.5">
+
+      <div class="sk-label">Notes</div>
+      <textarea class="sk-input" id="logNotes" placeholder="Flare-ups, changes, observations…"></textarea>
+
+      <div class="sk-label">Photo (optional)</div>
+      <label class="sk-photo-label">
+        📷 Add photo
+        <input type="file" accept="image/*" capture="environment" id="logPhoto">
+      </label>
+      <img class="sk-photo-preview" id="logPhotoPreview" alt="">
+
+      <div class="sk-form-row" style="margin-top:12px">
+        <button class="sk-btn-ghost" id="logCancel">Cancel</button>
+        <button class="sk-btn-primary" id="logSave">Save entry</button>
+      </div>
+    </div>
+
+    <div class="sk-sub-head" id="historyHead" style="display:none">Log History</div>
+    <div id="logHistory"></div>
+  </div>
+
+  <!-- 14-Day Trend -->
+  <div class="s-head">14-Day Trend</div>
+  <div class="sk-card">
+    <div class="sk-trend-wrap">
+      <div class="sk-trend-bars" id="trendBars"></div>
+      <div class="sk-trend-labels" id="trendLabels"></div>
+    </div>
+    <div class="sk-trend-stats">
+      <div class="sk-trend-stat">This week avg: <strong id="trendWeek">—</strong></div>
+      <div class="sk-trend-stat">Prev week avg: <strong id="trendPrev">—</strong></div>
+      <div class="sk-trend-stat">Best day: <strong id="trendBest">—</strong></div>
+      <div class="sk-trend-stat">Top concern: <strong id="trendTopConcern">—</strong></div>
+    </div>
+  </div>
+
+  <!-- Routine Correlation -->
+  <div class="s-head">Routine Correlation</div>
+  <div class="sk-card" id="skinCorrelationCard">
+    <p style="font-size:12px;color:var(--text-tertiary);margin:0 0 10px">Products present on your worst skin days vs best days over the last 14 logged entries.</p>
+    <div id="skinCorrelation"><div style="font-size:12px;color:var(--text-quaternary)">Log skin ratings + complete routines to see correlations.</div></div>
+  </div>
+
+  <!-- Ingredient Watchlist -->
+  <div class="s-head">Ingredient Watchlist</div>
+  <div class="sk-card">
+    <p style="font-size:12px;color:var(--text-tertiary);margin:0 0 12px">Ingredients you react to or want to track. Helps you spot patterns when logging products.</p>
+    <div id="ingredientList"></div>
+    <div style="display:flex;gap:8px">
+      <input class="sk-input" type="text" id="ingredientInput" placeholder="e.g. fragrance, alcohol, SLS" style="margin:0;flex:1">
+      <button class="sk-btn-primary" id="addIngredientBtn" style="flex-shrink:0">Add</button>
+    </div>
+  </div>
+
+  <!-- Breakout Tracker -->
+  <div class="s-head">Breakout Tracker</div>
+  <div class="sk-card">
+    <button class="sk-btn-add" id="addBreakoutBtn">+ Log breakout</button>
+    <div class="sk-form" id="breakoutForm">
+      <div class="sk-form-cols">
+        <div>
+          <div class="sk-label">Date</div>
+          <input class="sk-input" type="date" id="btDate">
+        </div>
+        <div>
+          <div class="sk-label">Severity (1–5)</div>
+          <select class="sk-select" id="btSeverity">
+            <option value="1">1 — Very mild</option>
+            <option value="2">2 — Mild</option>
+            <option value="3" selected>3 — Moderate</option>
+            <option value="4">4 — Severe</option>
+            <option value="5">5 — Very severe</option>
+          </select>
+        </div>
+      </div>
+      <div class="sk-label">Location(s)</div>
+      <div class="sk-badges" id="btLocations">
+        <span class="sk-badge" data-loc="forehead">Forehead</span>
+        <span class="sk-badge" data-loc="nose">Nose</span>
+        <span class="sk-badge" data-loc="leftCheek">Left cheek</span>
+        <span class="sk-badge" data-loc="rightCheek">Right cheek</span>
+        <span class="sk-badge" data-loc="chin">Chin</span>
+        <span class="sk-badge" data-loc="jawline">Jawline</span>
+        <span class="sk-badge" data-loc="neck">Neck</span>
+        <span class="sk-badge" data-loc="back">Back</span>
+        <span class="sk-badge" data-loc="chest">Chest</span>
+      </div>
+      <div class="sk-form-cols">
+        <div>
+          <div class="sk-label">Type</div>
+          <select class="sk-select" id="btType">
+            <option value="whitehead">Whitehead</option>
+            <option value="blackhead">Blackhead</option>
+            <option value="papule">Papule (red bump)</option>
+            <option value="pustule">Pustule (pus-filled)</option>
+            <option value="cystic">Cystic</option>
+            <option value="hormonal">Hormonal</option>
+            <option value="closed">Closed comedone</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <div class="sk-label">Possible trigger</div>
+          <input class="sk-input" type="text" id="btTrigger" placeholder="e.g. diet, stress, new product">
+        </div>
+      </div>
+      <div class="sk-label">Notes</div>
+      <textarea class="sk-input" id="btNotes" placeholder="Additional observations…" style="min-height:48px"></textarea>
+      <div class="sk-form-row">
+        <button class="sk-btn-ghost" id="btCancel">Cancel</button>
+        <button class="sk-btn-primary" id="btSave">Log breakout</button>
+      </div>
+    </div>
+    <div id="breakoutList"></div>
+  </div>
+
+  <!-- Skin Goals -->
+  <div class="s-head">Skin Goals</div>
+  <div class="sk-card">
+    <p style="font-size:12px;color:var(--text-tertiary);margin:0 0 12px">Track what you're working toward with your skin.</p>
+    <div id="skinGoalList"></div>
+    <div style="display:flex;gap:8px">
+      <input class="sk-input" type="text" id="skinGoalInput" placeholder="e.g. Clear acne by June, reduce redness" style="margin:0;flex:1">
+      <button class="sk-btn-primary" id="addSkinGoalBtn" style="flex-shrink:0">Add</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const LOGS_KEY    = 'skin:logs';
+  const PRODS_KEY   = 'skin:products';
+  const ROUTINE_KEY = 'skin:routine:v1';
+  const BKOUTS_KEY  = 'skin:breakouts';
+  const INGR_KEY    = 'skin:ingredients';
+  const GOALS_KEY   = 'skin:goals';
+
+  const load = k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+  const today = (() => {
+    const d = new Date();
+    if (d.getHours() < 5) d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const EMOJIS = ['', '💔', '😞', '😐', '😊', '✨'];
+  const LABELS = ['', 'Very bad', 'Bad', 'Okay', 'Good', 'Excellent'];
+  const TYPE_ICON = {
+    cleanser: '🧴', toner: '💧', serum: '✨', moisturizer: '🫧', spf: '☀️',
+    treatment: '💊', eye: '👁️', exfoliant: '🔬', retinol: '🌙', mask: '🧖',
+    oil: '🫙', lip: '💋', other: '📦'
+  };
+  const RATING_COLOR = ['', '#FF6B6B', '#F59E0B', '#FACC15', '#86EFAC', '#34D399'];
+
+  // ── Overview ───────────────────────────────────────────────────────────────
+
+  function calcStreak() {
+    const logs = (load(LOGS_KEY) || []).sort((a, b) => b.date.localeCompare(a.date));
+    if (!logs.length) return 0;
+    let streak = 0, cur = today;
+    for (const log of logs) {
+      if (log.date === cur) {
+        streak++;
+        const d = new Date(cur); d.setDate(d.getDate() - 1);
+        cur = d.toISOString().slice(0, 10);
+      } else if (log.date < cur) break;
+    }
+    return streak;
+  }
+
+  function renderOverview() {
+    const logs = load(LOGS_KEY) || [];
+    const bkouts = load(BKOUTS_KEY) || [];
+    const prods = load(PRODS_KEY) || [];
+    const c30 = new Date(); c30.setDate(c30.getDate() - 30);
+    const cut = c30.toISOString().slice(0, 10);
+    const rated = logs.filter(l => l.rating && l.date >= cut);
+    document.getElementById('ovStreak').textContent = calcStreak() || '0';
+    document.getElementById('ovAvg').textContent = rated.length
+      ? (rated.reduce((s, l) => s + l.rating, 0) / rated.length).toFixed(1) : '—';
+    document.getElementById('ovProducts').textContent = prods.length || '0';
+    document.getElementById('ovBreakouts').textContent = bkouts.filter(b => b.date >= cut).length;
+  }
+
+  // ── Routine ────────────────────────────────────────────────────────────────
+
+  let _rtTab = 'am';
+
+  function renderRoutine() {
+    const prods = load(PRODS_KEY) || [];
+    const routineLogs = load(ROUTINE_KEY) || {};
+    const done = routineLogs[today] || [];
+
+    const due = prods.filter(p => (p.time === _rtTab || p.time === 'both') && p.freq !== 'asNeeded');
+    const list = document.getElementById('routineList');
+    const prog = document.getElementById('routineProgress');
+
+    if (!due.length) {
+      list.innerHTML = '<li class="sk-routine-empty">No ' + (_rtTab === 'am' ? 'morning' : 'evening') + ' products yet. Add products in the library below.</li>';
+      prog.style.width = '0%';
+      return;
+    }
+
+    const doneCount = due.filter(p => done.includes(String(p.id))).length;
+    prog.style.width = Math.round(doneCount / due.length * 100) + '%';
+
+    list.innerHTML = due.map(p => {
+      const isDone = done.includes(String(p.id));
+      return `<li class="sk-routine-item${isDone ? ' done' : ''}" data-pid="${p.id}">
+        <div class="sk-routine-check">${isDone ? '✓' : ''}</div>
+        <span class="sk-routine-name">${TYPE_ICON[p.type] || '📦'} ${p.name}${p.brand ? ' <span style="font-weight:400;color:var(--text-quaternary)">· ' + p.brand + '</span>' : ''}</span>
+        <span class="sk-routine-freq">${p.freq}</span>
+      </li>`;
+    }).join('');
+
+    list.querySelectorAll('.sk-routine-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const pid = item.dataset.pid;
+        const rl = load(ROUTINE_KEY) || {};
+        const arr = rl[today] || [];
+        const idx = arr.indexOf(pid);
+        if (idx === -1) {
+          arr.push(pid);
+          const p = due.find(x => String(x.id) === pid);
+          if (p && window.addEvent) window.addEvent('skin.routine', ['skin'], {
+            product: p.name, type: p.type || '', time: _rtTab, date: today,
+          }).catch(() => {});
+        } else {
+          arr.splice(idx, 1);
+        }
+        rl[today] = arr;
+        save(ROUTINE_KEY, rl);
+        renderRoutine();
+      });
+    });
+  }
+
+  document.getElementById('rtabAm').addEventListener('click', () => {
+    _rtTab = 'am';
+    document.getElementById('rtabAm').classList.add('active');
+    document.getElementById('rtabPm').classList.remove('active');
+    renderRoutine();
+  });
+  document.getElementById('rtabPm').addEventListener('click', () => {
+    _rtTab = 'pm';
+    document.getElementById('rtabPm').classList.add('active');
+    document.getElementById('rtabAm').classList.remove('active');
+    renderRoutine();
+  });
+
+  // ── Product Library ────────────────────────────────────────────────────────
+
+  function renderProducts() {
+    const prods = load(PRODS_KEY) || [];
+    const el = document.getElementById('productList');
+    if (!prods.length) {
+      el.innerHTML = '<div class="sk-empty">No products yet. Add your skincare products below.</div>';
+      return;
+    }
+    const groups = {};
+    prods.forEach(p => { (groups[p.type] = groups[p.type] || []).push(p); });
+    el.innerHTML = Object.entries(groups).map(([type, list]) => `
+      <div class="sk-group-label">${type}</div>
+      ${list.map(p => `
+        <div class="sk-product-item">
+          <div class="sk-product-icon">${TYPE_ICON[p.type] || '📦'}</div>
+          <div class="sk-product-info">
+            <div class="sk-product-name">${p.name}</div>
+            <div class="sk-product-meta">${[p.brand, p.concern, p.notes].filter(Boolean).join(' · ').slice(0, 60)}</div>
+          </div>
+          <span class="sk-time-badge sk-time-${p.time}">${p.time.toUpperCase()}</span>
+          <button class="sk-del-btn" data-del="${p.id}">✕</button>
+        </div>`).join('')}
+    `).join('');
+    el.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        save(PRODS_KEY, (load(PRODS_KEY) || []).filter(p => String(p.id) !== btn.dataset.del));
+        renderProducts(); renderRoutine(); renderOverview();
+      });
+    });
+  }
+
+  const productForm = document.getElementById('productForm');
+  document.getElementById('addProductBtn').addEventListener('click', () => {
+    ['prdName','prdBrand','prdConcern','prdNotes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('prdType').value = 'moisturizer';
+    document.getElementById('prdTime').value = 'both';
+    document.getElementById('prdFreq').value = 'daily';
+    productForm.classList.add('open');
+    document.getElementById('prdName').focus();
+  });
+  document.getElementById('prdCancel').addEventListener('click', () => productForm.classList.remove('open'));
+  document.getElementById('prdSave').addEventListener('click', () => {
+    const name = document.getElementById('prdName').value.trim();
+    if (!name) return;
+    const prods = load(PRODS_KEY) || [];
+    prods.push({
+      id: String(Date.now()),
+      name,
+      brand:   document.getElementById('prdBrand').value.trim(),
+      type:    document.getElementById('prdType').value,
+      time:    document.getElementById('prdTime').value,
+      freq:    document.getElementById('prdFreq').value,
+      concern: document.getElementById('prdConcern').value.trim(),
+      notes:   document.getElementById('prdNotes').value.trim(),
+    });
+    save(PRODS_KEY, prods);
+    productForm.classList.remove('open');
+    renderProducts(); renderRoutine(); renderOverview();
+  });
+
+  // ── Daily Log form ─────────────────────────────────────────────────────────
+
+  let _logRating = 0, _logPhoto = null, _logConcerns = new Set();
+
+  const ratingRow = document.getElementById('logRatingRow');
+  ratingRow.innerHTML = [1,2,3,4,5].map(r =>
+    `<button class="sk-rating-btn" data-r="${r}" title="${LABELS[r]}">${EMOJIS[r]}</button>`
+  ).join('');
+  ratingRow.querySelectorAll('.sk-rating-btn').forEach(btn => btn.addEventListener('click', () => {
+    _logRating = Number(btn.dataset.r);
+    ratingRow.querySelectorAll('.sk-rating-btn').forEach(b => b.classList.toggle('selected', b === btn));
+  }));
+
+  document.getElementById('logConcerns').querySelectorAll('.sk-badge').forEach(badge => {
+    badge.addEventListener('click', () => {
+      const c = badge.dataset.c;
+      if (_logConcerns.has(c)) { _logConcerns.delete(c); badge.classList.remove('on'); }
+      else { _logConcerns.add(c); badge.classList.add('on'); }
+    });
+  });
+
+  const logPhotoInput   = document.getElementById('logPhoto');
+  const logPhotoPreview = document.getElementById('logPhotoPreview');
+  logPhotoInput.addEventListener('change', () => {
+    const file = logPhotoInput.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale  = Math.min(1, 600 / img.width);
+        canvas.width = img.width * scale; canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        _logPhoto = canvas.toDataURL('image/jpeg', 0.65);
+        logPhotoPreview.src = _logPhoto; logPhotoPreview.style.display = 'block';
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function getRecentNutrition() {
+    try {
+      const cutoff = Date.now() - 48 * 3600 * 1000;
+      const logs = (JSON.parse(localStorage.getItem('nt:logs')) || []).filter(l => (l.loggedAt || l.id || 0) > cutoff);
+      if (!logs.length) return null;
+      const cal  = Math.round(logs.reduce((s, l) => s + (l.calories || 0), 0));
+      const prot = Math.round(logs.reduce((s, l) => s + parseFloat(l.protein || 0), 0));
+      const top  = [...new Set(logs.map(l => l.name).filter(Boolean))].slice(0, 4);
+      return { cal, prot, top };
+    } catch { return null; }
+  }
+
+  const logToggle = document.getElementById('logToggleBtn');
+  const logForm   = document.getElementById('logForm');
+  const logDate   = document.getElementById('logDate');
+
+  function openLogForm()  {
+    if (!logDate.value) logDate.value = today;
+    logForm.classList.add('open');
+    logToggle.textContent = '− Close';
+  }
+  function closeLogForm() {
+    logForm.classList.remove('open');
+    logToggle.textContent = '+ Log today\'s skin check';
+  }
+  function resetLogForm() {
+    _logRating = 0; _logPhoto = null; _logConcerns = new Set();
+    document.getElementById('logTreatments').value = '';
+    document.getElementById('logNotes').value = '';
+    document.getElementById('logWater').value = '';
+    document.getElementById('logSleep').value = '';
+    logPhotoPreview.src = ''; logPhotoPreview.style.display = 'none';
+    logPhotoInput.value = '';
+    ratingRow.querySelectorAll('.sk-rating-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('logConcerns').querySelectorAll('.sk-badge').forEach(b => b.classList.remove('on'));
+  }
+
+  logToggle.addEventListener('click', () => logForm.classList.contains('open') ? closeLogForm() : openLogForm());
+  document.getElementById('logCancel').addEventListener('click', () => { closeLogForm(); resetLogForm(); });
+  document.getElementById('logSave').addEventListener('click', () => {
+    const date = logDate.value || today;
+    const logs = load(LOGS_KEY) || [];
+    logs.push({
+      id:         Date.now(),
+      date,
+      rating:     _logRating || 0,
+      concerns:   [..._logConcerns],
+      treatments: document.getElementById('logTreatments').value.trim(),
+      water:      parseFloat(document.getElementById('logWater').value) || null,
+      sleep:      parseFloat(document.getElementById('logSleep').value) || null,
+      notes:      document.getElementById('logNotes').value.trim(),
+      photo:      _logPhoto,
+      nutrition:  getRecentNutrition(),
+    });
+    save(LOGS_KEY, logs);
+    resetLogForm(); closeLogForm();
+    renderHistory(); renderOverview(); renderTrend();
+  });
+
+  // ── History ────────────────────────────────────────────────────────────────
+
+  function renderHistory() {
+    const el = document.getElementById('logHistory');
+    const head = document.getElementById('historyHead');
+    const logs = load(LOGS_KEY) || [];
+    if (!logs.length) {
+      head.style.display = 'none';
+      el.innerHTML = '<div class="sk-empty">No entries yet.</div>';
+      return;
+    }
+    head.style.display = '';
+    el.innerHTML = [...logs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 40).map(e => {
+      const concerns = (e.concerns || []).length
+        ? `<div class="sk-entry-tags">${(e.concerns || []).map(c => `<span class="sk-entry-tag">${c}</span>`).join('')}</div>`
+        : '';
+      const meta2 = [
+        e.water != null ? `💧 ${e.water} glasses` : null,
+        e.sleep != null ? `😴 ${e.sleep}h sleep` : null,
+      ].filter(Boolean).join(' · ');
+      const nut = e.nutrition
+        ? `<div class="sk-entry-nutrition">Last 48h: ${e.nutrition.cal} kcal · ${e.nutrition.prot}g protein${e.nutrition.top.length ? ' · ' + e.nutrition.top.join(', ') : ''}</div>`
+        : '';
+      return `<div class="sk-entry">
+        <div class="sk-entry-header">
+          <div class="sk-entry-meta">
+            <span class="sk-entry-date">${e.date}</span>
+            ${e.rating ? `<span class="sk-entry-rating" title="${LABELS[e.rating]}">${EMOJIS[e.rating]}</span>` : ''}
+          </div>
+          <button class="sk-del-btn" data-del="${e.id}">✕</button>
+        </div>
+        ${concerns}
+        ${meta2 ? `<div class="sk-entry-line">${meta2}</div>` : ''}
+        ${e.treatments ? `<div class="sk-entry-line">Products: ${e.treatments}</div>` : ''}
+        ${e.notes ? `<div class="sk-entry-notes">${e.notes}</div>` : ''}
+        ${nut}
+        ${e.photo ? `<img class="sk-entry-photo" src="${e.photo}" loading="lazy" alt="">` : ''}
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        save(LOGS_KEY, (load(LOGS_KEY) || []).filter(e => String(e.id) !== btn.dataset.del));
+        renderHistory(); renderOverview(); renderTrend();
+      });
+    });
+  }
+
+  // ── Trend ─────────────────────────────────────────────────────────────────
+
+  function renderTrend() {
+    const logs = load(LOGS_KEY) || [];
+    const ratingMap = {}, concernCount = {};
+    logs.forEach(l => {
+      if (l.rating) ratingMap[l.date] = l.rating;
+      (l.concerns || []).forEach(c => { concernCount[c] = (concernCount[c] || 0) + 1; });
+    });
+
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    const BAR_H = [0, 10, 22, 34, 46, 58];
+    document.getElementById('trendBars').innerHTML = days.map(d => {
+      const r = ratingMap[d];
+      const h = r ? BAR_H[r] : 4;
+      const color = r ? RATING_COLOR[r] : 'rgba(255,255,255,0.07)';
+      return `<div style="height:${h}px;background:${color};flex:1;border-radius:3px 3px 0 0" title="${r ? LABELS[r] : 'No entry'} · ${d}"></div>`;
+    }).join('');
+
+    document.getElementById('trendLabels').innerHTML = days.map(d =>
+      `<span class="sk-trend-lbl">${new Date(d + 'T12:00:00').getDate()}</span>`
+    ).join('');
+
+    const w1 = days.slice(7).map(d => ratingMap[d]).filter(Boolean);
+    const w2 = days.slice(0, 7).map(d => ratingMap[d]).filter(Boolean);
+    document.getElementById('trendWeek').textContent = w1.length ? (w1.reduce((a, b) => a + b, 0) / w1.length).toFixed(1) : '—';
+    document.getElementById('trendPrev').textContent = w2.length ? (w2.reduce((a, b) => a + b, 0) / w2.length).toFixed(1) : '—';
+
+    const allRated = days.map(d => ({ d, r: ratingMap[d] })).filter(x => x.r);
+    if (allRated.length) {
+      const best = allRated.reduce((a, b) => b.r > a.r ? b : a);
+      document.getElementById('trendBest').textContent =
+        LABELS[best.r] + ' (' + new Date(best.d + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' }) + ')';
+    } else {
+      document.getElementById('trendBest').textContent = '—';
+    }
+
+    const topConcern = Object.entries(concernCount).sort((a, b) => b[1] - a[1])[0];
+    document.getElementById('trendTopConcern').textContent = topConcern ? topConcern[0] + ' (' + topConcern[1] + 'x)' : '—';
+  }
+
+  // ── Ingredient Watchlist ───────────────────────────────────────────────────
+
+  function renderIngredients() {
+    const items = load(INGR_KEY) || [];
+    const el = document.getElementById('ingredientList');
+    if (!items.length) { el.innerHTML = '<div class="sk-empty" style="padding:8px 0 12px">No ingredients tracked yet.</div>'; return; }
+    el.innerHTML = items.map((item, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.15);margin-bottom:6px">
+        <span style="font-size:13px;color:#FCA5A5;flex:1">⚠️ ${item}</span>
+        <button class="sk-del-btn" data-ingr="${i}">✕</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-ingr]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const list = load(INGR_KEY) || [];
+        list.splice(Number(btn.dataset.ingr), 1);
+        save(INGR_KEY, list);
+        renderIngredients();
+      });
+    });
+  }
+
+  document.getElementById('addIngredientBtn').addEventListener('click', () => {
+    const inp = document.getElementById('ingredientInput');
+    const val = inp.value.trim();
+    if (!val) return;
+    const list = load(INGR_KEY) || [];
+    list.push(val);
+    save(INGR_KEY, list);
+    inp.value = '';
+    renderIngredients();
+  });
+  document.getElementById('ingredientInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('addIngredientBtn').click();
+  });
+
+  // ── Skin Goals ─────────────────────────────────────────────────────────────
+
+  function renderSkinGoals() {
+    const goals = load(GOALS_KEY) || [];
+    const el = document.getElementById('skinGoalList');
+    if (!goals.length) { el.innerHTML = '<div class="sk-empty" style="padding:8px 0 12px">No goals yet.</div>'; return; }
+    el.innerHTML = goals.map((g, i) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(125,211,252,0.05);border:1px solid rgba(125,211,252,0.1);margin-bottom:6px;cursor:pointer" data-gi="${i}">
+        <div style="width:18px;height:18px;border-radius:5px;border:1.5px solid ${g.done ? 'var(--accent)' : 'rgba(255,255,255,0.2)'};background:${g.done ? 'rgba(125,211,252,0.2)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--accent);flex-shrink:0">${g.done ? '✓' : ''}</div>
+        <span style="flex:1;font-size:13px;color:${g.done ? 'var(--text-tertiary)' : 'var(--text-secondary)'};${g.done ? 'text-decoration:line-through' : ''}">${g.text}</span>
+        <button class="sk-del-btn" data-gdel="${i}" style="font-size:12px">✕</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-gi]').forEach(row => {
+      row.addEventListener('click', e => {
+        if (e.target.closest('[data-gdel]')) return;
+        const list = load(GOALS_KEY) || [];
+        list[Number(row.dataset.gi)].done = !list[Number(row.dataset.gi)].done;
+        save(GOALS_KEY, list);
+        renderSkinGoals();
+      });
+    });
+    el.querySelectorAll('[data-gdel]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const list = load(GOALS_KEY) || [];
+        list.splice(Number(btn.dataset.gdel), 1);
+        save(GOALS_KEY, list);
+        renderSkinGoals();
+      });
+    });
+  }
+
+  document.getElementById('addSkinGoalBtn').addEventListener('click', () => {
+    const inp = document.getElementById('skinGoalInput');
+    const val = inp.value.trim();
+    if (!val) return;
+    const list = load(GOALS_KEY) || [];
+    list.push({ text: val, done: false });
+    save(GOALS_KEY, list);
+    inp.value = '';
+    renderSkinGoals();
+  });
+  document.getElementById('skinGoalInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('addSkinGoalBtn').click();
+  });
+
+  // ── Breakout Tracker ───────────────────────────────────────────────────────
+
+  let _btLocations = new Set();
+
+  document.getElementById('btLocations').querySelectorAll('.sk-badge').forEach(badge => {
+    badge.addEventListener('click', () => {
+      const loc = badge.dataset.loc;
+      if (_btLocations.has(loc)) { _btLocations.delete(loc); badge.classList.remove('on'); }
+      else { _btLocations.add(loc); badge.classList.add('on'); }
+    });
+  });
+
+  const breakoutForm = document.getElementById('breakoutForm');
+  document.getElementById('addBreakoutBtn').addEventListener('click', () => {
+    document.getElementById('btDate').value = today;
+    document.getElementById('btNotes').value = '';
+    document.getElementById('btTrigger').value = '';
+    document.getElementById('btSeverity').value = '3';
+    _btLocations = new Set();
+    document.getElementById('btLocations').querySelectorAll('.sk-badge').forEach(b => b.classList.remove('on'));
+    breakoutForm.classList.add('open');
+  });
+  document.getElementById('btCancel').addEventListener('click', () => breakoutForm.classList.remove('open'));
+  document.getElementById('btSave').addEventListener('click', () => {
+    const date = document.getElementById('btDate').value || today;
+    const bkouts = load(BKOUTS_KEY) || [];
+    bkouts.push({
+      id:        Date.now(),
+      date,
+      locations: [..._btLocations],
+      type:      document.getElementById('btType').value,
+      severity:  Number(document.getElementById('btSeverity').value),
+      trigger:   document.getElementById('btTrigger').value.trim(),
+      notes:     document.getElementById('btNotes').value.trim(),
+    });
+    save(BKOUTS_KEY, bkouts);
+    breakoutForm.classList.remove('open');
+    renderBreakouts(); renderOverview();
+  });
+
+  function renderBreakouts() {
+    const el = document.getElementById('breakoutList');
+    const bkouts = (load(BKOUTS_KEY) || []).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 25);
+    if (!bkouts.length) { el.innerHTML = '<div class="sk-empty">No breakouts logged yet.</div>'; return; }
+    el.innerHTML = bkouts.map(b => `
+      <div class="sk-bkout-item">
+        <div class="sk-bkout-header">
+          <span class="sk-bkout-date">${b.date}</span>
+          <button class="sk-del-btn" data-bdel="${b.id}">✕</button>
+        </div>
+        <div class="sk-bkout-tags">
+          <span class="sk-tag-red">Severity ${b.severity}/5</span>
+          <span class="sk-tag-red">${b.type}</span>
+          ${(b.locations || []).map(l => `<span class="sk-tag-red">${l}</span>`).join('')}
+          ${b.trigger ? `<span class="sk-tag-red">trigger: ${b.trigger}</span>` : ''}
+        </div>
+        ${b.notes ? `<div class="sk-bkout-notes">${b.notes}</div>` : ''}
+      </div>`).join('');
+    el.querySelectorAll('[data-bdel]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        save(BKOUTS_KEY, (load(BKOUTS_KEY) || []).filter(b => String(b.id) !== btn.dataset.bdel));
+        renderBreakouts(); renderOverview();
+      });
+    });
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+
+  function renderCorrelation() {
+    const el = document.getElementById('skinCorrelation');
+    if (!el) return;
+    const logs = (load(LOGS_KEY) || []).filter(l => l.rating).sort((a,b) => b.date.localeCompare(a.date)).slice(0, 14);
+    const routineLogs = load(ROUTINE_KEY) || {};
+    const prods = load(PRODS_KEY) || [];
+    if (logs.length < 4) { el.innerHTML = '<div style="font-size:12px;color:var(--text-quaternary)">Need at least 4 rated entries to compute correlations.</div>'; return; }
+    const goodDays = logs.filter(l => l.rating >= 4);
+    const badDays  = logs.filter(l => l.rating <= 2);
+    if (!goodDays.length || !badDays.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-quaternary)">Need both good (4-5) and bad (1-2) rated days to compare.</div>'; return; }
+    const countFor = (days) => {
+      const c = {};
+      days.forEach(l => {
+        (routineLogs[l.date] || []).forEach(pid => {
+          const p = prods.find(x => String(x.id) === pid);
+          const name = p ? p.name : pid;
+          c[name] = (c[name] || 0) + 1;
+        });
+      });
+      return c;
+    };
+    const goodCounts = countFor(goodDays);
+    const badCounts  = countFor(badDays);
+    const allProds = new Set([...Object.keys(goodCounts), ...Object.keys(badCounts)]);
+    const scores = [];
+    allProds.forEach(name => {
+      const g = (goodCounts[name] || 0) / goodDays.length;
+      const b = (badCounts[name] || 0) / badDays.length;
+      if (b - g > 0.15 || g - b > 0.15) scores.push({ name, g, b, diff: b - g });
+    });
+    scores.sort((a,b) => Math.abs(b.diff) - Math.abs(a.diff));
+    if (!scores.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-quaternary)">No strong correlations yet — keep logging.</div>'; return; }
+    const irritants = scores.filter(s => s.diff > 0).slice(0, 4);
+    const helpers   = scores.filter(s => s.diff < 0).slice(0, 4);
+    let html = '';
+    if (irritants.length) {
+      html += '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px">More common on bad days</div>';
+      html += irritants.map(s => '<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;border-radius:12px;font-size:12px;background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.25);color:#FF9999">' + s.name + '</span>').join('');
+      html += '<br style="margin:6px 0">';
+    }
+    if (helpers.length) {
+      html += '<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);margin:10px 0 6px">More common on good days</div>';
+      html += helpers.map(s => '<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;border-radius:12px;font-size:12px;background:rgba(107,227,164,.1);border:1px solid rgba(107,227,164,.25);color:#86EFAC">' + s.name + '</span>').join('');
+    }
+    html += '<div style="font-size:11px;color:var(--text-quaternary);margin-top:10px">Based on ' + logs.length + ' rated entries · ' + goodDays.length + ' good days, ' + badDays.length + ' bad days</div>';
+    el.innerHTML = html;
+  }
+
+  window._skinRenderAll = function() {
+    renderOverview(); renderRoutine(); renderProducts();
+    renderHistory(); renderTrend(); renderBreakouts();
+    renderIngredients(); renderSkinGoals(); renderCorrelation();
+  };
+
+  renderOverview();
+  renderRoutine();
+  renderProducts();
+  renderHistory();
+  renderTrend();
+  renderBreakouts();
+  renderIngredients();
+  renderSkinGoals();
+  renderCorrelation();
+
+})();
+</script>
+
+<script>
+(function skinSync() {
+  var SUPA_URL  = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY  = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var APP_KEY   = 'skin-app';
+  var SYNC_KEYS = ['skin:logs','skin:products','skin:routine:v1','skin:breakouts','skin:ingredients','skin:goals'];
+  var _origSet  = localStorage.setItem.bind(localStorage);
+  var pushTimer = null, lastJson = null;
+
+  localStorage.setItem = function(k, v) {
+    _origSet(k, v);
+    if (SYNC_KEYS.indexOf(k) !== -1) schedulePush();
+  };
+
+  function collect() {
+    var out = {};
+    SYNC_KEYS.forEach(function(k) {
+      var v = localStorage.getItem(k);
+      if (v != null) try { out[k] = JSON.parse(v); } catch (_) {}
+    });
+    return out;
+  }
+
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 400); }
+
+  function pushNow() {
+    var data = collect();
+    var json = JSON.stringify(data);
+    if (json === lastJson) return;
+    lastJson = json;
+    try {
+      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }),
+        keepalive: true,
+      }).catch(function() {});
+    } catch (_) {}
+  }
+
+  function applyRemote(remote) {
+    if (!remote || typeof remote !== 'object') return;
+    var changed = false;
+    SYNC_KEYS.forEach(function(k) {
+      if (k in remote) {
+        var incoming = JSON.stringify(remote[k]);
+        if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch (_) {} }
+      }
+    });
+    if (changed && window._skinRenderAll) try { window._skinRenderAll(); } catch (_) {}
+  }
+
+  (async function init() {
+    var url = SUPA_URL + '/rest/v1/app_state?select=data,updated_at&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1';
+    try {
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (r.ok) {
+        var rows = await r.json();
+        if (rows[0] && rows[0].data) {
+          lastJson = JSON.stringify(rows[0].data);
+          applyRemote(rows[0].data);
+        } else if (Object.keys(collect()).length > 0) {
+          schedulePush();
+        }
+      }
+    } catch (_) {}
+  })();
+
+  window.addEventListener('pagehide', pushNow);
+  window.addEventListener('beforeunload', pushNow);
+  document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
+})();
+</script>
+
+</body>
+</html>

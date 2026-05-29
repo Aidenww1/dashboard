@@ -2720,6 +2720,9 @@ main {
     const entry = logs.find(e => e.date === date);
     if (entry) {
       try { fetch('/api/health/bloodwork', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch {}
+      if (window.addEvent) window.addEvent('bloodwork.panel', ['bloodwork'], {
+        date: entry.date, markers: entry.markers,
+      }).catch(() => {});
     }
   });
 
@@ -2923,6 +2926,9 @@ document.getElementById('labSaveBtn').addEventListener('click', ()=>{
   labs.sort((a,b)=>a.date>b.date?1:-1);
   hSave(LABS_KEY,labs);
   try { fetch('/api/health/bloodwork', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch {}
+  if (window.addEvent) window.addEvent('bloodwork.panel', ['bloodwork'], {
+    date, marker, value, notes,
+  }).catch(() => {});
   document.getElementById('labValue').value='';
   document.getElementById('labNotes').value='';
   renderLabs();
