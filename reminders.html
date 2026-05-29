@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Reminders</title>
+<script src="bus.js" defer></script>
+<script src="topbar.js" defer></script>
+<script src="events.js" defer></script>
+<style>
+:root {
+  --bg:#0A0A0B; --bg-deep:#050506; --bg-card:rgba(255,255,255,0.04);
+  --text-primary:#FAFAFA; --text-secondary:#B8B6B0; --text-tertiary:#76746E;
+  --accent:#E07658; --success:#6BE3A4; --warning:#F2C063; --danger:#FF6B6B;
+  --radius-md:12px; --radius-lg:16px;
+  --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg-deep);color:var(--text-primary);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100%;}
+body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-gradient(60% 45% at 82% 14%,rgba(224,118,88,.14) 0%,transparent 55%),linear-gradient(180deg,#0A0A0B 0%,#050506 100%);filter:blur(40px);pointer-events:none;}
+.shell{max-width:640px;margin:0 auto;padding:20px 16px 100px;}
+.page-title{font-size:22px;font-weight:800;color:var(--text-primary);margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--text-tertiary);margin-bottom:20px;line-height:1.5;}
+.card{background:var(--bg-card);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px;box-shadow:0 1px 0 0 rgba(255,255,255,.06) inset,0 12px 40px rgba(0,0,0,.45);}
+.section-title{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:12px;}
+.perm-status{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--radius-md);margin-bottom:16px;}
+.perm-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.perm-text{font-size:13px;font-weight:600;}
+.perm-btn{margin-left:auto;padding:8px 16px;border-radius:var(--radius-md);background:var(--accent);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);}
+.reminder-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);}
+.reminder-row:last-child{border-bottom:none;}
+.rem-icon{font-size:20px;width:32px;text-align:center;flex-shrink:0;}
+.rem-info{flex:1}
+.rem-label{font-size:14px;font-weight:600;color:var(--text-primary);}
+.rem-sub{font-size:12px;color:var(--text-tertiary);margin-top:2px;}
+.rem-time{font-size:13px;font-weight:600;color:var(--text-secondary);margin-right:6px;}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.12);border-radius:12px;cursor:pointer;transition:.2s;}
+.toggle input:checked~.toggle-slider{background:var(--accent);}
+.toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+.toggle input:checked~.toggle-slider::before{transform:translateX(20px);}
+.time-input{background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:5px 8px;color:var(--text-primary);font-size:13px;font-family:var(--font);outline:none;width:80px;}
+.add-row{display:flex;gap:8px;margin-top:12px;}
+.add-input{flex:1;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none;}
+.add-btn{padding:8px 16px;border-radius:8px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);}
+.test-btn{width:100%;padding:12px;border-radius:var(--radius-md);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--text-secondary);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:8px;}
+.info-box{background:rgba(255,200,100,.06);border:1px solid rgba(255,200,100,.2);border-radius:var(--radius-md);padding:12px 14px;font-size:12px;color:rgba(255,200,100,.9);line-height:1.5;margin-bottom:14px;}
+@media(min-width:900px){.shell{max-width:960px!important;padding-left:32px!important;padding-right:32px!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="page-title">Reminders</div>
+  <div class="page-sub">Browser push notifications — nudge yourself at the right time. Keep this page open once and the reminders will fire from the background service worker.</div>
+
+  <!-- Supplements -->
+  <div class="card" id="suppCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:0">Supplement stack</div>
+      <div id="suppStreak" style="font-size:12px;font-weight:700;color:var(--success)"></div>
+    </div>
+    <div id="suppList"><div style="font-size:13px;color:var(--text-tertiary);padding:8px 0">No supplements yet.</div></div>
+    <div class="add-row" style="flex-wrap:wrap;gap:8px;margin-top:12px">
+      <input class="add-input" id="suppName" placeholder="Supplement (e.g. Vitamin D)">
+      <input class="add-input" id="suppDose" placeholder="Dose (e.g. 5000 IU)" style="flex:0.7;min-width:100px">
+      <input type="time" class="time-input" id="suppTime" value="08:00">
+      <button class="add-btn" id="suppAddBtn">+ Add</button>
+    </div>
+  </div>
+
+  <!-- Permission status -->
+  <div class="card">
+    <div class="section-title">Notification permission</div>
+    <div id="permStatus" class="perm-status" style="background:rgba(255,255,255,.03)">
+      <div class="perm-dot" id="permDot"></div>
+      <span class="perm-text" id="permText">Checking…</span>
+      <button class="perm-btn" id="permBtn" style="display:none">Enable</button>
+    </div>
+    <button class="test-btn" id="testBtn">🔔 Send test notification</button>
+  </div>
+
+  <div class="info-box">⚠ Browser notifications require the page to be open (or the PWA installed). They will not fire if the browser tab is closed, unless you install the dashboard as a PWA from your browser's address bar.</div>
+
+  <!-- Built-in reminders -->
+  <div class="card">
+    <div class="section-title">Daily reminders</div>
+    <div id="builtinList"></div>
+  </div>
+
+  <!-- Custom reminders -->
+  <div class="card">
+    <div class="section-title">Custom reminders</div>
+    <div id="customList"></div>
+    <div class="add-row" style="flex-wrap:wrap;gap:8px">
+      <input class="add-input" id="customLabel" placeholder="Reminder text…">
+      <input type="time" class="time-input" id="customTime" value="09:00">
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="customDays">
+        <button class="day-pill active" data-d="1">Mo</button>
+        <button class="day-pill active" data-d="2">Tu</button>
+        <button class="day-pill active" data-d="3">We</button>
+        <button class="day-pill active" data-d="4">Th</button>
+        <button class="day-pill active" data-d="5">Fr</button>
+        <button class="day-pill" data-d="6">Sa</button>
+        <button class="day-pill" data-d="0">Su</button>
+      </div>
+      <button class="add-btn" id="customAddBtn">+ Add</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.day-pill{padding:5px 10px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:transparent;color:var(--text-tertiary);font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;}
+.day-pill.active{background:rgba(224,118,88,.2);border-color:var(--accent);color:var(--accent);}
+</style>
+
+<script src="tabbar.js" defer></script>
+<script>
+(function() {
+  'use strict';
+
+  const KEY = 'reminders:v1';
+  const BUILTIN = [
+    { id:'water_morning', icon:'💧', label:'Morning water', sub:'Drink a glass of water', time:'08:00', days:[1,2,3,4,5,6,0], enabled:false },
+    { id:'water_midday',  icon:'💧', label:'Midday water',  sub:'Stay hydrated', time:'12:00', days:[1,2,3,4,5,6,0], enabled:false },
+    { id:'water_evening', icon:'💧', label:'Evening water', sub:'Last glass before sleep', time:'20:00', days:[1,2,3,4,5,6,0], enabled:false },
+    { id:'gym_mwf',       icon:'🏋', label:'Gym time',      sub:'Time to train', time:'18:00', days:[1,3,5], enabled:false },
+    { id:'sleep_window',  icon:'🌙', label:'Sleep window',  sub:'Heading towards your target sleep time', time:'22:30', days:[1,2,3,4,5,6,0], enabled:false },
+    { id:'meds_morning',  icon:'💊', label:'Morning meds',  sub:'Take your medication', time:'08:00', days:[1,2,3,4,5,6,0], enabled:false },
+    { id:'log_mood',      icon:'😊', label:'Daily mood log','sub':'How are you feeling today?', time:'21:00', days:[1,2,3,4,5,6,0], enabled:false },
+    { id:'log_habits',    icon:'✅', label:'Habit check-in', sub:'Mark your habits for today', time:'21:30', days:[1,2,3,4,5,6,0], enabled:false },
+  ];
+
+  function loadData() {
+    const saved = JSON.parse(localStorage.getItem(KEY)||'{}');
+    return {
+      builtin: BUILTIN.map(b => Object.assign({}, b, saved.builtin?.[b.id] || {})),
+      custom: saved.custom || [],
+    };
+  }
+  function saveData(data) {
+    const builtinMap = {};
+    data.builtin.forEach(b => { builtinMap[b.id] = { enabled: b.enabled, time: b.time }; });
+    localStorage.setItem(KEY, JSON.stringify({ builtin: builtinMap, custom: data.custom }));
+    scheduleAll(data);
+  }
+
+  // Permission
+  function updatePermUI() {
+    const dot = document.getElementById('permDot');
+    const text = document.getElementById('permText');
+    const btn  = document.getElementById('permBtn');
+    const p    = Notification.permission;
+    const colors = { granted:'#6BE3A4', denied:'#FF6B6B', default:'#F2C063' };
+    const labels = { granted:'Notifications enabled', denied:'Blocked — enable in browser settings', default:'Not yet enabled' };
+    if (dot) dot.style.background = colors[p] || '#F2C063';
+    if (text) text.textContent = labels[p] || 'Unknown';
+    if (btn) btn.style.display = (p === 'default') ? '' : 'none';
+  }
+
+  document.getElementById('permBtn')?.addEventListener('click', async () => {
+    await Notification.requestPermission();
+    updatePermUI();
+  });
+  document.getElementById('testBtn')?.addEventListener('click', () => {
+    if (Notification.permission !== 'granted') { Notification.requestPermission().then(updatePermUI); return; }
+    new Notification('🔔 Dashboard Reminder', { body: 'Test notification — reminders are working!', icon: '/favicon.ico' });
+  });
+  updatePermUI();
+
+  // Scheduling (client-side: setTimeout for current session)
+  let scheduledTimers = [];
+  function scheduleAll(data) {
+    scheduledTimers.forEach(t => clearTimeout(t));
+    scheduledTimers = [];
+    if (Notification.permission !== 'granted') return;
+    const now = new Date();
+    [...data.builtin.filter(r=>r.enabled), ...data.custom.filter(r=>r.enabled)].forEach(rem => {
+      const [h,m] = rem.time.split(':').map(Number);
+      const dow = now.getDay();
+      if (!(rem.days || [1,2,3,4,5,6,0]).includes(dow)) return;
+      const fireTime = new Date(); fireTime.setHours(h, m, 0, 0);
+      if (fireTime > now) {
+        const delay = fireTime - now;
+        const id = setTimeout(() => {
+          new Notification(rem.icon + ' ' + rem.label, { body: rem.sub || '', icon: '/favicon.ico', tag: rem.id || rem.label });
+        }, delay);
+        scheduledTimers.push(id);
+      }
+    });
+  }
+
+  // Render builtin
+  function renderBuiltin() {
+    const data = loadData();
+    const el = document.getElementById('builtinList'); if (!el) return;
+    el.innerHTML = data.builtin.map(b => `
+      <div class="reminder-row">
+        <div class="rem-icon">${b.icon}</div>
+        <div class="rem-info">
+          <div class="rem-label">${b.label}</div>
+          <div class="rem-sub">${b.sub} · ${b.days.map(d=>['Su','Mo','Tu','We','Th','Fr','Sa'][d]).join(', ')}</div>
+        </div>
+        <input type="time" class="time-input rem-time-input" data-id="${b.id}" value="${b.time}">
+        <label class="toggle">
+          <input type="checkbox" class="rem-toggle" data-id="${b.id}" ${b.enabled?'checked':''}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>`).join('');
+
+    el.querySelectorAll('.rem-toggle').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const d = loadData();
+        const rem = d.builtin.find(r=>r.id===cb.dataset.id);
+        if (rem) rem.enabled = cb.checked;
+        saveData(d);
+      });
+    });
+    el.querySelectorAll('.rem-time-input').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const d = loadData();
+        const rem = d.builtin.find(r=>r.id===inp.dataset.id);
+        if (rem) rem.time = inp.value;
+        saveData(d);
+      });
+    });
+  }
+
+  // Render custom
+  function renderCustom() {
+    const data = loadData();
+    const el = document.getElementById('customList'); if (!el) return;
+    if (!data.custom.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary);padding:8px 0">No custom reminders yet.</div>'; return; }
+    el.innerHTML = data.custom.map((c,i) => `
+      <div class="reminder-row">
+        <div class="rem-icon">🔔</div>
+        <div class="rem-info">
+          <div class="rem-label">${c.label}</div>
+          <div class="rem-sub">${(c.days||[]).map(d=>['Su','Mo','Tu','We','Th','Fr','Sa'][d]).join(', ')} · ${c.time}</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" class="cust-toggle" data-i="${i}" ${c.enabled?'checked':''}>
+          <span class="toggle-slider"></span>
+        </label>
+        <button onclick="window.delReminder(${i})" style="background:transparent;border:none;color:rgba(255,107,107,.6);cursor:pointer;font-size:18px;padding:0 0 0 8px">&times;</button>
+      </div>`).join('');
+    el.querySelectorAll('.cust-toggle').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const d = loadData();
+        if (d.custom[parseInt(cb.dataset.i)]) d.custom[parseInt(cb.dataset.i)].enabled = cb.checked;
+        saveData(d); renderCustom();
+      });
+    });
+  }
+
+  window.delReminder = function(i) {
+    const d = loadData();
+    d.custom.splice(i,1);
+    saveData(d); renderCustom();
+  };
+
+  // Day pill toggles for custom add form
+  document.querySelectorAll('.day-pill').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+  });
+
+  // Add custom
+  document.getElementById('customAddBtn')?.addEventListener('click', () => {
+    const label = document.getElementById('customLabel')?.value.trim(); if (!label) return;
+    const time = document.getElementById('customTime')?.value || '09:00';
+    const days = [...document.querySelectorAll('.day-pill.active')].map(b=>parseInt(b.dataset.d));
+    const d = loadData();
+    d.custom.push({ id: Date.now().toString(36), label, time, days, enabled: true, sub: '' });
+    saveData(d);
+    document.getElementById('customLabel').value = '';
+    renderCustom();
+  });
+
+  // Init
+  const data = loadData();
+  scheduleAll(data);
+  renderBuiltin();
+  renderCustom();
+
+  // Re-schedule on midnight
+  const nowMs = Date.now();
+  const midnight = new Date(); midnight.setHours(24,0,0,0);
+  setTimeout(() => { scheduleAll(loadData()); }, midnight - nowMs);
+})();
+</script>
+
+<script>
+(function() {
+  'use strict';
+  var STACK_KEY = 'supps:stack';
+  var TAKEN_KEY = 'supps:taken';
+
+  function dateKey(d) {
+    d = d || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function loadStack() { try { return JSON.parse(localStorage.getItem(STACK_KEY)||'[]'); } catch(e) { return []; } }
+  function saveStack(s) { localStorage.setItem(STACK_KEY, JSON.stringify(s)); }
+  function loadTaken() { try { return JSON.parse(localStorage.getItem(TAKEN_KEY)||'[]'); } catch(e) { return []; } }
+  function saveTaken(t) { localStorage.setItem(TAKEN_KEY, JSON.stringify(t)); }
+
+  function todayTaken() {
+    var today = dateKey();
+    var set = new Set();
+    loadTaken().forEach(function(t) { if (t.date === today) set.add(t.suppId); });
+    return set;
+  }
+
+  function computeStreak() {
+    var taken = loadTaken();
+    if (!taken.length) return 0;
+    var dates = new Set(taken.map(function(t) { return t.date; }));
+    var streak = 0;
+    var d = new Date();
+    if (!dates.has(dateKey(d))) d.setDate(d.getDate() - 1);
+    while (dates.has(dateKey(d))) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    }
+    return streak;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderSupps() {
+    var stack = loadStack();
+    var takenToday = todayTaken();
+    var streak = computeStreak();
+    var streakEl = document.getElementById('suppStreak');
+    if (streakEl) streakEl.textContent = streak >= 1 ? streak + '-day streak' : '';
+    var el = document.getElementById('suppList');
+    if (!el) return;
+    if (!stack.length) {
+      el.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary);padding:8px 0">No supplements in your stack. Add one below.</div>';
+      return;
+    }
+    el.innerHTML = stack.map(function(s, i) {
+      var done = takenToday.has(s.id);
+      return '<div class="reminder-row">'
+        + '<div class="rem-icon">💊</div>'
+        + '<div class="rem-info">'
+        +   '<div class="rem-label">' + escHtml(s.name) + '</div>'
+        +   '<div class="rem-sub">' + escHtml(s.dose || '') + (s.time ? ' · ' + s.time : '') + '</div>'
+        + '</div>'
+        + '<button class="supp-take-btn" data-i="' + i + '" style="padding:6px 14px;border-radius:20px;border:1px solid;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:.15s;'
+        + (done ? 'background:rgba(107,227,164,.12);border-color:rgba(107,227,164,.4);color:#6BE3A4;' : 'background:rgba(224,118,88,.12);border-color:rgba(224,118,88,.4);color:#E07658;')
+        + '">' + (done ? 'Taken' : 'Take') + '</button>'
+        + '<button data-del="' + i + '" style="background:transparent;border:none;color:rgba(255,107,107,.5);cursor:pointer;font-size:18px;padding:0 0 0 8px">&times;</button>'
+        + '</div>';
+    }).join('');
+
+    el.querySelectorAll('.supp-take-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var idx = parseInt(btn.dataset.i);
+        var stk = loadStack();
+        var s = stk[idx]; if (!s) return;
+        var today = dateKey();
+        var taken = loadTaken();
+        if (taken.some(function(t) { return t.suppId === s.id && t.date === today; })) return;
+        taken.push({ suppId: s.id, name: s.name, date: today, ts: Date.now() });
+        saveTaken(taken);
+        if (window.addEvent) window.addEvent('supplements.taken', ['supplements'], {
+          name: s.name, dose: s.dose || '', time: s.time || '', date: today,
+        }).catch(function() {});
+        renderSupps();
+      });
+    });
+
+    el.querySelectorAll('[data-del]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var idx = parseInt(btn.getAttribute('data-del'));
+        var stk = loadStack();
+        stk.splice(idx, 1);
+        saveStack(stk);
+        renderSupps();
+      });
+    });
+  }
+
+  document.getElementById('suppAddBtn').addEventListener('click', function() {
+    var name = (document.getElementById('suppName').value || '').trim();
+    if (!name) return;
+    var dose = (document.getElementById('suppDose').value || '').trim();
+    var time = document.getElementById('suppTime').value || '08:00';
+    var stk = loadStack();
+    stk.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,5), name: name, dose: dose, time: time });
+    saveStack(stk);
+    document.getElementById('suppName').value = '';
+    document.getElementById('suppDose').value = '';
+    renderSupps();
+  });
+
+  document.getElementById('suppName').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('suppAddBtn').click();
+  });
+
+  renderSupps();
+})();
+</script>
+
+<script>
+(function remindersSync() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var APP_KEY  = 'reminders-app';
+  var SYNC_KEYS = ['reminders:v1', 'supps:stack', 'supps:taken'];
+  var _origSet = localStorage.setItem.bind(localStorage);
+  var pushTimer = null;
+  var lastJson = null;
+
+  localStorage.setItem = function(k, v) {
+    _origSet(k, v);
+    if (SYNC_KEYS.indexOf(k) !== -1) schedulePush();
+  };
+
+  function collect() {
+    var out = {};
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var v = localStorage.getItem(SYNC_KEYS[i]);
+      if (v != null) try { out[SYNC_KEYS[i]] = JSON.parse(v); } catch (_) {}
+    }
+    return out;
+  }
+
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 400); }
+
+  function pushNow() {
+    var data = collect();
+    var json = JSON.stringify(data);
+    if (json === lastJson) return;
+    lastJson = json;
+    try {
+      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }),
+        keepalive: true,
+      }).catch(function() {});
+    } catch (_) {}
+  }
+
+  (async function init() {
+    var url = SUPA_URL + '/rest/v1/app_state?select=data,updated_at&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1';
+    try {
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (!r.ok) return;
+      var rows = await r.json();
+      var remote = rows[0] && rows[0].data;
+      if (!remote) { if (Object.keys(collect()).length > 0) schedulePush(); return; }
+      lastJson = JSON.stringify(remote);
+      var changed = false;
+      for (var i = 0; i < SYNC_KEYS.length; i++) {
+        var k = SYNC_KEYS[i];
+        if (k in remote) {
+          var incoming = JSON.stringify(remote[k]);
+          if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch (_) {} }
+        }
+      }
+      if (changed && !sessionStorage.getItem('_remSyncR')) {
+        sessionStorage.setItem('_remSyncR', '1');
+        window.location.reload();
+      } else {
+        sessionStorage.removeItem('_remSyncR');
+      }
+    } catch (_) {}
+  })();
+
+  window.addEventListener('pagehide', pushNow);
+  window.addEventListener('beforeunload', pushNow);
+  document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
+})();
+</script>
+
+</body>
+</html>

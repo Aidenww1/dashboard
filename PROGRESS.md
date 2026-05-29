@@ -109,7 +109,7 @@ None committed.
 - [x] Finance: wire finance.html manual expense entry into `events` (type `finance.expense`). Monthly burn from events. Added `events.js` script tag; `doOrdAdd()` fires `addEvent('finance.expense', ['finance'], { name, amount, currency, amount_chf, category, date })` after localStorage write. `renderOrderMonthlySummary()` defined inside IIFE; populates `#ordMonthlySummary` with 30-day order spend chip after each `renderOrders()` call.
 
 ### Phase 2 — Health Modules
-- [ ] Supplements: wire reminders.html supplement logs into `events` (type `supplements.taken`). Adherence streak from events.
+- [x] Supplements: wire reminders.html supplement logs into `events` (type `supplements.taken`). Adherence streak from events. Added `events.js` script tag + new Supplements card to reminders.html: `supps:stack` (localStorage array of `{id,name,dose,time}`) + `supps:taken` log; tap-to-confirm "Take" button fires `addEvent('supplements.taken', ['supplements'], {name,dose,time,date})`; streak computed from consecutive days with ≥1 taken entry; both keys added to remindersSync SYNC_KEYS for Supabase backup.
 - [ ] Bloodwork: wire health.html bloodwork entry into `events` (type `bloodwork.panel`). Reference-range bands on chart.
 - [ ] Skin: wire skin.html routine log into `events` (type `skin.routine`). Correlate irritation with routine from events.
 
@@ -138,4 +138,4 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. Phase 1 complete. Training, Sleep, Mood, Body Composition, Nutrition, Finance wired. Next: Phase 2 — Supplements._
+_Last updated: 2026-05-30. Phase 2 in progress. Supplements wired. Next: Bloodwork._
