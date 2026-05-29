@@ -102,7 +102,7 @@ None committed.
 
 ### Phase 1 — Core Modules (extend existing HTML pages with `events` data)
 - [x] Training & Workout: wire `addEvent()` into gym.html manual log form so sets/sessions also write to `events` table (keep existing localStorage behavior). Added `events.js` script tag to gym.html; logBtn click writes `workout.set` event (exercise, muscle, kg, reps, rpe, bw); "Mark workout done" button writes `workout.session` event (date, sets array, totalSets, totalVol). All localStorage behavior preserved; addEvent failures are swallowed so they never break the UI.
-- [ ] Sleep: wire sleep manual-entry into `events` (type `sleep.night`). Show events-backed rolling 7-day avg and readiness score.
+- [x] Sleep: wire sleep manual-entry into `events` (type `sleep.night`). Added `events.js` script tag to health.html; slpFormSave writes `sleep.night` event (date, bedtime, waketime, duration_mins, score, rem/deep/light_pct) to Supabase alongside existing localStorage+Samsung Health writes. Added Readiness score (0-100, derived from duration + sleep score + deep% + bedtime consistency) as 4th stat in the 2x2 consistency grid.
 - [ ] Mood & Energy: wire mood.html ratings into `events` (type `mood.rating`). Show events-backed trend.
 - [ ] Body Composition: wire body.html weight/measurement logs into `events`. Show events-backed goal pacing.
 - [ ] Nutrition: wire nutrition.html manual meal logs into `events` (type `nutrition.meal`). Running surplus/deficit from events.
@@ -138,4 +138,4 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. Phase 1 in progress. Training & Workout wired. Next: Sleep._
+_Last updated: 2026-05-30. Phase 1 in progress. Training & Sleep wired. Next: Mood & Energy._

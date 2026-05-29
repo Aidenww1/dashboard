@@ -1,0 +1,3087 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Daily Stack</title>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-secondary: rgba(255, 255, 255, 0.035);
+  --bg-input: rgba(0, 0, 0, 0.28);
+  --bg-input-focus: rgba(0, 0, 0, 0.36);
+  --bg-dropdown: rgba(15, 15, 18, 0.96);
+
+  --border: rgba(255, 255, 255, 0.06);
+  --border-soft: rgba(255, 255, 255, 0.04);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --text-quaternary: #4D4B47;
+
+  --accent: #1D9E75;
+  --accent-glow: rgba(29, 158, 117, 0.35);
+  --warning: #FF8A4D;
+  --warning-bg: rgba(163, 45, 45, 0.10);
+  --tag-stack: #D8AB30;
+  --tag-stack-bg: rgba(216, 171, 48, 0.15);
+
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+body { min-height: 100vh; position: relative; overflow-x: hidden; }
+
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background:
+    radial-gradient(60% 50% at 82% 14%, rgba(224, 118, 88, 0.16) 0%, transparent 60%),
+    radial-gradient(50% 40% at 18% 90%, rgba(180, 180, 200, 0.06) 0%, transparent 60%);
+  filter: blur(40px);
+  pointer-events: none; z-index: 0;
+  animation: drift 36s ease-in-out infinite alternate;
+}
+body::after {
+  content: ''; position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.014) 1px, transparent 1px);
+  background-size: 3px 3px;
+  pointer-events: none; z-index: 1;
+}
+@keyframes drift { 0% { transform: translate(0, 0); } 100% { transform: translate(-2%, 2%); } }
+
+main {
+  position: relative; z-index: 2;
+  max-width: 720px; margin: 0 auto;
+  padding: 56px 20px 120px;
+  padding-top: max(56px, env(safe-area-inset-top, 56px));
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 4px 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.section-title::before { content: '⚡'; font-size: 14px; opacity: 0.5; }
+
+.stack-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+}
+
+.stack-head { margin-bottom: 12px; }
+.sf-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.sf-title {
+  font-size: 24px; font-weight: 700;
+  letter-spacing: -0.022em;
+  color: var(--text-primary);
+  line-height: 1.15; margin-bottom: 2px;
+}
+.stack-progress-text {
+  font-family: var(--font-mono);
+  font-size: 12px; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+.stack-progress-track {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px; overflow: hidden;
+  margin: 14px 0 18px;
+}
+.stack-progress-fill {
+  height: 100%; width: 0%;
+  background: #FFFFFF; border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.stack-window { margin-bottom: 14px; }
+.stack-window-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.stack-window-icon { font-size: 16px; }
+.stack-window-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.stack-window-time { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+
+.stack-item {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  margin-bottom: 6px;
+  border: 1px solid transparent;
+  transition: background 0.2s, border-color 0.2s;
+}
+.stack-item:hover { background: rgba(255,255,255,0.05); }
+.stack-item.taken { background: rgba(29,158,117,0.08); }
+.stack-item.taken .stack-item-name { text-decoration: line-through; color: var(--text-tertiary); }
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+.stack-item.missed {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  animation: pulse-red 1.5s ease-in-out infinite;
+}
+.stack-item.missed .stack-check { border-color: rgba(239, 68, 68, 0.55); }
+.stack-item.taken.missed { animation: none; border-color: transparent; }
+.stack-item.taken.missed .stack-check { border-color: var(--accent); }
+
+.stack-check {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: transparent;
+  transition: all 0.2s;
+  flex-shrink: 0; font-family: inherit; padding: 0;
+}
+.stack-check:hover { border-color: var(--accent); }
+.stack-check.checked {
+  background: var(--accent); border-color: var(--accent);
+  color: white;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.stack-item-body { min-width: 0; }
+.stack-item-name {
+  font-size: 14px; font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+  display: inline-flex; align-items: center;
+  gap: 8px; flex-wrap: wrap;
+  outline: none;
+}
+.stack-item-name[contenteditable="true"] {
+  outline: 1px solid rgba(255,255,255,0.25);
+  outline-offset: 4px; border-radius: 4px;
+}
+.stack-item-meta {
+  font-size: 11px; color: var(--text-tertiary);
+  margin-top: 2px; outline: none; cursor: text;
+}
+.stack-item-meta[contenteditable="true"] {
+  outline: 1px solid rgba(255,255,255,0.2);
+  outline-offset: 4px; border-radius: 4px;
+  color: var(--text-secondary);
+}
+.stack-item-meta:empty::before {
+  content: 'add notes…';
+  color: var(--text-quaternary);
+  font-style: italic;
+}
+
+.stack-item-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 7px; border-radius: 99px;
+  font-weight: 600; letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+.stack-item-tag.tag-stack { background: var(--tag-stack-bg); color: var(--tag-stack); }
+.stack-item-tag.tag-not-ordered { background: var(--warning-bg); color: var(--text-tertiary); }
+
+.stack-low-btn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  padding: 5px 9px; border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-weight: 600; letter-spacing: 0.04em;
+  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: all 0.15s;
+}
+.stack-low-btn:hover { border-color: rgba(163,45,45,0.4); color: var(--warning); }
+.stack-low-btn.is-low {
+  background: var(--warning-bg);
+  border-color: rgba(163,45,45,0.4);
+  color: var(--warning);
+}
+
+.stack-item-del {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 10px; border-radius: 6px;
+  opacity: 0.7;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, background 0.15s;
+  font-family: inherit;
+  line-height: 1;
+  min-width: 28px; min-height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.stack-item:hover .stack-item-del { opacity: 1; }
+.stack-item-del:hover, .stack-item-del:active {
+  color: #FF6B6B;
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.08);
+  opacity: 1;
+}
+
+.stack-window-empty {
+  font-size: 12px;
+  color: var(--text-quaternary);
+  font-style: italic;
+  padding: 8px 12px;
+}
+
+.stack-ticker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  font-size: 12px;
+  min-height: 36px;
+}
+.stack-ticker-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #6BE3A4;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.stack-ticker.status-low .stack-ticker-dot { background: #FF8A4D; }
+.stack-ticker.status-missed .stack-ticker-dot {
+  background: #FF6B6B;
+  animation: ticker-pulse 1.5s ease-in-out infinite;
+}
+@keyframes ticker-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50%      { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+.stack-ticker-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.stack-ticker-sep { color: var(--text-quaternary); flex-shrink: 0; }
+.stack-ticker-msg {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.28s;
+}
+.stack-ticker-msg.is-fading { opacity: 0; }
+.stack-ticker-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.stack-add-wrap {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+.stack-add-label { margin-bottom: 10px; }
+.stack-add-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 110px 90px;
+  gap: 6px;
+  align-items: center;
+}
+.stack-input {
+  font-size: 13px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: border-color 0.18s, background 0.18s;
+}
+.stack-input::placeholder { color: var(--text-tertiary); }
+.stack-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.40);
+  background: var(--bg-input-focus);
+}
+.stack-select { cursor: pointer; }
+.stack-add-btn {
+  font-size: 13px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%);
+  color: #0A0A0B;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.12s, box-shadow 0.18s, background 0.18s;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 4px 14px rgba(0, 0, 0, 0.30);
+}
+.stack-add-btn:hover {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F2F0EA 100%);
+  transform: translateY(-1px);
+}
+.stack-add-btn:active { transform: translateY(0) scale(0.97); }
+
+.stack-name-wrap { position: relative; }
+
+.stack-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 320px);
+  background: var(--bg-dropdown);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  max-height: 280px;
+  overflow-y: auto;
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+  z-index: 50;
+  padding: 6px;
+}
+.stack-search-results[hidden] { display: none; }
+
+.stack-result {
+  display: flex;
+  gap: 12px; align-items: center;
+  width: 100%;
+  padding: 9px 11px;
+  background: transparent; border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-secondary);
+  transition: background 0.12s;
+}
+.stack-result:hover, .stack-result.is-focused { background: rgba(255, 255, 255, 0.06); }
+
+.stack-result-icon { font-size: 17px; flex-shrink: 0; width: 24px; text-align: center; }
+.stack-result-body { min-width: 0; flex: 1; }
+.stack-result-name {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary); line-height: 1.2;
+}
+.stack-result-meta {
+  font-size: 11px; color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.attribution {
+  text-align: center; margin-top: 28px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+}
+
+@media (max-width: 600px) {
+  main { padding: 40px 16px 120px; }
+  .stack-card { padding: 18px 16px 14px; }
+  .stack-item { grid-template-columns: 28px 1fr auto; gap: 8px; }
+  .stack-item .stack-low-btn { grid-column: 2 / 4; margin-top: 4px; justify-self: start; }
+  .stack-add-row { grid-template-columns: 1fr 1fr; }
+  .stack-add-row .stack-add-btn { grid-column: 1 / -1; }
+  .stack-add-row .stack-select { grid-column: 1 / -1; }
+  .stack-search-results { width: 100%; }
+}
+
+::selection { background: rgba(224, 118, 88, 0.3); color: var(--text-primary); }
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+.tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  display: flex; justify-content: center;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(10,10,11,0) 0%, rgba(10,10,11,0.78) 38%, rgba(10,10,11,0.94) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+}
+.tabbar-inner {
+  overflow-x: auto; scrollbar-width: none;
+  pointer-events: auto;
+  display: flex; width: 100%; max-width: 460px;
+  gap: 6px; padding: 6px;
+  background: rgba(20,20,22,0.72);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+}
+.tab {
+  flex: 1 1 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 10px 8px; border-radius: 13px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--text-secondary); text-decoration: none;
+  background: transparent; border: 1px solid transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab:hover { color: var(--text-primary); }
+.tab[aria-current="page"] {
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.10);
+}
+.tab-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tab-icon svg { width: 100%; height: 100%; display: block; }
+
+/* ===== SLEEP ===== */
+.slp-title::before { content: '🌙' !important; }
+
+.sleep-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 20px 20px 16px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  margin-bottom: 20px;
+}
+
+.sleep-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.sleep-dur {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #6BE3A4;
+  font-variant-numeric: tabular-nums;
+}
+
+.sleep-dur-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 5px;
+}
+
+.sleep-score-badge {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(107, 227, 164, 0.12);
+  color: #6BE3A4;
+  border: 1px solid rgba(107, 227, 164, 0.2);
+  white-space: nowrap;
+}
+.sleep-score-badge.warn { background: rgba(242,192,99,0.12); color: #F2C063; border-color: rgba(242,192,99,0.2); }
+.sleep-score-badge.bad  { background: rgba(255,107,107,0.12); color: #FF6B6B; border-color: rgba(255,107,107,0.2); }
+
+.sleep-times {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sleep-chips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.sleep-chip {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border);
+  letter-spacing: 0.04em;
+}
+
+.sleep-log-btn {
+  width: 100%;
+  padding: 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-bottom: 0;
+}
+.sleep-log-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+
+.sleep-form {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.sleep-form.open { display: flex; }
+
+.sleep-form-row { display: flex; gap: 8px; }
+
+.sleep-form-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+  margin-bottom: 4px;
+}
+
+.sleep-inp {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: var(--font);
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.sleep-inp:focus { border-color: var(--border-strong); }
+
+.sleep-save-btn {
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.sleep-save-btn:hover { opacity: 0.85; }
+
+.sleep-chart-wrap { margin: 16px 0 4px; }
+.sleep-chart-svg { width: 100%; overflow: visible; display: block; }
+
+.sleep-hist-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-quaternary);
+  margin: 14px 0 8px;
+}
+
+.sleep-hist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.sleep-hist-item:last-child { border-bottom: none; }
+
+.sleep-hist-day {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-tertiary);
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.sleep-hist-dur {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sleep-hist-time {
+  font-size: 11px;
+  color: var(--text-quaternary);
+  margin-top: 1px;
+}
+
+.sleep-hist-del {
+  background: none;
+  border: none;
+  color: var(--text-quaternary);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.bus-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 500;
+  margin: 8px 0; border-left: 3px solid; line-height: 1.4;
+}
+.bus-chip-orange { background: rgba(242,192,99,0.08); border-color: #F2C063; color: #F2C063; }
+.sleep-hist-del:hover { color: #FF6B6B; }
+
+.sleep-empty {
+  text-align: center;
+  padding: 18px 0;
+  color: var(--text-quaternary);
+  font-size: 13px;
+}
+
+/* ===== SLEEP IMPORT ===== */
+.slp-import-wrap {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.slp-import-hint {
+  font-size: 11px;
+  color: var(--text-quaternary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.slp-import-hint code {
+  font-family: var(--font-mono);
+  background: rgba(255,255,255,0.05);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.slp-import-btn {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.slp-import-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+.slp-import-btn input[type=file] { display: none; }
+
+#slpImportStatus {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  min-height: 18px;
+}
+
+#slpImportStatus.ok  { color: #6BE3A4; }
+#slpImportStatus.err { color: #FF6B6B; }
+
+/* ===== HEALTH INTERNAL TABS ===== */
+.health-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.health-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.health-tab:hover { color: var(--text-secondary); }
+
+.health-tab.active {
+  background: rgba(255,255,255,0.07);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+[data-panel] { display: block; }
+
+.h-section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-tertiary); padding: 28px 0 10px;
+  border-top: 1px solid var(--border); margin-top: 4px;
+}
+
+/* ===== ENERGY TAB ===== */
+.nrg-card {
+  background: var(--bg-card);
+  border-radius: 16px; padding: 22px 22px 18px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+}
+.nrg-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 4px;
+}
+.nrg-hero { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+.nrg-score-big {
+  font-size: 76px; font-weight: 800;
+  letter-spacing: -0.045em; line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.4s;
+}
+.nrg-level {
+  font-size: 15px; font-weight: 700;
+  margin-top: 6px; transition: color 0.4s;
+}
+.nrg-today-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.nrg-signals { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.nrg-signal-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 38px;
+  gap: 0 8px; align-items: center;
+}
+.nrg-signal-left { display: flex; flex-direction: column; gap: 2px; }
+.nrg-signal-label { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.nrg-signal-detail {
+  font-size: 10px; color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.nrg-signal-track {
+  height: 6px; background: rgba(255,255,255,0.07);
+  border-radius: 999px; overflow: hidden;
+}
+.nrg-signal-fill { height: 100%; border-radius: 999px; transition: width 0.55s cubic-bezier(0.22,1,0.36,1); }
+.nrg-signal-pts {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+  color: var(--text-secondary); text-align: right;
+}
+.nrg-signal-max { color: var(--text-tertiary); font-weight: 400; font-size: 10px; }
+.nrg-divider { height: 1px; background: rgba(255,255,255,0.05); margin: 16px 0; }
+.nrg-chart-label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 8px;
+}
+.nrg-chart-svg { width: 100%; display: block; overflow: visible; }
+.nrg-insight {
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 500; line-height: 1.45;
+  margin-top: 6px; border-left: 3px solid;
+}
+.nrg-insight-good { background: rgba(107,227,164,0.08); border-color: #6BE3A4; color: #6BE3A4; }
+.nrg-insight-warn { background: rgba(242,192,99,0.08);  border-color: #F2C063; color: #F2C063; }
+.nrg-insight-neu  { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.10); color: var(--text-tertiary); }
+
+/* ===== SCROLLABLE TABS ===== */
+.health-tabs { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; flex-wrap: nowrap; }
+.health-tabs::-webkit-scrollbar { display: none; }
+.health-tab { flex: 0 0 auto; }
+
+/* ===== CORRELATIONS ===== */
+.corr-section-title { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-tertiary); margin: 20px 0 8px; }
+.corr-insight { padding: 9px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; line-height: 1.45; margin-top: 6px; border-left: 3px solid; }
+.corr-good { background: rgba(107,227,164,0.08); border-color: #6BE3A4; color: #6BE3A4; }
+.corr-warn { background: rgba(242,192,99,0.08);  border-color: #F2C063; color: #F2C063; }
+.corr-neu  { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.10); color: var(--text-tertiary); }
+
+/* ===== SHARED: BLOOD + SKIN ===== */
+.bld-card, .skin-card {
+  background: var(--bg-card); border-radius: 16px; padding: 22px 22px 18px;
+  backdrop-filter: blur(24px) saturate(1.2);
+}
+.bld-eyebrow, .skin-eyebrow {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 4px;
+}
+.bld-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+.bld-log-btn, .skin-log-btn {
+  width: 100%; padding: 9px; border-radius: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-secondary); font-size: 13px; font-weight: 600; font-family: inherit;
+  cursor: pointer; text-align: left; margin-bottom: 12px;
+  transition: background 0.15s, color 0.15s;
+}
+.bld-log-btn:hover, .skin-log-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+.bld-form, .skin-form {
+  display: none; border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 14px; margin-bottom: 14px;
+  background: rgba(255,255,255,0.02);
+}
+.bld-form.open, .skin-form.open { display: block; }
+.bld-form-label, .skin-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 4px;
+}
+.bld-input, .skin-input {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-primary); font-size: 13px; font-family: inherit;
+  box-sizing: border-box; outline: none; transition: border-color 0.15s;
+}
+.bld-input:focus, .skin-input:focus { border-color: var(--border-strong); }
+.bld-save-btn, .skin-save-btn {
+  padding: 9px 18px; border-radius: 10px; border: none;
+  background: #6BE3A4; color: #0a0a0b; font-weight: 700; font-size: 13px; font-family: inherit;
+  cursor: pointer; transition: opacity 0.15s; white-space: nowrap;
+}
+.bld-save-btn:hover, .skin-save-btn:hover { opacity: 0.85; }
+.bld-cancel-btn, .skin-cancel-btn {
+  padding: 9px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-secondary); font-size: 13px; font-family: inherit; cursor: pointer;
+}
+
+/* ===== BLOODWORK ===== */
+.bld-group-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-tertiary); margin: 14px 0 8px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.bld-group-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.bld-marker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bld-marker-row { display: flex; flex-direction: column; gap: 3px; }
+.bld-marker-unit { font-size: 10px; color: var(--text-quaternary); }
+.bld-entry { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; gap: 10px; align-items: flex-start; }
+.bld-entry:last-child { border-bottom: none; }
+.bld-entry-date { font-size: 11px; font-weight: 600; color: var(--text-tertiary); white-space: nowrap; flex-shrink: 0; padding-top: 2px; }
+.bld-entry-markers { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.bld-del-btn { background: none; border: none; color: var(--text-quaternary); cursor: pointer; font-size: 14px; padding: 2px; flex-shrink: 0; }
+.bld-del-btn:hover { color: #FF6B6B; }
+.bld-marker-chip { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: var(--text-secondary); }
+.bld-marker-chip.ok  { background: rgba(107,227,164,0.08); border-color: rgba(107,227,164,0.25); color: #6BE3A4; }
+.bld-marker-chip.low, .bld-marker-chip.high { background: rgba(255,107,107,0.08); border-color: rgba(255,107,107,0.25); color: #FF6B6B; }
+.bld-charts-title { font-size: 12px; font-weight: 600; color: var(--text-tertiary); margin: 18px 0 10px; text-transform: uppercase; letter-spacing: 0.1em; }
+.bld-chart-wrap { margin-bottom: 16px; }
+.bld-chart-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.bld-chart-name { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.bld-chart-latest { font-size: 13px; font-weight: 700; }
+.bld-chart-latest.ok { color: #6BE3A4; }
+.bld-chart-latest.bad { color: #FF6B6B; }
+.bld-chart-svg { width: 100%; display: block; overflow: visible; }
+.bld-empty { text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 20px 0; }
+
+/* ===== SKIN HEALTH ===== */
+.skin-rating-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.skin-rating-btn {
+  flex: 1; padding: 8px 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04); font-size: 20px; cursor: pointer; text-align: center;
+  transition: background 0.15s, border-color 0.15s; font-family: inherit;
+}
+.skin-rating-btn.selected { border-color: #7DD3FC; background: rgba(125,211,252,0.12); }
+.skin-textarea { resize: vertical; min-height: 64px; }
+.skin-photo-label {
+  display: inline-block; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+  font-size: 12px; color: var(--text-secondary); margin-top: 4px;
+}
+.skin-photo-label input { display: none; }
+.skin-entry { padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.skin-entry:last-child { border-bottom: none; }
+.skin-entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.skin-entry-meta { display: flex; align-items: center; gap: 8px; }
+.skin-entry-date { font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+.skin-entry-rating { font-size: 18px; }
+.skin-entry-treatments { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.skin-entry-notes { font-size: 12px; color: var(--text-tertiary); font-style: italic; margin-bottom: 4px; }
+.skin-entry-nutrition { padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: var(--text-tertiary); margin-top: 6px; }
+.skin-entry-photo { max-width: 100%; border-radius: 8px; margin-top: 8px; display: block; }
+.skin-del-btn { background: none; border: none; color: var(--text-quaternary); cursor: pointer; font-size: 14px; padding: 2px; }
+.skin-del-btn:hover { color: #FF6B6B; }
+.skin-empty { text-align: center; font-size: 12px; color: var(--text-tertiary); padding: 20px 0; }
+
+/* ===== MOBILE GLOBAL ===== */
+/* Scrollbar hide */
+* { -webkit-tap-highlight-color: transparent; }
+*::-webkit-scrollbar { display: none !important; }
+/* Cards full-width on small screens */
+@media (max-width: 540px) {
+  .card-grid { grid-template-columns: 1fr !important; }
+  .nw-subcard { width: 100% !important; }
+}
+
+
+/* ===== HEALTH MOBILE ===== */
+@media (max-width: 540px) {
+  main { padding: 16px 12px calc(70px + env(safe-area-inset-bottom)) !important; }
+  .blood-form-groups { grid-template-columns: 1fr !important; }
+  .nrg-grid { grid-template-columns: 1fr 1fr !important; }
+  .corr-insight { padding: 10px 12px !important; }
+  .skin-rating-row { gap: 6px !important; }
+  .health-tabs { gap: 4px !important; }
+  .health-tab { padding: 7px 10px !important; font-size: 12px !important; }
+}
+
+.caff-quick {
+  padding: 7px 12px; border-radius: 20px;
+  background: rgba(242,192,99,0.1); border: 1px solid rgba(242,192,99,0.2);
+  color: #F2C063; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font);
+  white-space: nowrap;
+}
+.caff-quick:hover { background: rgba(242,192,99,0.18); }
+.caff-log-item { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); }
+.caff-log-item:last-child { border-bottom:none; }
+
+@media (min-width: 900px) {
+  main { max-width: 1280px !important; padding-left: 32px !important; padding-right: 32px !important; }
+  /* Panels: put adjacent stack-cards in a 2-col auto grid */
+  [data-panel] { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; align-items: start; }
+  [data-panel] > * { grid-column: span 12; }
+  /* Weight + body-fat entry side by side */
+  [data-panel="blood"] > .bld-card { grid-column: span 12; }
+  /* Metrics 4-stat row: override inline style column count */
+  [data-panel="metrics"] > div:nth-child(2) { grid-template-columns: repeat(4, 1fr) !important; grid-column: span 12; }
+  /* Sleep + energy side by side when both visible */
+  [data-panel="sleep"] > :first-child { grid-column: span 7; }
+  [data-panel="sleep"] > :nth-child(2) { grid-column: span 5; }
+  [data-panel="energy"] > .nrg-card { grid-column: span 7; }
+  [data-panel="energy"] > :nth-child(2) { grid-column: span 5; }
+}
+
+</style>
+<script src="bus.js" defer></script>
+<script src="topbar.js" defer></script>
+  <script src="tabbar.js" defer></script>
+<link rel="manifest" href="manifest.json">
+<script src="pwa.js" defer></script>
+<script src="events.js" defer></script>
+</head>
+<body>
+
+<main>
+  <div class="h-section-label" style="border-top:none;padding-top:0">Sleep</div>
+  <div data-panel="sleep">
+  <div class="sleep-card">
+    <!-- Hero -->
+    <div class="sleep-hero">
+      <div>
+        <div class="sleep-dur" id="slpDur">—</div>
+        <div class="sleep-dur-sub" id="slpSub">No sleep logged yet</div>
+      </div>
+      <div id="slpScoreBadge" class="sleep-score-badge" style="display:none"></div>
+    </div>
+    <div class="sleep-times" id="slpTimes" style="display:none">
+      <span id="slpBed">—</span>
+      <span style="opacity:0.4">→</span>
+      <span id="slpWake">—</span>
+    </div>
+    <div class="sleep-chips" id="slpChips" style="display:none"></div>
+    <div id="slpStageBar" style="display:none;border-radius:6px;overflow:hidden;height:8px;margin:6px 0 2px"></div>
+
+    <!-- Log button -->
+    <button class="sleep-log-btn" id="slpLogBtn">+ Log last night's sleep</button>
+
+    <!-- Form -->
+    <div class="sleep-form" id="slpForm">
+      <div>
+        <div class="sleep-form-label">Date (wake-up day)</div>
+        <input type="date" class="sleep-inp" id="slpFormDate">
+      </div>
+      <div class="sleep-form-row">
+        <div style="flex:1">
+          <div class="sleep-form-label">Bedtime</div>
+          <input type="time" class="sleep-inp" id="slpFormBed">
+        </div>
+        <div style="flex:1">
+          <div class="sleep-form-label">Wake time</div>
+          <input type="time" class="sleep-inp" id="slpFormWake">
+        </div>
+      </div>
+      <div class="sleep-form-row">
+        <div style="flex:1">
+          <div class="sleep-form-label">Score 0–100</div>
+          <input type="number" class="sleep-inp" id="slpFormScore" min="0" max="100" placeholder="e.g. 82">
+        </div>
+        <div style="flex:1">
+          <div class="sleep-form-label">REM %</div>
+          <input type="number" class="sleep-inp" id="slpFormRem" min="0" max="100" placeholder="e.g. 22">
+        </div>
+        <div style="flex:1">
+          <div class="sleep-form-label">Deep %</div>
+          <input type="number" class="sleep-inp" id="slpFormDeep" min="0" max="100" placeholder="e.g. 18">
+        </div>
+        <div style="flex:1">
+          <div class="sleep-form-label">Light %</div>
+          <input type="number" class="sleep-inp" id="slpFormLight" min="0" max="100" placeholder="e.g. 50">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:2px">
+        <button class="sleep-log-btn" id="slpFormCancel" style="width:auto">Cancel</button>
+        <button class="sleep-save-btn" id="slpFormSave">Save</button>
+      </div>
+    </div>
+    <div id="caffeineWarnChip"></div>
+
+    <!-- Sleep consistency + debt summary -->
+    <div id="sleepConsistency" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0"></div>
+    <!-- 7-day chart -->
+    <div class="sleep-chart-wrap">
+      <svg class="sleep-chart-svg" id="slpChartSvg" viewBox="0 0 280 96" height="96"></svg>
+    </div>
+
+    <!-- History -->
+    <div class="sleep-hist-title">Recent nights</div>
+    <div id="slpHistory"></div>
+
+    <!-- Import -->
+    <div class="slp-import-wrap">
+      <div class="slp-import-hint">Import from Samsung Health — export your data in the Samsung Health app: ☰ → Settings → Download personal data → unzip → upload the <code>com.samsung.shealth.sleep…csv</code> file</div>
+      <label class="slp-import-btn">
+        Import Samsung Health CSV
+        <input type="file" accept=".csv" id="slpImportInput">
+      </label>
+      <div id="slpImportStatus"></div>
+    </div>
+  </div>
+  </div><!-- /panel:sleep -->
+
+  <div class="h-section-label">Body &amp; Blood Work</div>
+  <div data-panel="blood">
+  <div class="bld-card">
+    <div class="bld-eyebrow">BLOODWORK</div>
+    <div class="bld-sub">Track lab results and watch trends over time</div>
+
+    <button class="bld-log-btn" id="bloodLogBtn">+ Log test results</button>
+
+    <div class="bld-form" id="bloodForm">
+      <div style="margin-bottom:10px">
+        <div class="bld-form-label">Test date</div>
+        <input type="date" class="bld-input" id="bloodDate">
+      </div>
+      <div id="bloodFormGroups"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="bld-cancel-btn" id="bloodCancel">Cancel</button>
+        <button class="bld-save-btn" id="bloodSave">Save</button>
+      </div>
+    </div>
+
+    <div id="bloodCharts"></div>
+    <div id="bloodHistory"></div>
+  </div>
+  </div><!-- /panel:blood -->
+
+  <div class="h-section-label">Metrics</div>
+  <!-- METRICS PANEL: HRV, RHR, SpO2, Steps, Readiness -->
+  <div data-panel="metrics">
+  <div class="stack-card" style="margin-bottom:12px">
+    <div class="sf-eyebrow">READINESS SCORE</div>
+    <div id="metricsReadiness" style="font-size:36px;font-weight:800;color:var(--text-primary);line-height:1;margin-bottom:4px">—</div>
+    <div id="metricsReadinessSub" style="font-size:12px;color:var(--text-tertiary)">Log HRV + sleep to compute readiness</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+    <div class="stack-card">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px">HRV (ms)</div>
+      <div id="metricsHRVVal" style="font-size:28px;font-weight:800;color:var(--accent);line-height:1">—</div>
+      <div id="metricsHRVSub" style="font-size:11px;color:var(--text-tertiary);margin-top:3px">No logs yet</div>
+    </div>
+    <div class="stack-card">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px">Resting HR</div>
+      <div id="metricsRHRVal" style="font-size:28px;font-weight:800;color:var(--accent);line-height:1">—</div>
+      <div id="metricsRHRSub" style="font-size:11px;color:var(--text-tertiary);margin-top:3px">bpm</div>
+    </div>
+    <div class="stack-card">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px">SpO₂</div>
+      <div id="metricsSPO2Val" style="font-size:28px;font-weight:800;color:var(--accent);line-height:1">—</div>
+      <div id="metricsSPO2Sub" style="font-size:11px;color:var(--text-tertiary);margin-top:3px">%</div>
+    </div>
+    <div class="stack-card">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px">Steps</div>
+      <div id="metricsStepsVal" style="font-size:28px;font-weight:800;color:var(--accent);line-height:1">—</div>
+      <div id="metricsStepsSub" style="font-size:11px;color:var(--text-tertiary);margin-top:3px">today</div>
+    </div>
+  </div>
+  <!-- Log form -->
+  <div class="stack-card">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:12px">Log today's biometrics</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">HRV (ms)</div>
+        <input type="number" id="metHRVInput" class="stack-input" placeholder="e.g. 55" min="1" max="200" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Resting HR (bpm)</div>
+        <input type="number" id="metRHRInput" class="stack-input" placeholder="e.g. 58" min="30" max="200" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">SpO₂ (%)</div>
+        <input type="number" id="metSPO2Input" class="stack-input" placeholder="e.g. 98" min="85" max="100" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Steps</div>
+        <input type="number" id="metStepsInput" class="stack-input" placeholder="e.g. 8500" min="0" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+    </div>
+    <button id="metLogBtn" style="margin-top:12px;width:100%;padding:12px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Save today's metrics</button>
+  </div>
+  <!-- 30-day HRV trend -->
+  <div class="stack-card" style="margin-top:12px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:12px">HRV trend — last 30 days</div>
+    <div id="metricsHRVChart" style="display:flex;align-items:flex-end;gap:3px;height:60px"></div>
+  </div>
+  <!-- Body composition -->
+  <div class="stack-card" style="margin-top:12px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:12px">Body Composition</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px">Body Fat</div>
+        <div id="bfValDisplay" style="font-size:26px;font-weight:800;color:var(--accent);line-height:1">—</div>
+        <div style="font-size:11px;color:var(--text-tertiary)">%</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px">Waist</div>
+        <div id="bfWaistDisplay" style="font-size:26px;font-weight:800;color:var(--text-primary);line-height:1">—</div>
+        <div style="font-size:11px;color:var(--text-tertiary)">cm</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px">4-wk trend</div>
+        <div id="bfTrendDisplay" style="font-size:26px;font-weight:800;color:var(--text-primary);line-height:1">—</div>
+        <div style="font-size:11px;color:var(--text-tertiary)">% BF</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Body fat %</div>
+        <input type="number" id="bfInput" step="0.1" min="3" max="60" placeholder="e.g. 18.5" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Waist (cm)</div>
+        <input type="number" id="bfWaistInput" step="0.5" placeholder="e.g. 82" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Hips (cm)</div>
+        <input type="number" id="bfHipsInput" step="0.5" placeholder="e.g. 98" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Neck (cm)</div>
+        <input type="number" id="bfNeckInput" step="0.5" placeholder="e.g. 38" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+    </div>
+    <button id="bfSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Save body metrics</button>
+    <!-- 30-day body fat chart -->
+    <div style="margin-top:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:8px">Body fat trend — last 30 days</div>
+      <div id="bfChart" style="display:flex;align-items:flex-end;gap:3px;height:48px"></div>
+    </div>
+  </div>
+  </div><!-- /panel:metrics -->
+
+  <div class="h-section-label">Lab Results</div>
+  <!-- LABS PANEL -->
+  <div data-panel="labs">
+  <div class="stack-card" style="margin-bottom:12px">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:8px">Log a blood test result</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Marker</div>
+        <select id="labMarker" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+          <option value="glucose">Glucose (mmol/L)</option>
+          <option value="hba1c">HbA1c (%)</option>
+          <option value="cholesterol">Total Cholesterol (mmol/L)</option>
+          <option value="ldl">LDL (mmol/L)</option>
+          <option value="hdl">HDL (mmol/L)</option>
+          <option value="triglycerides">Triglycerides (mmol/L)</option>
+          <option value="ferritin">Ferritin (μg/L)</option>
+          <option value="vitd">Vitamin D (nmol/L)</option>
+          <option value="tsh">TSH (mIU/L)</option>
+          <option value="crp">CRP (mg/L)</option>
+          <option value="testosterone">Testosterone (nmol/L)</option>
+          <option value="b12">Vitamin B12 (pmol/L)</option>
+          <option value="folate">Folate (nmol/L)</option>
+          <option value="magnesium">Magnesium (mmol/L)</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">Value</div>
+        <input type="number" id="labValue" placeholder="e.g. 5.2" step="0.01" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input type="date" id="labDate" style="flex:1;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none;color-scheme:dark">
+      <input type="text" id="labNotes" placeholder="Notes" style="flex:1;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none">
+    </div>
+    <button id="labSaveBtn" style="margin-top:10px;width:100%;padding:12px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Log result</button>
+  </div>
+  <div id="labsList"></div>
+  </div><!-- /panel:labs -->
+
+  <div class="h-section-label">Daily Stack &amp; Energy</div>
+  <div data-panel="energy">
+  <div class="nrg-card">
+    <div class="nrg-eyebrow">ENERGY SCORE</div>
+    <div class="nrg-hero">
+      <div>
+        <div class="nrg-score-big" id="nrgScore">—</div>
+        <div class="nrg-level" id="nrgLevel">Calculating…</div>
+        <div class="nrg-today-sub" id="nrgSub">out of 100</div>
+      </div>
+    </div>
+    <div class="nrg-signals" id="nrgSignals"></div>
+    <div class="nrg-divider"></div>
+    <div class="nrg-chart-label">14-day trend</div>
+    <svg class="nrg-chart-svg" id="nrgChart" viewBox="0 0 300 80" height="80"></svg>
+    <div id="nrgInsights" style="margin-top:14px"></div>
+    <div id="nrgCorrelations"></div>
+  </div>
+  </div><!-- /panel:energy -->
+
+</main>
+
+<script>
+(() => {
+  'use strict';
+
+  const storeGet = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
+  const storeSet = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+
+  function getActiveDate() {
+    const now = new Date();
+    if (now.getHours() < 6) now.setDate(now.getDate() - 1);
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  const TEMPLATE_VERSION = 5;
+
+  const STACK_DEFAULTS = [
+    { id: 'm1', name: 'XXXXX - Supplement of choice', dose: '', window: 'morning', note: 'how much MG, meal times, any data below', tag: null,    ordered: true  },
+    { id: 'm2', name: 'XXXXX - Supplement of choice', dose: '', window: 'morning', note: 'how much MG, meal times, any data below', tag: 'stack', ordered: true  },
+    { id: 'm3', name: 'XXXXX - Supplement of choice', dose: '', window: 'morning', note: 'how much MG, meal times, any data below', tag: null,    ordered: true  },
+    { id: 'l1', name: 'XXXXX - Supplement of choice', dose: '', window: 'lunch',   note: 'how much MG, meal times, any data below', tag: null,    ordered: true  },
+    { id: 'l2', name: 'XXXXX - Supplement of choice', dose: '', window: 'lunch',   note: 'how much MG, meal times, any data below', tag: null,    ordered: true  },
+    { id: 'e1', name: 'XXXXX - Supplement of choice', dose: '', window: 'evening', note: 'how much MG, meal times, any data below', tag: null,    ordered: true  },
+    { id: 'e2', name: 'XXXXX - Supplement of choice', dose: '', window: 'evening', note: 'how much MG, meal times, any data below', tag: 'not-ordered', ordered: false },
+    { id: 'e3', name: 'XXXXX - Supplement of choice', dose: '', window: 'evening', note: 'how much MG, meal times, any data below', tag: null,    ordered: true  },
+  ];
+
+  const STACK_WINDOWS = [
+    { key: 'morning', icon: '🌅', title: 'Morning', time: '7–10 AM', cutoffHour: 10 },
+    { key: 'lunch',   icon: '🍽️', title: 'Lunch',   time: '12–2 PM', cutoffHour: 14 },
+    { key: 'evening', icon: '🌙', title: 'Evening', time: '9–11 PM', cutoffHour: 23 },
+    { key: 'anytime', icon: '⏱️', title: 'Anytime', time: 'No fixed window', cutoffHour: null },
+  ];
+
+  const SUPPLEMENT_DB = [
+    { name: 'Creatine monohydrate', dose: '5g', window: 'anytime', note: 'Daily — consistency matters more than timing', icon: '🏋️', aliases: ['creatine'] },
+    { name: 'Beta-alanine', dose: '2–5g', window: 'morning', note: 'Pre-workout — split doses to avoid tingles', icon: '🏋️', aliases: ['beta alanine'] },
+    { name: 'L-citrulline', dose: '6–8g', window: 'morning', note: '~30 min pre-workout for pump', icon: '🏋️', aliases: ['citrulline'] },
+    { name: 'BCAAs', dose: '5–10g', window: 'anytime', note: 'Around workout window', icon: '🏋️', aliases: ['bcaa'] },
+    { name: 'Whey protein', dose: '25–40g', window: 'anytime', note: 'Post-workout or to hit daily target', icon: '🥤', aliases: ['whey'] },
+    { name: 'Casein protein', dose: '25–40g', window: 'evening', note: 'Before bed for slow overnight aminos', icon: '🥤', aliases: ['casein'] },
+    { name: 'L-carnitine', dose: '1–2g', window: 'morning', note: 'With carbs for best uptake', icon: '🏋️', aliases: ['carnitine'] },
+    { name: 'Acetyl-L-carnitine', dose: '500mg–2g', window: 'morning', note: 'Cognitive variant — crosses BBB', icon: '🧠', aliases: ['alcar'] },
+    { name: 'HMB', dose: '3g', window: 'anytime', note: 'Split 3x daily — muscle preservation', icon: '🏋️', aliases: ['hmb'] },
+    { name: 'Glutamine', dose: '5g', window: 'anytime', note: 'Recovery — post-workout or before bed', icon: '🏋️', aliases: ['l-glutamine'] },
+    { name: 'Vitamin D3', dose: '2000–5000 IU', window: 'lunch', note: 'Fat-soluble — take with biggest meal', icon: '☀️', aliases: ['vit d', 'vitamin d', 'd3', 'cholecalciferol'] },
+    { name: 'Vitamin K2 (MK-7)', dose: '100–200 mcg', window: 'lunch', note: 'Pairs with D3 — same meal', icon: '🥦', aliases: ['vit k', 'vitamin k', 'k2', 'mk7'] },
+    { name: 'Vitamin C', dose: '500–1000mg', window: 'morning', note: 'Water-soluble — split if over 500mg', icon: '🍊', aliases: ['vit c', 'ascorbic acid'] },
+    { name: 'Vitamin B12', dose: '500–1000mcg', window: 'morning', note: 'Methylcobalamin form preferred', icon: '⚡', aliases: ['b12', 'methylcobalamin'] },
+    { name: 'B-complex', dose: '1 cap', window: 'morning', note: 'All B vitamins — energy', icon: '⚡', aliases: ['b complex', 'b vitamins'] },
+    { name: 'Vitamin A', dose: '5000 IU', window: 'lunch', note: 'Fat-soluble — with fat', icon: '🥕', aliases: ['vit a', 'retinol'] },
+    { name: 'Vitamin E', dose: '400 IU', window: 'lunch', note: 'Fat-soluble — with fat', icon: '🌿', aliases: ['vit e', 'tocopherol'] },
+    { name: 'Folate', dose: '400–800mcg', window: 'morning', note: 'Methylfolate preferred', icon: '🥦', aliases: ['folic acid', 'b9', 'methylfolate'] },
+    { name: 'Biotin', dose: '30mcg–5mg', window: 'anytime', note: 'Hair, skin, nails', icon: '💊', aliases: ['biotin', 'b7'] },
+    { name: 'Multivitamin', dose: '1 serving', window: 'lunch', note: 'Take with food', icon: '💊', aliases: ['multi', 'multivitamin'] },
+    { name: 'Magnesium glycinate', dose: '200–400mg', window: 'evening', note: '30–60 min before bed — sleep helper', icon: '🌙', aliases: ['magnesium', 'mag glycinate', 'bisglycinate'] },
+    { name: 'Magnesium L-threonate', dose: '144mg elemental', window: 'evening', note: 'Cognitive variant — crosses BBB', icon: '🧠', aliases: ['magtein', 'threonate'] },
+    { name: 'Magnesium citrate', dose: '200–400mg', window: 'evening', note: 'Also supports digestion', icon: '🌙', aliases: ['mag citrate'] },
+    { name: 'Zinc', dose: '15–30mg', window: 'evening', note: 'With food — not with calcium or iron', icon: '💊', aliases: ['zinc'] },
+    { name: 'Iron', dose: '18–65mg', window: 'morning', note: 'Empty stomach with vit C', icon: '💊', aliases: ['iron'] },
+    { name: 'Calcium', dose: '500mg', window: 'evening', note: 'With food — not with iron', icon: '🦴', aliases: ['calcium'] },
+    { name: 'Selenium', dose: '100–200mcg', window: 'anytime', note: 'Thyroid + antioxidant', icon: '💊', aliases: ['selenium'] },
+    { name: 'Iodine', dose: '150mcg', window: 'morning', note: 'Thyroid support', icon: '💊', aliases: ['iodine'] },
+    { name: 'Omega-3 (Fish oil)', dose: '2–3g EPA+DHA', window: 'lunch', note: 'With biggest fatty meal', icon: '🐟', aliases: ['omega 3', 'omega3', 'fish oil', 'epa', 'dha'] },
+    { name: 'Krill oil', dose: '500–1000mg', window: 'lunch', note: 'More absorbable than fish oil', icon: '🦐', aliases: ['krill'] },
+    { name: 'MCT oil', dose: '1–2 tbsp', window: 'morning', note: 'Fast energy — start low', icon: '🥥', aliases: ['mct'] },
+    { name: 'Flaxseed oil', dose: '1–2g', window: 'lunch', note: 'Plant omega-3 — with food', icon: '🌱', aliases: ['flax', 'flaxseed'] },
+    { name: 'L-theanine', dose: '100–200mg', window: 'morning', note: 'Stacks with caffeine 2:1', icon: '🧠', aliases: ['theanine'] },
+    { name: 'Caffeine', dose: '100–200mg', window: 'morning', note: 'Stack with L-theanine for cleaner focus', icon: '☕', aliases: ['caffeine'] },
+    { name: 'Rhodiola rosea', dose: '200–400mg', window: 'morning', note: 'Adaptogen — energy and stress', icon: '🌿', aliases: ['rhodiola'] },
+    { name: "Lion's mane", dose: '500–1000mg', window: 'morning', note: 'Cognitive support — daily', icon: '🍄', aliases: ['lions mane', 'hericium'] },
+    { name: 'Bacopa monnieri', dose: '300–600mg', window: 'morning', note: 'With fat — long-term memory', icon: '🌿', aliases: ['bacopa'] },
+    { name: 'Ginkgo biloba', dose: '120–240mg', window: 'morning', note: 'Circulation and cognition', icon: '🌿', aliases: ['ginkgo'] },
+    { name: 'Alpha-GPC', dose: '300–600mg', window: 'morning', note: 'Choline — focus and learning', icon: '🧠', aliases: ['alpha gpc'] },
+    { name: 'Phosphatidylserine', dose: '100–300mg', window: 'evening', note: 'Cortisol regulation', icon: '🧠', aliases: ['ps'] },
+    { name: 'NAC', dose: '600–1800mg', window: 'morning', note: 'Glutathione precursor — split doses', icon: '💊', aliases: ['nac', 'n-acetyl cysteine'] },
+    { name: 'Melatonin', dose: '0.3–3mg', window: 'evening', note: '30–60 min before bed — start low', icon: '🌙', aliases: ['melatonin'] },
+    { name: 'Glycine', dose: '3g', window: 'evening', note: 'Body temp drop = better sleep onset', icon: '🌙', aliases: ['glycine'] },
+    { name: 'Apigenin', dose: '50mg', window: 'evening', note: 'From chamomile — before bed', icon: '🌼', aliases: ['apigenin'] },
+    { name: 'Ashwagandha', dose: '300–600mg', window: 'evening', note: 'KSM-66 form — stress and cortisol', icon: '🌿', aliases: ['ashwagandha', 'ksm-66'] },
+    { name: 'L-tryptophan', dose: '500mg–1g', window: 'evening', note: 'Serotonin precursor — sleep onset', icon: '🌙', aliases: ['tryptophan'] },
+    { name: 'GABA', dose: '500–750mg', window: 'evening', note: 'Calming — before bed', icon: '🌙', aliases: ['gaba'] },
+    { name: 'Valerian root', dose: '300–600mg', window: 'evening', note: 'Sleep onset support', icon: '🌿', aliases: ['valerian'] },
+    { name: 'Probiotics', dose: '10–50 billion CFU', window: 'morning', note: 'Empty stomach or with food', icon: '🦠', aliases: ['probiotic'] },
+    { name: 'Quercetin', dose: '500–1000mg', window: 'anytime', note: 'Pairs well with vitamin C', icon: '🌿', aliases: ['quercetin'] },
+    { name: 'Curcumin', dose: '500–1000mg', window: 'lunch', note: 'With black pepper + fat', icon: '🌿', aliases: ['curcumin', 'turmeric'] },
+    { name: 'Resveratrol', dose: '250–500mg', window: 'morning', note: 'With fat for absorption', icon: '🍇', aliases: ['resveratrol'] },
+    { name: 'CoQ10 / Ubiquinol', dose: '100–200mg', window: 'lunch', note: 'Fat-soluble — with biggest meal', icon: '💊', aliases: ['coq10', 'ubiquinol'] },
+    { name: 'Alpha lipoic acid', dose: '300–600mg', window: 'morning', note: 'Empty stomach for absorption', icon: '💊', aliases: ['ala', 'alpha lipoic'] },
+    { name: 'Glutathione', dose: '250–1000mg', window: 'morning', note: 'Liposomal form for absorption', icon: '💊', aliases: ['glutathione'] },
+    { name: 'Astaxanthin', dose: '4–12mg', window: 'lunch', note: 'Fat-soluble — with fatty meal', icon: '🦞', aliases: ['astaxanthin'] },
+    { name: 'Berberine', dose: '500mg', window: 'lunch', note: 'Before meals — glucose support', icon: '🌿', aliases: ['berberine'] },
+    { name: 'Milk thistle', dose: '200–400mg', window: 'anytime', note: 'Silymarin — liver support', icon: '🌿', aliases: ['milk thistle', 'silymarin'] },
+    { name: 'Spirulina', dose: '3–5g', window: 'morning', note: 'Algae — protein and antioxidants', icon: '🌱', aliases: ['spirulina'] },
+    { name: 'Chlorella', dose: '2–4g', window: 'morning', note: 'Algae — detox support', icon: '🌱', aliases: ['chlorella'] },
+    { name: 'Tongkat ali', dose: '200–400mg', window: 'morning', note: 'Cycle 8 weeks on/off', icon: '🌿', aliases: ['tongkat', 'longjack'] },
+    { name: 'Fadogia agrestis', dose: '600mg', window: 'morning', note: 'Cycle 8 weeks on/off', icon: '🌿', aliases: ['fadogia'] },
+    { name: 'DHEA', dose: '25–50mg', window: 'morning', note: 'Hormonal — consult doctor', icon: '💊', aliases: ['dhea'] },
+    { name: 'Pregnenolone', dose: '10–50mg', window: 'morning', note: 'Hormonal — consult doctor', icon: '💊', aliases: ['pregnenolone'] },
+    { name: 'Tribulus terrestris', dose: '250–750mg', window: 'morning', note: 'Libido and energy', icon: '🌿', aliases: ['tribulus'] },
+    { name: 'Maca root', dose: '1.5–3g', window: 'morning', note: 'Adaptogen — energy and libido', icon: '🌿', aliases: ['maca'] },
+    { name: 'Collagen peptides', dose: '10–20g', window: 'anytime', note: 'With vitamin C for synthesis', icon: '💊', aliases: ['collagen'] },
+    { name: 'Glucosamine', dose: '1500mg', window: 'lunch', note: 'With food', icon: '🦴', aliases: ['glucosamine'] },
+    { name: 'Chondroitin', dose: '1200mg', window: 'lunch', note: 'Often paired with glucosamine', icon: '🦴', aliases: ['chondroitin'] },
+    { name: 'MSM', dose: '1–3g', window: 'anytime', note: 'Joint support', icon: '🦴', aliases: ['msm'] },
+    { name: 'Hyaluronic acid', dose: '120–200mg', window: 'anytime', note: 'Skin and joint hydration', icon: '💧', aliases: ['hyaluronic', 'ha'] },
+    { name: 'Cordyceps', dose: '1–3g', window: 'morning', note: 'Energy and endurance', icon: '🍄', aliases: ['cordyceps'] },
+    { name: 'Reishi', dose: '1–2g', window: 'evening', note: 'Calming adaptogen', icon: '🍄', aliases: ['reishi', 'ganoderma'] },
+    { name: 'Chaga', dose: '1–2g', window: 'morning', note: 'Antioxidant and immune', icon: '🍄', aliases: ['chaga'] },
+  ];
+
+  let todayKey = `stack:taken:${getActiveDate()}`;
+
+  function getItems() {
+    const storedVersion = storeGet('stack:version');
+    const stored = storeGet('stack:items');
+    if (!stored || !Array.isArray(stored) || !stored.length || storedVersion !== TEMPLATE_VERSION) {
+      const fresh = JSON.parse(JSON.stringify(STACK_DEFAULTS));
+      storeSet('stack:items', fresh);
+      storeSet('stack:version', TEMPLATE_VERSION);
+      return fresh;
+    }
+    return stored;
+  }
+  function setItems(items) { storeSet('stack:items', items); }
+  function getTaken() { return storeGet(todayKey) || {}; }
+  function setTaken(map) { storeSet(todayKey, map); }
+  function getLow() { return storeGet('stack:low') || []; }
+  function setLow(arr) { storeSet('stack:low', arr); }
+
+  function toggleTaken(id) {
+    const taken = getTaken();
+    if (taken[id]) delete taken[id]; else taken[id] = Date.now();
+    setTaken(taken); render();
+  }
+  function toggleLow(id) {
+    const low = getLow();
+    if (low.includes(id)) setLow(low.filter(x => x !== id));
+    else { low.push(id); setLow(low); }
+    render();
+  }
+  function deleteItem(id) {
+    setItems(getItems().filter(i => i.id !== id));
+    const taken = getTaken();
+    delete taken[id];
+    setTaken(taken);
+    setLow(getLow().filter(x => x !== id));
+    render();
+  }
+  function addItem(name, dose, windowKey, note = '') {
+    const v = String(name || '').trim();
+    if (!v) return;
+    const items = getItems();
+    const id = 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    items.push({
+      id, name: v,
+      dose: String(dose || '').trim(),
+      window: ['morning','lunch','evening','anytime'].includes(windowKey) ? windowKey : 'anytime',
+      note: String(note || '').trim(),
+      tag: null, ordered: true
+    });
+    setItems(items);
+    render();
+  }
+  function updateItem(id, field, value) {
+    const items = getItems();
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    item[field] = value;
+    setItems(items);
+  }
+
+  function render() {
+    const items = getItems();
+    const taken = getTaken();
+    const low = getLow();
+    const totalCount = items.length;
+    const takenCount = items.filter(i => taken[i.id]).length;
+    document.getElementById('stackProgressText').textContent =
+      `${takenCount} / ${totalCount} taken today · resets at 6 AM`;
+    const pct = totalCount === 0 ? 0 : (takenCount / totalCount) * 100;
+    document.getElementById('stackProgressBar').style.width = pct + '%';
+
+    const groupsEl = document.getElementById('stackGroups');
+    groupsEl.innerHTML = '';
+
+    const now = new Date();
+    const nowHour = now.getHours() + (now.getMinutes() / 60);
+
+    STACK_WINDOWS.forEach(win => {
+      const winItems = items.filter(i => (i.window || 'anytime') === win.key);
+      if (winItems.length === 0) return;
+
+      const group = document.createElement('div');
+      group.className = 'stack-window';
+      group.innerHTML = `
+        <div class="stack-window-header">
+          <span class="stack-window-icon">${win.icon}</span>
+          <span class="stack-window-title">${win.title}</span>
+          <span class="stack-window-time">${win.time}</span>
+        </div>`;
+
+      const isPastCutoff = win.cutoffHour !== null && nowHour > win.cutoffHour;
+
+      winItems.forEach(item => {
+        const isTaken = !!taken[item.id];
+        const isLow = low.includes(item.id);
+        const isMissed = !isTaken && isPastCutoff;
+
+        const row = document.createElement('div');
+        row.className = 'stack-item' + (isTaken ? ' taken' : '') + (isMissed ? ' missed' : '');
+
+        let tagHtml = '';
+        if (item.tag === 'stack') tagHtml = '<span class="stack-item-tag tag-stack">stack</span>';
+        else if (item.tag === 'not-ordered') tagHtml = '<span class="stack-item-tag tag-not-ordered">not ordered</span>';
+
+        row.innerHTML = `
+          <button class="stack-check ${isTaken ? 'checked' : ''}" data-action="toggle" data-id="${item.id}" aria-label="Mark taken">${isTaken ? '✓' : ''}</button>
+          <div class="stack-item-body">
+            <div class="stack-item-name" data-edit="name" data-id="${item.id}">
+              <span class="stack-item-name-text">${escapeHtml(item.name)}</span>${tagHtml}
+            </div>
+            <div class="stack-item-meta" data-edit="meta" data-id="${item.id}">${escapeHtml(metaText(item))}</div>
+          </div>
+          <button class="stack-low-btn ${isLow ? 'is-low' : ''}" data-action="low" data-id="${item.id}">▲ Running low</button>
+          <button class="stack-item-del" data-action="del" data-id="${item.id}" aria-label="Delete">&times;</button>`;
+
+        group.appendChild(row);
+      });
+
+      groupsEl.appendChild(group);
+    });
+
+    if (groupsEl.children.length === 0) {
+      groupsEl.innerHTML = `<div class="stack-window-empty">No items yet — add one below to start your stack.</div>`;
+    }
+
+    renderTicker();
+  }
+
+  let tickerIndex = 0;
+  let tickerInterval = null;
+  let cachedIssues = [];
+
+  function getStackIssues() {
+    const items = getItems();
+    const taken = getTaken();
+    const low = getLow();
+    const now = new Date();
+    const nowHour = now.getHours() + (now.getMinutes() / 60);
+
+    const missed = [];
+    const lowList = [];
+
+    items.forEach(item => {
+      const win = STACK_WINDOWS.find(w => w.key === (item.window || 'anytime'));
+      const isPastCutoff = win && win.cutoffHour !== null && nowHour > win.cutoffHour;
+      const isTaken = !!taken[item.id];
+      if (isPastCutoff && !isTaken) {
+        missed.push({ type: 'missed', text: `${item.name} — missed ${win.title.toLowerCase()} dose` });
+      }
+      if (low.includes(item.id)) {
+        lowList.push({ type: 'low', text: `${item.name} — running low, reorder soon` });
+      }
+    });
+
+    return [...missed, ...lowList];
+  }
+
+  function renderTicker() {
+    const issues = getStackIssues();
+    const tickerEl = document.getElementById('stackTicker');
+    const msgEl = document.getElementById('stackTickerMsg');
+    const countEl = document.getElementById('stackTickerCount');
+    const totalItems = getItems().length;
+
+    cachedIssues = issues;
+
+    if (issues.length === 0) {
+      msgEl.textContent = 'All caught up — keep it rolling';
+      tickerEl.classList.remove('status-low', 'status-missed');
+      countEl.textContent = `0/${totalItems}`;
+      tickerIndex = 0;
+      return;
+    }
+
+    const hasMissed = issues.some(i => i.type === 'missed');
+    tickerEl.classList.remove('status-low', 'status-missed');
+    tickerEl.classList.add(hasMissed ? 'status-missed' : 'status-low');
+
+    if (tickerIndex >= issues.length) tickerIndex = 0;
+    msgEl.textContent = issues[tickerIndex].text;
+    countEl.textContent = `${issues.length}/${totalItems}`;
+  }
+
+  function cycleTicker() {
+    if (cachedIssues.length <= 1) { renderTicker(); return; }
+    const msgEl = document.getElementById('stackTickerMsg');
+    msgEl.classList.add('is-fading');
+    setTimeout(() => {
+      tickerIndex++;
+      renderTicker();
+      msgEl.classList.remove('is-fading');
+    }, 280);
+  }
+
+  function startTicker() {
+    if (tickerInterval) clearInterval(tickerInterval);
+    tickerInterval = setInterval(cycleTicker, 5000);
+  }
+
+  function metaText(item) {
+    const parts = [];
+    if (item.dose) parts.push(item.dose);
+    if (item.note) parts.push(item.note);
+    return parts.join(' · ');
+  }
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.getElementById('stackGroups').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    e.stopPropagation();
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'toggle') toggleTaken(id);
+    else if (btn.dataset.action === 'low') toggleLow(id);
+    else if (btn.dataset.action === 'del') deleteItem(id);
+  });
+  document.getElementById('stackGroups').addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('[data-action="del"]');
+    if (!btn) return;
+    e.preventDefault(); e.stopPropagation();
+    deleteItem(btn.dataset.id);
+  });
+  document.getElementById('stackGroups').addEventListener('click', (e) => {
+    const editEl = e.target.closest('[data-edit]');
+    if (!editEl) return;
+    if (e.target.closest('[data-action]')) return;
+    if (editEl.getAttribute('contenteditable') === 'true') return;
+    startEdit(editEl);
+  });
+
+  function startEdit(el) {
+    const id = el.dataset.id;
+    const field = el.dataset.edit;
+    if (field === 'name') {
+      const textSpan = el.querySelector('.stack-item-name-text');
+      if (!textSpan) return;
+      textSpan.setAttribute('contenteditable', 'true');
+      textSpan.style.outline = '1px solid rgba(255,255,255,0.25)';
+      textSpan.style.outlineOffset = '4px';
+      textSpan.style.borderRadius = '4px';
+      textSpan.focus();
+      placeCaretAtEnd(textSpan);
+      const finish = (commit) => {
+        textSpan.removeAttribute('contenteditable');
+        textSpan.style.outline = ''; textSpan.style.outlineOffset = '';
+        if (commit) {
+          const newVal = textSpan.textContent.trim();
+          if (newVal) updateItem(id, 'name', newVal); else render();
+        } else render();
+      };
+      textSpan.addEventListener('blur', () => finish(true), { once: true });
+      textSpan.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); textSpan.blur(); }
+        if (e.key === 'Escape') { textSpan.blur(); render(); }
+      });
+    }
+    if (field === 'meta') {
+      el.setAttribute('contenteditable', 'true');
+      el.focus(); placeCaretAtEnd(el);
+      const finish = (commit) => {
+        el.removeAttribute('contenteditable');
+        if (commit) {
+          const text = el.textContent.trim();
+          const parts = text.split(/\s*·\s*/);
+          updateItem(id, 'dose', parts[0] || '');
+          updateItem(id, 'note', parts.slice(1).join(' · '));
+        }
+        render();
+      };
+      el.addEventListener('blur', () => finish(true), { once: true });
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+        if (e.key === 'Escape') { el.blur(); render(); }
+      });
+    }
+  }
+
+  function placeCaretAtEnd(el) {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  const nameInput = document.getElementById('stackAddName');
+  const doseInput = document.getElementById('stackAddDose');
+  const winSelect = document.getElementById('stackAddWindow');
+  const addBtn = document.getElementById('stackAddBtn');
+  const resultsEl = document.getElementById('stackSearchResults');
+
+  let pendingNote = '';
+
+  function searchSupplements(q) {
+    const query = q.toLowerCase().trim();
+    if (!query) return [];
+    const starts = [];
+    const contains = [];
+    SUPPLEMENT_DB.forEach(s => {
+      const nameLC = s.name.toLowerCase();
+      const aliases = (s.aliases || []).map(a => a.toLowerCase());
+      const allNames = [nameLC, ...aliases];
+      if (allNames.some(n => n.startsWith(query))) starts.push(s);
+      else if (allNames.some(n => n.includes(query))) contains.push(s);
+    });
+    return [...starts, ...contains].slice(0, 6);
+  }
+
+  function renderSearchResults(q) {
+    const matches = searchSupplements(q);
+    if (!q.trim() || matches.length === 0) {
+      resultsEl.hidden = true;
+      resultsEl.innerHTML = '';
+      return;
+    }
+    resultsEl.hidden = false;
+    resultsEl.innerHTML = matches.map(s => {
+      const winMeta = STACK_WINDOWS.find(w => w.key === s.window) || STACK_WINDOWS[3];
+      return `
+        <button class="stack-result" data-name="${escapeHtml(s.name)}" data-dose="${escapeHtml(s.dose)}" data-window="${s.window}" data-note="${escapeHtml(s.note)}">
+          <div class="stack-result-icon">${s.icon || '💊'}</div>
+          <div class="stack-result-body">
+            <div class="stack-result-name">${escapeHtml(s.name)}</div>
+            <div class="stack-result-meta">${escapeHtml(s.dose)} · ${winMeta.icon} ${winMeta.title.toLowerCase()} · ${escapeHtml(s.note)}</div>
+          </div>
+        </button>`;
+    }).join('');
+  }
+
+  nameInput.addEventListener('input', () => {
+    renderSearchResults(nameInput.value);
+    pendingNote = '';
+  });
+  nameInput.addEventListener('focus', () => {
+    if (nameInput.value.trim()) renderSearchResults(nameInput.value);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.stack-name-wrap')) resultsEl.hidden = true;
+  });
+
+  resultsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.stack-result');
+    if (!btn) return;
+    nameInput.value = btn.dataset.name;
+    doseInput.value = btn.dataset.dose;
+    winSelect.value = btn.dataset.window;
+    pendingNote = btn.dataset.note;
+    resultsEl.hidden = true;
+    addBtn.focus();
+  });
+
+  addBtn.addEventListener('click', () => {
+    addItem(nameInput.value, doseInput.value, winSelect.value, pendingNote);
+    nameInput.value = '';
+    doseInput.value = '';
+    pendingNote = '';
+    resultsEl.hidden = true;
+    nameInput.focus();
+  });
+
+  [nameInput, doseInput].forEach(i => {
+    i.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        if (!resultsEl.hidden && i === nameInput) {
+          const firstResult = resultsEl.querySelector('.stack-result');
+          if (firstResult) { e.preventDefault(); firstResult.click(); return; }
+        }
+        addBtn.click();
+      }
+      if (e.key === 'Escape') resultsEl.hidden = true;
+    });
+  });
+
+  setInterval(() => {
+    const newKey = `stack:taken:${getActiveDate()}`;
+    if (newKey !== todayKey) todayKey = newKey;
+    render();
+  }, 60 * 1000);
+
+<script>
+(() => {
+  'use strict';
+
+  const KEY = 'sleep:logs';
+
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const save = (arr) => localStorage.setItem(KEY, JSON.stringify(arr));
+
+  function mergeEntries(local, remote) {
+    const map = new Map();
+    [...local, ...remote].forEach(e => {
+      const existing = map.get(e.date);
+      if (!existing || e.id > existing.id) map.set(e.date, e);
+    });
+    return Array.from(map.values());
+  }
+
+  function calcDuration(bed, wake) {
+    const [bh, bm] = bed.split(':').map(Number);
+    const [wh, wm] = wake.split(':').map(Number);
+    let b = bh * 60 + bm, w = wh * 60 + wm;
+    if (w <= b) w += 1440;
+    return w - b;
+  }
+
+  function fmtDur(mins) {
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  function durColor(mins) {
+    if (mins >= 420) return '#6BE3A4';
+    if (mins >= 360) return '#F2C063';
+    return '#FF6B6B';
+  }
+
+  function durCls(mins) {
+    if (mins >= 420) return '';
+    if (mins >= 360) return 'warn';
+    return 'bad';
+  }
+
+  function scoreCls(s) {
+    if (s >= 80) return '';
+    if (s >= 60) return 'warn';
+    return 'bad';
+  }
+
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+  function dayLabel(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00');
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+  }
+
+  function last7Dates() {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return d.toISOString().slice(0, 10);
+    });
+  }
+
+  function renderHero(entries) {
+    const today = todayStr();
+    const yest = new Date(); yest.setDate(yest.getDate() - 1);
+    const yestStr = yest.toISOString().slice(0, 10);
+    const entry = entries.find(e => e.date === today) || entries.find(e => e.date === yestStr);
+
+    const durEl = document.getElementById('slpDur');
+    const subEl = document.getElementById('slpSub');
+    const timesEl = document.getElementById('slpTimes');
+    const badgeEl = document.getElementById('slpScoreBadge');
+    const chipsEl = document.getElementById('slpChips');
+
+    if (!entry) {
+      durEl.textContent = '—';
+      durEl.style.color = 'var(--text-quaternary)';
+      subEl.textContent = 'No sleep logged yet';
+      timesEl.style.display = 'none';
+      badgeEl.style.display = 'none';
+      chipsEl.style.display = 'none';
+      return;
+    }
+
+    durEl.textContent = fmtDur(entry.duration);
+    durEl.style.color = durColor(entry.duration);
+    subEl.textContent = entry.date === today ? 'last night' : 'yesterday';
+
+    if (entry.bedtime && entry.waketime) {
+      timesEl.style.display = 'flex';
+      document.getElementById('slpBed').textContent = entry.bedtime;
+      document.getElementById('slpWake').textContent = entry.waketime;
+    } else {
+      timesEl.style.display = 'none';
+    }
+
+    if (entry.score != null) {
+      badgeEl.style.display = '';
+      badgeEl.textContent = `Score ${entry.score}`;
+      badgeEl.className = 'sleep-score-badge ' + scoreCls(entry.score);
+    } else {
+      badgeEl.style.display = 'none';
+    }
+
+    const chips = [];
+    if (entry.rem != null)   chips.push(`REM ${entry.rem}%`);
+    if (entry.deep != null)  chips.push(`Deep ${entry.deep}%`);
+    if (entry.light != null) chips.push(`Light ${entry.light}%`);
+    const knownPct = (entry.rem||0) + (entry.deep||0) + (entry.light||0);
+    if (knownPct > 0 && knownPct <= 100) {
+      const awakePct = Math.max(0, 100 - knownPct);
+      if (awakePct > 0) chips.push(`Awake ${awakePct}%`);
+    }
+    const stageBar = document.getElementById('slpStageBar');
+    if (chips.length) {
+      chipsEl.style.display = 'flex';
+      chipsEl.innerHTML = chips.map(c => `<span class="sleep-chip">${c}</span>`).join('');
+      if (stageBar && (entry.rem != null || entry.deep != null || entry.light != null)) {
+        const deep  = entry.deep  || 0;
+        const rem   = entry.rem   || 0;
+        const light = entry.light || 0;
+        const awake = Math.max(0, 100 - deep - rem - light);
+        stageBar.style.display = 'flex';
+        stageBar.innerHTML =
+          (deep  ? `<div style="flex:${deep};background:#5B8DEF" title="Deep ${deep}%"></div>`  : '') +
+          (rem   ? `<div style="flex:${rem};background:#9B6BFF" title="REM ${rem}%"></div>`    : '') +
+          (light ? `<div style="flex:${light};background:#4BC9A0" title="Light ${light}%"></div>` : '') +
+          (awake ? `<div style="flex:${awake};background:rgba(255,255,255,0.1)" title="Awake ${awake}%"></div>` : '');
+      } else if (stageBar) {
+        stageBar.style.display = 'none';
+      }
+    } else {
+      chipsEl.style.display = 'none';
+      if (stageBar) stageBar.style.display = 'none';
+    }
+  }
+
+  function renderChart(entries) {
+    const svg = document.getElementById('slpChartSvg');
+    const dates = last7Dates();
+    const W = 280, H = 96, TOP = 14, BOT = 16;
+    const chartH = H - TOP - BOT;
+    const padX = 10;
+    const bw = (W - padX * 2) / 7;
+    const MAX = 10 * 60; // 10h in mins
+
+    const refY = TOP + chartH * (1 - 420 / MAX);
+
+    let out = `<line x1="${padX}" y1="${refY}" x2="${W - padX}" y2="${refY}" stroke="rgba(255,255,255,0.1)" stroke-dasharray="3 4" stroke-width="1"/>`;
+
+    dates.forEach((date, i) => {
+      const entry = entries.find(e => e.date === date);
+      const cx = padX + i * bw + bw / 2;
+      const barW = bw * 0.62;
+      const bx = cx - barW / 2;
+
+      if (entry) {
+        const frac = Math.min(entry.duration / MAX, 1);
+        const bh = Math.max(frac * chartH, 3);
+        const by = TOP + chartH - bh;
+        const col = entry.duration >= 420 ? 'rgba(107,227,164,0.22)' : entry.duration >= 360 ? 'rgba(242,192,99,0.22)' : 'rgba(255,107,107,0.20)';
+        out += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${col}"/>`;
+        const dLabel = fmtDur(entry.duration).replace(' ', '');
+        out += `<text x="${cx.toFixed(1)}" y="${(by - 3).toFixed(1)}" font-size="9" font-family="ui-monospace,monospace" fill="rgba(255,255,255,0.45)" text-anchor="middle">${dLabel}</text>`;
+      } else {
+        out += `<rect x="${bx.toFixed(1)}" y="${(TOP + chartH - 3).toFixed(1)}" width="${barW.toFixed(1)}" height="3" rx="2" fill="rgba(255,255,255,0.05)"/>`;
+      }
+
+      out += `<text x="${cx.toFixed(1)}" y="${(H - 2).toFixed(1)}" font-size="9" font-family="ui-monospace,monospace" fill="rgba(255,255,255,0.25)" text-anchor="middle">${dayLabel(date)}</text>`;
+    });
+
+    svg.innerHTML = out;
+  }
+
+  function renderHistory(entries) {
+    const el = document.getElementById('slpHistory');
+    const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 14);
+
+    if (!sorted.length) {
+      el.innerHTML = '<div class="sleep-empty">No entries yet — log your first night above.</div>';
+      return;
+    }
+
+    el.innerHTML = sorted.map(e => {
+      const dc = durColor(e.duration);
+      const timeStr = (e.bedtime && e.waketime) ? `${e.bedtime} → ${e.waketime}` : '';
+      const badge = e.score != null
+        ? `<span class="sleep-score-badge ${scoreCls(e.score)}" style="font-size:11px;padding:2px 7px">${e.score}</span>` : '';
+      return `<div class="sleep-hist-item">
+        <div class="sleep-hist-day">${dayLabel(e.date)}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="sleep-hist-dur" style="color:${dc}">${fmtDur(e.duration)}</span>${badge}
+          </div>
+          ${timeStr ? `<div class="sleep-hist-time">${timeStr}</div>` : ''}
+        </div>
+        <button class="sleep-hist-del" data-id="${e.id}">&times;</button>
+      </div>`;
+    }).join('');
+
+    el.querySelectorAll('.sleep-hist-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        save(load().filter(e => e.id !== id));
+        render();
+      });
+    });
+  }
+
+  function getCaffeineWarn() {
+    try {
+      const now = new Date();
+      if (now.getHours() < 14) return null;
+      const y = now.getFullYear(), mo = now.getMonth() + 1, d = now.getDate();
+      const dk = y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      const taken = JSON.parse(localStorage.getItem('stack:taken:' + dk)) || {};
+      const items = JSON.parse(localStorage.getItem('stack:items')) || [];
+      const cafItem = items.find(i => i.name && (
+        i.name.toLowerCase().includes('caffeine') ||
+        (Array.isArray(i.aliases) && i.aliases.some(a => a.includes('caffeine')))
+      ));
+      if (!cafItem || !taken[cafItem.id]) return null;
+      const t = new Date(taken[cafItem.id]);
+      if (t.getHours() < 14) return null;
+      return { time: String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0') };
+    } catch { return null; }
+  }
+
+  function renderSleepConsistency(entries) {
+    const el = document.getElementById('sleepConsistency');
+    if (!el) return;
+    const recent = entries.slice(-7);
+    if (recent.length < 3) { el.innerHTML = ''; return; }
+
+    // Sleep debt (vs 8h baseline)
+    const baselineMin = 480;
+    const totalDebt = recent.reduce((s,e) => s + Math.max(0, baselineMin - e.duration), 0);
+
+    // Consistency: std dev of bedtime hours
+    const bedHours = recent.filter(e=>e.bedtime).map(e => {
+      const [h,m] = e.bedtime.split(':').map(Number);
+      return h < 12 ? h + 24 : h; // normalize (e.g. 23 → 23, 00 → 24, 01 → 25)
+    });
+    let consistency = '—';
+    if (bedHours.length >= 3) {
+      const mean = bedHours.reduce((a,b)=>a+b,0)/bedHours.length;
+      const variance = bedHours.reduce((s,h)=>s+Math.pow(h-mean,2),0)/bedHours.length;
+      const std = Math.sqrt(variance);
+      consistency = std < 0.5 ? 'Very consistent' : std < 1 ? 'Consistent' : std < 1.5 ? 'Moderate' : 'Irregular';
+    }
+
+    const avgDur = Math.round(recent.reduce((s,e)=>s+e.duration,0)/recent.length);
+    const h = Math.floor(avgDur/60), m = avgDur%60;
+
+    // Readiness: duration-based (0-100), blended with sleep score if present, penalised for irregularity
+    const last = recent[recent.length - 1];
+    let readiness = Math.min(100, Math.round(last.duration / 480 * 100));
+    if (last.score != null) readiness = Math.round(readiness * 0.5 + last.score * 0.5);
+    if (last.deep != null) { if (last.deep >= 20) readiness = Math.min(100, readiness + 5); else if (last.deep < 10) readiness = Math.max(0, readiness - 5); }
+    if (bedHours.length >= 3) {
+      const bMean = bedHours.reduce((a,b)=>a+b,0)/bedHours.length;
+      const bStd = Math.sqrt(bedHours.reduce((s,bh)=>s+Math.pow(bh-bMean,2),0)/bedHours.length);
+      if (bStd > 1.5) readiness = Math.max(0, readiness - 10);
+      else if (bStd > 1) readiness = Math.max(0, readiness - 5);
+    }
+    const readColor = readiness >= 75 ? '#4BC9A0' : readiness >= 50 ? '#F2C063' : '#FF6B6B';
+
+    el.style.gridTemplateColumns = '1fr 1fr';
+    el.innerHTML = [
+      {label:'7-day avg', val:`${h}h ${m}m`, color: avgDur>=420?'#4BC9A0':avgDur>=360?'#F2C063':'#FF6B6B'},
+      {label:'Sleep debt', val: totalDebt>0 ? `-${Math.floor(totalDebt/60)}h ${totalDebt%60}m` : 'None', color: totalDebt>120?'#FF6B6B':totalDebt>0?'#F2C063':'#4BC9A0'},
+      {label:'Consistency', val: consistency, color: consistency==='Very consistent'||consistency==='Consistent'?'#4BC9A0':consistency==='Moderate'?'#F2C063':'#FF6B6B'},
+      {label:'Readiness', val: readiness + '/100', color: readColor},
+    ].map(s=>`<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:13px;font-weight:800;color:${s.color};line-height:1;margin-bottom:3px">${s.val}</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,0.35)">${s.label}</div>
+    </div>`).join('');
+  }
+
+  function render() {
+    const entries = load();
+    renderHero(entries);
+    renderChart(entries);
+    renderSleepConsistency(entries);
+    renderHistory(entries);
+    const warn = getCaffeineWarn();
+    const foodCaf = window.Bus ? window.Bus.getFoodCaffeineItems() : [];
+    const lateFoodCaf = foodCaf.filter(f => { const h = parseInt(f.time.split(':')[0]); return h >= 14; });
+    const chipEl = document.getElementById('caffeineWarnChip');
+    if (chipEl) {
+      let chipHtml = '';
+      if (warn) chipHtml += '<div class="bus-chip bus-chip-orange">Caffeine (stack) taken at ' + warn.time + ' — may delay sleep onset.</div>';
+      if (lateFoodCaf.length > 0) {
+        const f = lateFoodCaf[lateFoodCaf.length - 1];
+        chipHtml += '<div class="bus-chip bus-chip-orange">' + f.name + ' logged at ' + f.time + ' — late caffeine may affect tonight\'s sleep.</div>';
+      }
+      chipEl.innerHTML = chipHtml;
+    }
+  }
+
+  // Form
+  const logBtn = document.getElementById('slpLogBtn');
+  const form = document.getElementById('slpForm');
+  const cancelBtn = document.getElementById('slpFormCancel');
+  const saveBtn = document.getElementById('slpFormSave');
+  const dateInp = document.getElementById('slpFormDate');
+  const bedInp = document.getElementById('slpFormBed');
+  const wakeInp = document.getElementById('slpFormWake');
+  const scoreInp = document.getElementById('slpFormScore');
+  const remInp = document.getElementById('slpFormRem');
+  const deepInp = document.getElementById('slpFormDeep');
+  const lightInp = document.getElementById('slpFormLight');
+
+  function openForm() {
+    dateInp.value = todayStr();
+    if (!bedInp.value) bedInp.value = '23:00';
+    if (!wakeInp.value) wakeInp.value = '07:00';
+    form.classList.add('open');
+    logBtn.textContent = '− Close';
+    bedInp.focus();
+  }
+
+  function closeForm() {
+    form.classList.remove('open');
+    logBtn.textContent = '+ Log last night\'s sleep';
+  }
+
+  logBtn.addEventListener('click', () => form.classList.contains('open') ? closeForm() : openForm());
+  cancelBtn.addEventListener('click', closeForm);
+
+  saveBtn.addEventListener('click', () => {
+    if (!bedInp.value || !wakeInp.value) return;
+    const duration = calcDuration(bedInp.value, wakeInp.value);
+    if (duration <= 0 || duration > 1200) return;
+
+    const date = dateInp.value || todayStr();
+    const entry = {
+      id: Date.now(),
+      date,
+      bedtime: bedInp.value,
+      waketime: wakeInp.value,
+      duration,
+      score: scoreInp.value !== '' ? Number(scoreInp.value) : null,
+      rem:   remInp.value   !== '' ? Number(remInp.value)   : null,
+      deep:  deepInp.value  !== '' ? Number(deepInp.value)  : null,
+      light: lightInp.value !== '' ? Number(lightInp.value) : null,
+    };
+
+    const updated = [...load().filter(e => e.date !== date), entry];
+    save(updated);
+    scoreInp.value = remInp.value = deepInp.value = lightInp.value = '';
+    closeForm();
+    render();
+    try { fetch('/api/health/sleep', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...entry, duration_minutes: entry.duration, source: 'manual' }) }).catch(() => {}); } catch (_) {}
+    try { fetch('/api/health-ai/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: 'sleep_synced', data: { ...entry, duration_minutes: entry.duration } }) }).catch(() => {}); } catch (_) {}
+    if (window.addEvent) window.addEvent('sleep.night', ['sleep'], {
+      date: entry.date, bedtime: entry.bedtime, waketime: entry.waketime,
+      duration_mins: entry.duration, score: entry.score,
+      rem_pct: entry.rem, deep_pct: entry.deep, light_pct: entry.light,
+    }, { ts: new Date(entry.date + 'T' + (entry.waketime || '07:00')).toISOString() }).catch(() => {});
+  });
+
+  [bedInp, wakeInp, scoreInp, remInp, deepInp, lightInp].forEach(inp =>
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveBtn.click(); })
+  );
+
+  // ── CSV import ──────────────────────────────────────────────
+  function splitCsvLine(line) {
+    const out = []; let cur = '', q = false;
+    for (const ch of line) {
+      if (ch === '"') { q = !q; }
+      else if (ch === ',' && !q) { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function parseSamsungCsv(text) {
+    text = text.replace(/^﻿/, '');
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return null;
+
+    let headerIdx = -1;
+    for (let i = 0; i < Math.min(lines.length, 10); i++) {
+      if (lines[i].toLowerCase().includes('start_time')) { headerIdx = i; break; }
+    }
+    if (headerIdx < 0) return null;
+
+    const headers = splitCsvLine(lines[headerIdx]).map(h => h.toLowerCase().replace(/"/g, '').trim());
+    const col = (...names) => { for (const n of names) { const i = headers.findIndex(h => h.includes(n)); if (i >= 0) return i; } return -1; };
+    const startIdx   = col('start_time');
+    const endIdx     = col('end_time');
+    const qualityIdx = col('quality', 'score');
+    if (startIdx < 0 || endIdx < 0) return null;
+
+    const entries = [];
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const row = splitCsvLine(lines[i]);
+      if (row.length <= Math.max(startIdx, endIdx)) continue;
+
+      const clean = s => s?.replace(/"/g, '').trim();
+      const startMs = Date.parse(clean(row[startIdx])?.replace(' ', 'T'));
+      const endMs   = Date.parse(clean(row[endIdx])?.replace(' ', 'T'));
+      if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) continue;
+
+      const duration = Math.round((endMs - startMs) / 60000);
+      if (duration < 60 || duration > 1200) continue;
+
+      const pad = n => String(n).padStart(2, '0');
+      const sd = new Date(startMs), ed = new Date(endMs);
+
+      let score = null;
+      if (qualityIdx >= 0) { const q = Number(clean(row[qualityIdx])); if (q > 0 && q <= 100) score = q; }
+
+      entries.push({
+        id: startMs,
+        date: ed.toISOString().slice(0, 10),
+        bedtime:  `${pad(sd.getHours())}:${pad(sd.getMinutes())}`,
+        waketime: `${pad(ed.getHours())}:${pad(ed.getMinutes())}`,
+        duration, score, rem: null, deep: null, source: 'samsung_csv',
+      });
+    }
+    return entries;
+  }
+
+  const importInput  = document.getElementById('slpImportInput');
+  const importStatus = document.getElementById('slpImportStatus');
+
+  importInput.addEventListener('change', () => {
+    const file = importInput.files[0];
+    if (!file) return;
+    importStatus.className = '';
+    importStatus.textContent = 'Reading…';
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      const parsed = parseSamsungCsv(e.target.result);
+      if (!parsed) {
+        importStatus.className = 'err';
+        importStatus.textContent = "Couldn't read this file — make sure it's the sleep CSV from Samsung Health.";
+        importInput.value = '';
+        return;
+      }
+      if (!parsed.length) {
+        importStatus.className = 'err';
+        importStatus.textContent = 'No sleep sessions found in this file.';
+        importInput.value = '';
+        return;
+      }
+
+      const existing = load();
+      const merged = mergeEntries(existing, parsed);
+      const added = merged.length - existing.length;
+      save(merged);
+      render();
+      importInput.value = '';
+      importStatus.className = 'ok';
+      importStatus.textContent = `Imported ${parsed.length} sessions (${added > 0 ? `${added} new` : 'all already up to date'}).`;
+    };
+    reader.onerror = () => {
+      importStatus.className = 'err';
+      importStatus.textContent = 'Failed to read file.';
+    };
+    reader.readAsText(file);
+  });
+
+  render();
+})();
+</script>
+
+<script>
+(function nrgInit() {
+  'use strict';
+
+  function eDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function todayStr() {
+    const d = new Date();
+    if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+    return eDate(d);
+  }
+  function prevDayStr(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    const dt = new Date(y, m-1, d); dt.setDate(dt.getDate() - 1);
+    return eDate(dt);
+  }
+  function eColor(pct) {
+    if (pct >= 0.80) return '#6BE3A4';
+    if (pct >= 0.65) return '#A8D96B';
+    if (pct >= 0.50) return '#F2C063';
+    if (pct >= 0.35) return '#FF9966';
+    return '#FF6B6B';
+  }
+  function eLevelStr(score) {
+    if (score >= 85) return 'Peak';
+    if (score >= 70) return 'Strong';
+    if (score >= 55) return 'Good';
+    if (score >= 40) return 'Low';
+    return 'Drained';
+  }
+
+  function computeDay(dateStr) {
+    const sigs = [];
+    let total = 0;
+
+    // ── Sleep (max 35 pts) ──────────────────────────────────────────────
+    try {
+      const logs = JSON.parse(localStorage.getItem('sleep:logs')) || [];
+      const e = logs.find(l => l.date === dateStr);
+      if (e) {
+        const h = e.duration / 60;
+        let pts = h < 4 ? 3 : h < 5 ? 10 : h < 6 ? 18 : h < 7 ? 26 : h <= 8.5 ? 35 : 30;
+        if (e.score != null) pts = Math.max(0, Math.min(35, pts + Math.round((e.score - 65) / 35 * 7)));
+        const fh = Math.floor(h), fm = e.duration % 60;
+        const detail = fh + 'h' + (fm ? ' ' + fm + 'm' : '') + (e.score != null ? ' · Score ' + e.score : '');
+        total += pts; sigs.push({ key: 'sleep',  label: 'Sleep',       pts, max: 35, detail });
+      } else {
+        total += 18; sigs.push({ key: 'sleep',  label: 'Sleep',       pts: 18, max: 35, detail: 'No data' });
+      }
+    } catch { total += 18; sigs.push({ key: 'sleep',  label: 'Sleep',       pts: 18, max: 35, detail: '—' }); }
+
+    // ── Nutrition (max 20 pts) ──────────────────────────────────────────
+    try {
+      const ntLogs = (JSON.parse(localStorage.getItem('nt:logs')) || []).filter(l => l.dateKey === dateStr);
+      if (ntLogs.length) {
+        const tgt = JSON.parse(localStorage.getItem('nt:targets')) || {};
+        const calTgt = tgt.calories || 2000, protTgt = tgt.protein || 150;
+        const kcal = ntLogs.reduce((s, l) => s + (l.calories || 0), 0);
+        const prot = ntLogs.reduce((s, l) => s + (l.protein  || 0), 0);
+        const r = kcal / calTgt;
+        let pts = r < 0.4 ? 4 : r < 0.6 ? 9 : r < 0.8 ? 14 : r <= 1.2 ? 20 : 14;
+        if (prot >= protTgt * 0.85) pts = Math.min(20, pts + 3);
+        total += pts; sigs.push({ key: 'nutrition', label: 'Nutrition', pts, max: 20, detail: Math.round(kcal) + ' kcal · ' + Math.round(prot) + 'g P' });
+      } else {
+        total += 10; sigs.push({ key: 'nutrition', label: 'Nutrition', pts: 10, max: 20, detail: 'No data' });
+      }
+    } catch { total += 10; sigs.push({ key: 'nutrition', label: 'Nutrition', pts: 10, max: 20, detail: '—' }); }
+
+    // ── Hydration (max 15 pts) ──────────────────────────────────────────
+    try {
+      const ws = JSON.parse(localStorage.getItem('po_water_v1')) || {};
+      const count = (ws.logs || {})[dateStr] || 0;
+      const wKg   = (ws.profile || {}).weightKg || 75;
+      const bMl   = ws.bottleMl || 500;
+      const tgt   = Math.max(1, Math.ceil(wKg * 35 / bMl));
+      if (count > 0) {
+        const r = count / tgt;
+        const pts = r < 0.3 ? 3 : r < 0.5 ? 7 : r < 0.75 ? 11 : r < 1 ? 13 : 15;
+        total += pts; sigs.push({ key: 'hydration',    label: 'Hydration',    pts, max: 15, detail: count + '/' + tgt + ' bottles' });
+      } else {
+        total += 7;  sigs.push({ key: 'hydration',    label: 'Hydration',    pts: 7,  max: 15, detail: 'No data' });
+      }
+    } catch { total += 7;  sigs.push({ key: 'hydration',    label: 'Hydration',    pts: 7,  max: 15, detail: '—' }); }
+
+    // ── Supplements (max 15 pts) ────────────────────────────────────────
+    try {
+      const taken = JSON.parse(localStorage.getItem('stack:taken:' + dateStr)) || {};
+      const items = JSON.parse(localStorage.getItem('stack:items')) || [];
+      if (items.length) {
+        const tc  = items.filter(i => taken[i.id]).length;
+        const pct = tc / items.length;
+        let pts = pct < 0.25 ? 4 : pct < 0.5 ? 8 : pct < 0.75 ? 11 : pct < 0.9 ? 13 : 15;
+        const eKeys = ['caffeine','b12','b complex','b-complex','creatine','rhodiola','coq10','cordyceps','carnitine'];
+        const eBonus = items.filter(i => taken[i.id] && eKeys.some(k => (i.name||'').toLowerCase().includes(k))).length;
+        if (eBonus >= 2) pts = Math.min(15, pts + 2);
+        total += pts; sigs.push({ key: 'supplements', label: 'Supplements', pts, max: 15, detail: tc + '/' + items.length + ' taken' });
+      } else {
+        total += 8;  sigs.push({ key: 'supplements', label: 'Supplements', pts: 8,  max: 15, detail: 'No stack' });
+      }
+    } catch { total += 8;  sigs.push({ key: 'supplements', label: 'Supplements', pts: 8,  max: 15, detail: '—' }); }
+
+    // ── Activity (max 15 pts) ───────────────────────────────────────────
+    try {
+      const done     = JSON.parse(localStorage.getItem('po_coach_workout_done')) || {};
+      const todayDone = !!done[dateStr];
+      const yestDone  = !!done[prevDayStr(dateStr)];
+      let pts = 8, detail = 'Rest day';
+      if (todayDone && !yestDone)  { pts = 15; detail = 'Workout done'; }
+      else if (todayDone)           { pts = 12; detail = 'Back-to-back'; }
+      else if (yestDone)            { pts = 11; detail = 'Recovery day'; }
+      total += pts; sigs.push({ key: 'activity',     label: 'Activity',     pts, max: 15, detail });
+    } catch { total += 8;  sigs.push({ key: 'activity',     label: 'Activity',     pts: 8,  max: 15, detail: '—' }); }
+
+    return { score: Math.max(0, Math.min(100, total)), sigs };
+  }
+
+  function renderHero(score) {
+    const col = eColor(score / 100);
+    const el = document.getElementById('nrgScore');
+    const lbl = document.getElementById('nrgLevel');
+    if (el)  { el.textContent = score; el.style.color = col; }
+    if (lbl) { lbl.textContent = eLevelStr(score); lbl.style.color = col; }
+  }
+
+  function renderSignals(sigs) {
+    const el = document.getElementById('nrgSignals');
+    if (!el) return;
+    el.innerHTML = sigs.map(s => {
+      const pct = Math.round(s.pts / s.max * 100);
+      const col = eColor(s.pts / s.max);
+      return '<div class="nrg-signal-row">'
+        + '<div class="nrg-signal-left"><span class="nrg-signal-label">' + s.label + '</span><span class="nrg-signal-detail">' + s.detail + '</span></div>'
+        + '<div class="nrg-signal-track"><div class="nrg-signal-fill" style="width:' + pct + '%;background:' + col + '"></div></div>'
+        + '<span class="nrg-signal-pts">' + s.pts + '<span class="nrg-signal-max">/' + s.max + '</span></span>'
+        + '</div>';
+    }).join('');
+  }
+
+  function renderChart() {
+    const svg = document.getElementById('nrgChart');
+    if (!svg) return;
+    const W = 300, H = 80, PAD = 8, BOT = 16;
+    const chartH = H - PAD - BOT;
+    const days = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date();
+      if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+      d.setDate(d.getDate() - i);
+      days.push(eDate(d));
+    }
+    const bw = (W - PAD * 2) / 14;
+    const dows = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    let out = '';
+    days.forEach((ds, i) => {
+      const { score } = computeDay(ds);
+      const cx = PAD + i * bw + bw / 2;
+      const bW = bw * 0.65, bx = cx - bW / 2;
+      const bh = Math.max(3, score / 100 * chartH);
+      const by = PAD + chartH - bh;
+      const col = eColor(score / 100);
+      const isToday = i === 13;
+      const op = isToday ? '1' : '0.4';
+      out += '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bW.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="3" fill="' + col + '" opacity="' + op + '"/>';
+      const [y, m, d] = ds.split('-').map(Number);
+      const dt = new Date(y, m-1, d);
+      out += '<text x="' + cx.toFixed(1) + '" y="' + (H - 2) + '" font-size="8" font-family="ui-monospace,monospace" fill="rgba(255,255,255,' + (isToday ? '0.5' : '0.22') + ')" text-anchor="middle">' + dows[dt.getDay()] + '</text>';
+    });
+    svg.innerHTML = out;
+  }
+
+  function renderInsights(score, sigs) {
+    const el = document.getElementById('nrgInsights');
+    if (!el) return;
+    const worst = [...sigs].sort((a, b) => (a.pts / a.max) - (b.pts / b.max))[0];
+    const best  = [...sigs].sort((a, b) => (b.pts / b.max) - (a.pts / a.max))[0];
+    const tips = {
+      sleep:       'Aim for 7–8h tonight — sleep is the biggest single energy lever.',
+      nutrition:   'Fuel gap detected — hit 80%+ of your calorie target today.',
+      hydration:   'Under-hydrated — drink 2 more bottles.',
+      supplements: 'Missed most supplements — even creatine + B12 makes a real difference.',
+      activity:    'Move — even a 20 min walk lifts energy for hours.',
+    };
+    const msgs = [];
+    if (worst.pts / worst.max < 0.55 && worst.detail !== 'No stack') {
+      msgs.push({ type: 'warn', text: tips[worst.key] || 'Focus on ' + worst.label.toLowerCase() + ' to lift your score.' });
+    }
+    if (best.pts / best.max >= 0.85 && best.detail !== 'No data') {
+      msgs.push({ type: 'good', text: best.label + ' is solid — ' + best.detail + '.' });
+    }
+    if (!msgs.length) msgs.push({ type: 'neu', text: 'Log sleep, food and water for a full picture.' });
+    el.innerHTML = msgs.map(m => '<div class="nrg-insight nrg-insight-' + m.type + '">' + m.text + '</div>').join('');
+  }
+
+  function renderCorrelations() {
+    const el = document.getElementById('nrgCorrelations');
+    if (!el) return;
+    const data = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      const energy = computeDay(ds).score;
+      let sleepMins = null;
+      try { const se = (JSON.parse(localStorage.getItem('sleep:logs'))||[]).find(e=>e.date===ds); if(se) sleepMins=se.duration; } catch {}
+      let workoutDone = false;
+      try { workoutDone = !!(JSON.parse(localStorage.getItem('po_coach_workout_done'))||{})[ds]; } catch {}
+      let kcalPct = null;
+      try {
+        const logs = JSON.parse(localStorage.getItem('nt:logs'))||[];
+        const tgt = (JSON.parse(localStorage.getItem('nt:targets'))||{}).calories || 2000;
+        const kcal = logs.filter(l=>l.dateKey===ds).reduce((s,l)=>s+(l.calories||0),0);
+        kcalPct = kcal / tgt;
+      } catch {}
+      data.push({ ds, energy, sleepMins, workoutDone, kcalPct });
+    }
+    const active = data.filter(d => d.energy > 0);
+    const insights = [];
+
+    const lowDays = active.filter(d => d.energy < 55);
+    if (lowDays.length >= 2) {
+      const shortSleep = lowDays.filter(d => d.sleepMins != null && d.sleepMins < 360);
+      if (shortSleep.length >= 2)
+        insights.push({ t: 'warn', msg: 'Low energy correlated with <6h sleep ' + shortSleep.length + '/' + lowDays.length + ' times this week.' });
+    }
+
+    const wDays = active.filter(d => d.workoutDone), rDays = active.filter(d => !d.workoutDone);
+    if (wDays.length >= 2 && rDays.length >= 2) {
+      const avgW = wDays.reduce((s,d)=>s+d.energy,0)/wDays.length;
+      const avgR = rDays.reduce((s,d)=>s+d.energy,0)/rDays.length;
+      if (avgW > avgR + 8)
+        insights.push({ t: 'good', msg: 'Workout days averaged ' + Math.round(avgW) + ' energy vs ' + Math.round(avgR) + ' on rest days.' });
+    }
+
+    const fuelled = active.filter(d => d.kcalPct != null && d.kcalPct >= 0.85);
+    const under   = active.filter(d => d.kcalPct != null && d.kcalPct < 0.6);
+    if (fuelled.length >= 2 && under.length >= 1) {
+      const avgF = fuelled.reduce((s,d)=>s+d.energy,0)/fuelled.length;
+      const avgU = under.reduce((s,d)=>s+d.energy,0)/under.length;
+      if (avgF > avgU + 6)
+        insights.push({ t: 'good', msg: 'Well-fuelled days (≥85% calorie target) averaged ' + Math.round(avgF) + ' energy vs ' + Math.round(avgU) + ' when under-fuelled.' });
+    }
+
+    const goodSleep = active.filter(d => d.sleepMins != null && d.sleepMins >= 420 && d.energy >= 70);
+    if (goodSleep.length >= 3)
+      insights.push({ t: 'good', msg: goodSleep.length + '/7 days with 7h+ sleep hit 70+ energy — sleep is your biggest lever.' });
+
+    if (!insights.length)
+      insights.push({ t: 'neu', msg: active.length < 3 ? 'Log a few more days to surface patterns.' : 'No strong patterns yet — keep logging.' });
+
+    el.innerHTML = '<div class="corr-section-title">7-day correlations</div>'
+      + insights.map(i => '<div class="corr-insight corr-' + i.t + '">' + i.msg + '</div>').join('');
+  }
+
+  function nrgRender() {
+    const ds = todayStr();
+    const result = computeDay(ds);
+    renderHero(result.score);
+    renderSignals(result.sigs);
+    renderChart();
+    renderInsights(result.score, result.sigs);
+    renderCorrelations();
+  }
+
+  window._nrgRender = nrgRender;
+
+  window.addEventListener('storage', e => {
+    const watched = ['sleep:logs', 'nt:logs', 'po_water_v1', 'stack:taken', 'stack:items', 'po_coach_workout_done'];
+    if (e.key && watched.some(k => e.key.startsWith(k.replace(':', '')))) {
+      try { nrgRender(); } catch {}
+    }
+  });
+
+  const nrgTabBtn = document.querySelector('[data-tab="energy"]');
+  if (nrgTabBtn) nrgTabBtn.addEventListener('click', () => setTimeout(nrgRender, 0));
+
+  nrgRender();
+})();
+</script>
+
+
+<script>
+/* ===== BLOODWORK ===== */
+(() => {
+  'use strict';
+  const KEY = 'blood:logs';
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const save = (arr) => localStorage.setItem(KEY, JSON.stringify(arr));
+
+  const MARKERS = [
+    { key:'hematocrit',       label:'Hematocrit',        unit:'%',       refLow:36,   refHigh:52,   group:'CBC' },
+    { key:'hemoglobin',       label:'Hemoglobin',         unit:'g/dL',    refLow:11.5, refHigh:17.5, group:'CBC' },
+    { key:'testosterone',     label:'Testosterone',       unit:'ng/dL',   refLow:250,  refHigh:1100, group:'Hormones' },
+    { key:'estradiol',        label:'Estradiol',          unit:'pg/mL',   refLow:10,   refHigh:200,  group:'Hormones' },
+    { key:'lh',               label:'LH',                 unit:'mIU/mL',  refLow:1.5,  refHigh:9.3,  group:'Hormones' },
+    { key:'fsh',              label:'FSH',                unit:'mIU/mL',  refLow:1.5,  refHigh:12.4, group:'Hormones' },
+    { key:'totalCholesterol', label:'Total Cholesterol',  unit:'mg/dL',   refLow:0,    refHigh:200,  group:'Lipids' },
+    { key:'ldl',              label:'LDL',                unit:'mg/dL',   refLow:0,    refHigh:100,  group:'Lipids' },
+    { key:'hdl',              label:'HDL',                unit:'mg/dL',   refLow:40,   refHigh:999,  group:'Lipids' },
+    { key:'triglycerides',    label:'Triglycerides',      unit:'mg/dL',   refLow:0,    refHigh:150,  group:'Lipids' },
+    { key:'vitaminD',         label:'Vitamin D',          unit:'ng/mL',   refLow:30,   refHigh:100,  group:'Micronutrients' },
+    { key:'ferritin',         label:'Ferritin',           unit:'ng/mL',   refLow:12,   refHigh:300,  group:'Micronutrients' },
+    { key:'tsh',              label:'TSH',                unit:'mIU/L',   refLow:0.5,  refHigh:4.5,  group:'Thyroid' },
+    { key:'freeT3',           label:'Free T3',            unit:'pg/mL',   refLow:2.3,  refHigh:4.2,  group:'Thyroid' },
+    { key:'freeT4',           label:'Free T4',            unit:'ng/dL',   refLow:0.9,  refHigh:1.7,  group:'Thyroid' },
+  ];
+
+  function markerStatus(m, val) {
+    if (m.refHigh >= 999) return val >= m.refLow ? 'ok' : 'low';
+    if (val < m.refLow) return 'low';
+    if (val > m.refHigh) return 'high';
+    return 'ok';
+  }
+
+  function buildFormGroups() {
+    const el = document.getElementById('bloodFormGroups');
+    if (!el) return;
+    const groups = {};
+    MARKERS.forEach(m => { if (!groups[m.group]) groups[m.group] = []; groups[m.group].push(m); });
+    el.innerHTML = Object.entries(groups).map(([grp, ms]) =>
+      '<div class="bld-group-title">' + grp + '</div>'
+      + '<div class="bld-marker-grid">'
+      + ms.map(m => '<div class="bld-marker-row">'
+          + '<div class="bld-form-label">' + m.label + ' <span class="bld-marker-unit">(' + m.unit + ')</span></div>'
+          + '<input type="number" class="bld-input" id="bld_' + m.key + '" placeholder="—" step="any" min="0">'
+          + '</div>').join('')
+      + '</div>'
+    ).join('');
+  }
+
+  function getFormValues() {
+    const v = {};
+    MARKERS.forEach(m => { const el = document.getElementById('bld_' + m.key); if (el && el.value !== '') v[m.key] = parseFloat(el.value); });
+    return v;
+  }
+
+  function clearForm() { MARKERS.forEach(m => { const el = document.getElementById('bld_' + m.key); if (el) el.value = ''; }); }
+
+  function drawChart(svgEl, readings, m) {
+    const W = 280, H = 54, padX = 4, padTop = 10, padBot = 4;
+    if (!readings.length) { svgEl.innerHTML = ''; return; }
+    const vals = readings.map(r => r.value);
+    const refLo = m.refLow > 0 ? m.refLow : null;
+    const refHi = m.refHigh < 999 ? m.refHigh : null;
+    const allV = [...vals, refLo, refHi].filter(v => v != null);
+    const span = Math.max(...allV) - Math.min(...allV) || 1;
+    const minV = Math.min(...allV) - span * 0.1;
+    const maxV = Math.max(...allV) + span * 0.1;
+    const toY = v => padTop + (H - padTop - padBot) * (1 - (v - minV) / (maxV - minV));
+    const toX = i => readings.length === 1 ? W / 2 : padX + i * (W - padX * 2) / (readings.length - 1);
+    let out = '';
+    if (refLo != null && refHi != null) {
+      const ry1 = toY(Math.min(refHi, maxV)), ry2 = toY(Math.max(refLo, minV));
+      out += '<rect x="0" y="' + ry1.toFixed(1) + '" width="' + W + '" height="' + Math.max(0, ry2 - ry1).toFixed(1) + '" fill="rgba(107,227,164,0.07)" rx="1"/>';
+    }
+    if (readings.length > 1)
+      out += '<polyline points="' + readings.map((r,i) => toX(i).toFixed(1)+','+toY(r.value).toFixed(1)).join(' ') + '" fill="none" stroke="rgba(125,211,252,0.5)" stroke-width="1.5" stroke-linejoin="round"/>';
+    readings.forEach((r, i) => {
+      const st = markerStatus(m, r.value);
+      const col = st === 'ok' ? '#6BE3A4' : '#FF6B6B';
+      const cx = toX(i), cy = toY(r.value);
+      out += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="3" fill="' + col + '"/>';
+      out += '<text x="' + cx.toFixed(1) + '" y="' + (cy - 5).toFixed(1) + '" font-size="8" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-family="ui-monospace,monospace">' + r.value + '</text>';
+    });
+    svgEl.innerHTML = out;
+  }
+
+  function renderCharts(logs) {
+    const el = document.getElementById('bloodCharts');
+    if (!el) return;
+    const active = MARKERS.filter(m => logs.some(e => e.markers[m.key] != null));
+    if (!active.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div class="bld-charts-title">Trends</div>'
+      + active.map(m => {
+          const readings = logs.filter(e => e.markers[m.key] != null)
+            .map(e => ({ date: e.date, value: e.markers[m.key] }))
+            .sort((a,b) => a.date.localeCompare(b.date));
+          const latest = readings[readings.length - 1];
+          const st = markerStatus(m, latest.value);
+          const ref = m.refHigh < 999 ? ' (' + m.refLow + '–' + m.refHigh + ')' : ' (≥' + m.refLow + ')';
+          return '<div class="bld-chart-wrap">'
+            + '<div class="bld-chart-header">'
+            +   '<span class="bld-chart-name">' + m.label + ' ' + m.unit + '<span style="opacity:0.45;font-size:10px">' + ref + '</span></span>'
+            +   '<span class="bld-chart-latest ' + (st === 'ok' ? 'ok' : 'bad') + '">' + latest.value + '</span>'
+            + '</div>'
+            + '<svg class="bld-chart-svg" id="bldSvg_' + m.key + '" viewBox="0 0 280 54" height="54"></svg>'
+            + '</div>';
+        }).join('');
+    active.forEach(m => {
+      const readings = logs.filter(e => e.markers[m.key] != null)
+        .map(e => ({ date: e.date, value: e.markers[m.key] }))
+        .sort((a,b) => a.date.localeCompare(b.date));
+      const svgEl = document.getElementById('bldSvg_' + m.key);
+      if (svgEl) drawChart(svgEl, readings, m);
+    });
+  }
+
+  function renderHistory(logs) {
+    const el = document.getElementById('bloodHistory');
+    if (!el) return;
+    if (!logs.length) { el.innerHTML = '<div class="bld-empty">No tests logged yet.</div>'; return; }
+    el.innerHTML = [...logs].sort((a,b) => b.date.localeCompare(a.date)).map(e =>
+      '<div class="bld-entry">'
+      + '<div class="bld-entry-date">' + e.date + '</div>'
+      + '<div class="bld-entry-markers">'
+      + MARKERS.filter(m => e.markers[m.key] != null).map(m => {
+          const st = markerStatus(m, e.markers[m.key]);
+          return '<span class="bld-marker-chip ' + st + '">' + m.label + ': ' + e.markers[m.key] + ' ' + m.unit + '</span>';
+        }).join('')
+      + '</div>'
+      + '<button class="bld-del-btn" data-id="' + e.id + '" title="Delete">✕</button>'
+      + '</div>'
+    ).join('');
+    el.querySelectorAll('.bld-del-btn').forEach(btn => {
+      btn.addEventListener('click', () => { save(load().filter(e => e.id !== Number(btn.dataset.id))); render(); });
+    });
+  }
+
+  function render() { const logs = load(); renderCharts(logs); renderHistory(logs); }
+
+  buildFormGroups();
+
+  const logBtn = document.getElementById('bloodLogBtn');
+  const form   = document.getElementById('bloodForm');
+  const dateInp = document.getElementById('bloodDate');
+
+  function openForm()  { if (!dateInp.value) dateInp.value = new Date().toISOString().slice(0,10); form.classList.add('open'); logBtn.textContent = '− Close'; }
+  function closeForm() { form.classList.remove('open'); logBtn.textContent = '+ Log test results'; }
+
+  logBtn && logBtn.addEventListener('click', () => form.classList.contains('open') ? closeForm() : openForm());
+  document.getElementById('bloodCancel') && document.getElementById('bloodCancel').addEventListener('click', closeForm);
+  document.getElementById('bloodSave') && document.getElementById('bloodSave').addEventListener('click', () => {
+    const markers = getFormValues();
+    if (!Object.keys(markers).length) return;
+    const date = dateInp.value || new Date().toISOString().slice(0,10);
+    const logs = load();
+    const idx = logs.findIndex(e => e.date === date);
+    if (idx >= 0) logs[idx].markers = Object.assign({}, logs[idx].markers, markers);
+    else logs.push({ id: Date.now(), date, markers });
+    save(logs); clearForm(); closeForm(); render();
+    const entry = logs.find(e => e.date === date);
+    if (entry) {
+      try { fetch('/api/health/bloodwork', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch {}
+    }
+  });
+
+  document.querySelector('[data-tab="blood"]') && document.querySelector('[data-tab="blood"]').addEventListener('click', () => setTimeout(render, 0));
+  render();
+})();
+</script>
+
+<!-- METRICS + LABS script -->
+<script>
+(function(){
+'use strict';
+
+const MET_KEY  = 'health:metrics:v1';
+const LABS_KEY = 'health:labs:v1';
+
+function hLoad(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch{ return null; } }
+function hSave(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch{} }
+function todayStr(){ const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'); }
+function fmtDate(ds){ try{ return new Date(ds+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}); }catch{ return ds; } }
+function addD(d,n){ const r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function ds(d){ return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'); }
+
+// ──────── METRICS ────────
+let metrics = hLoad(MET_KEY) || [];  // [{date, hrv, rhr, spo2, steps}]
+
+const LAB_REFS = {
+  glucose:      { name:'Glucose',       unit:'mmol/L',  lo:3.9, hi:5.6 },
+  hba1c:        { name:'HbA1c',         unit:'%',       lo:4,   hi:5.7 },
+  cholesterol:  { name:'Cholesterol',   unit:'mmol/L',  lo:0,   hi:5.2 },
+  ldl:          { name:'LDL',           unit:'mmol/L',  lo:0,   hi:3.4 },
+  hdl:          { name:'HDL',           unit:'mmol/L',  lo:1.0, hi:99 },
+  triglycerides:{ name:'Triglycerides', unit:'mmol/L',  lo:0,   hi:1.7 },
+  ferritin:     { name:'Ferritin',      unit:'μg/L',    lo:12,  hi:300 },
+  vitd:         { name:'Vitamin D',     unit:'nmol/L',  lo:75,  hi:250 },
+  tsh:          { name:'TSH',           unit:'mIU/L',   lo:0.4, hi:4.0 },
+  crp:          { name:'CRP',           unit:'mg/L',    lo:0,   hi:1.0 },
+  testosterone: { name:'Testosterone',  unit:'nmol/L',  lo:9,   hi:35 },
+  b12:          { name:'B12',           unit:'pmol/L',  lo:148, hi:720 },
+  folate:       { name:'Folate',        unit:'nmol/L',  lo:10,  hi:99 },
+  magnesium:    { name:'Magnesium',     unit:'mmol/L',  lo:0.7, hi:1.0 },
+  other:        { name:'Other',         unit:'',        lo:null,hi:null },
+};
+
+function renderMetrics() {
+  const today = todayStr();
+  const todayMet = metrics.find(m => m.date === today) || {};
+  // Display today's values
+  const disp = (id, val, suf='') => {
+    document.getElementById(id+'Val').textContent = val != null ? val + suf : '—';
+  };
+  disp('metricsHRV',    todayMet.hrv);
+  disp('metricsRHR',    todayMet.rhr, ' bpm');
+  disp('metricsSPO2',   todayMet.spo2, '%');
+  disp('metricsSteps',  todayMet.steps ? Number(todayMet.steps).toLocaleString() : null);
+  // Update subs
+  const last = metrics.filter(m=>m.hrv).slice(-1)[0];
+  document.getElementById('metricsHRVSub').textContent = last ? `Avg 30d: ${Math.round(metrics.filter(m=>m.hrv).slice(-30).reduce((s,m)=>s+(m.hrv||0),0)/Math.min(30,metrics.filter(m=>m.hrv).length))} ms` : 'No data';
+  // Readiness score
+  computeReadiness();
+  // HRV chart
+  renderHRVChart();
+  // Pre-fill form
+  if (todayMet.hrv)   document.getElementById('metHRVInput').value   = todayMet.hrv;
+  if (todayMet.rhr)   document.getElementById('metRHRInput').value   = todayMet.rhr;
+  if (todayMet.spo2)  document.getElementById('metSPO2Input').value  = todayMet.spo2;
+  if (todayMet.steps) document.getElementById('metStepsInput').value = todayMet.steps;
+}
+
+function computeReadiness() {
+  const today = todayStr();
+  let score = 0, factors = 0;
+  // HRV factor (30 vs baseline)
+  const hrvLogs = metrics.filter(m=>m.hrv).slice(-30);
+  if (hrvLogs.length >= 3) {
+    const baseline = hrvLogs.slice(0,-1).reduce((s,m)=>s+m.hrv,0)/Math.max(1,hrvLogs.length-1);
+    const todayHRV = (metrics.find(m=>m.date===today)||{}).hrv;
+    if (todayHRV && baseline) {
+      const ratio = todayHRV / baseline;
+      score += Math.min(100, Math.max(0, (ratio - 0.7) / 0.6 * 100)) * 0.4;
+      factors += 0.4;
+    }
+  }
+  // Sleep factor
+  try {
+    const sleepLogs = JSON.parse(localStorage.getItem('sleep:logs')||'[]');
+    const todaySleep = sleepLogs.find(s=>s.date===today);
+    if (todaySleep) {
+      const hrs = parseFloat(todaySleep.hours||0);
+      const sleepScore = Math.min(100, (hrs / 8) * 100);
+      score += sleepScore * 0.35;
+      factors += 0.35;
+    }
+  } catch {}
+  // RHR factor
+  const rhrLogs = metrics.filter(m=>m.rhr).slice(-30);
+  if (rhrLogs.length >= 3) {
+    const baseline = rhrLogs.slice(0,-1).reduce((s,m)=>s+m.rhr,0)/Math.max(1,rhrLogs.length-1);
+    const todayRHR = (metrics.find(m=>m.date===today)||{}).rhr;
+    if (todayRHR && baseline) {
+      const ratio = baseline / todayRHR; // lower RHR = better
+      score += Math.min(100, Math.max(0, ratio * 100)) * 0.25;
+      factors += 0.25;
+    }
+  }
+  if (factors < 0.1) {
+    document.getElementById('metricsReadiness').textContent = '—';
+    document.getElementById('metricsReadinessSub').textContent = 'Log HRV + sleep to compute readiness';
+    return;
+  }
+  const readiness = Math.round(score / factors);
+  const colors = [[80,'#6BE3A4'],[60,'#F2C063'],[0,'#FF6B6B']];
+  const color = (colors.find(c=>readiness>=c[0])||colors[2])[1];
+  document.getElementById('metricsReadiness').textContent = readiness;
+  document.getElementById('metricsReadiness').style.color = color;
+  const levels = [[85,'Excellent 🔥'],[70,'Good ✅'],[55,'Moderate ⚡'],[0,'Poor — rest up 😴']];
+  const lbl = (levels.find(l=>readiness>=l[0])||levels[3])[1];
+  document.getElementById('metricsReadinessSub').textContent = lbl;
+}
+
+function renderHRVChart() {
+  const el = document.getElementById('metricsHRVChart');
+  const pts = [];
+  for (let i=29; i>=0; i--) { const d=ds(addD(new Date(),-i)); const m=metrics.find(x=>x.date===d); pts.push(m&&m.hrv?m.hrv:null); }
+  const max = Math.max(...pts.filter(Boolean), 1);
+  el.innerHTML = pts.map((v,i) => {
+    const h = v ? Math.max(8, (v/max)*100) : 8;
+    const c = v ? '#E07658' : 'rgba(255,255,255,0.05)';
+    return `<div style="flex:1;height:${h}%;background:${c};border-radius:2px 2px 0 0;min-height:3px;max-height:100%;align-self:flex-end" title="${v?v+'ms':'no data'}"></div>`;
+  }).join('');
+}
+
+document.getElementById('metLogBtn').addEventListener('click', () => {
+  const hrv   = parseFloat(document.getElementById('metHRVInput').value)||null;
+  const rhr   = parseFloat(document.getElementById('metRHRInput').value)||null;
+  const spo2  = parseFloat(document.getElementById('metSPO2Input').value)||null;
+  const steps = parseInt(document.getElementById('metStepsInput').value)||null;
+  if (!hrv && !rhr && !spo2 && !steps) return;
+  const today = todayStr();
+  const idx = metrics.findIndex(m=>m.date===today);
+  const entry = { date:today, hrv, rhr, spo2, steps };
+  if (idx>=0) metrics[idx]=entry; else metrics.push(entry);
+  metrics.sort((a,b)=>a.date>b.date?1:-1);
+  hSave(MET_KEY, metrics);
+  renderMetrics();
+  if (hrv) { try { fetch('/api/health/hrv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch {} }
+  if (rhr) { try { fetch('/api/health/heartrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch {} }
+});
+
+document.querySelector('[data-tab="metrics"]') && document.querySelector('[data-tab="metrics"]').addEventListener('click', () => {
+  renderMetrics();
+});
+
+// ──────── LABS ────────
+let labs = hLoad(LABS_KEY) || [];
+
+function renderLabs() {
+  const el = document.getElementById('labsList');
+  if (!labs.length) { el.innerHTML='<div class="stack-card" style="text-align:center;color:var(--text-tertiary);font-size:13px;padding:20px">No lab results logged yet</div>'; return; }
+  // Group by marker
+  const groups = {};
+  labs.forEach(l => { if(!groups[l.marker])groups[l.marker]=[]; groups[l.marker].push(l); });
+  el.innerHTML = Object.entries(groups).map(([marker, entries]) => {
+    const ref = LAB_REFS[marker] || { name: marker, unit:'' };
+    const latest = entries[entries.length-1];
+    const inRange = ref.lo!=null && ref.hi!=null ? (latest.value>=ref.lo && latest.value<=ref.hi) : null;
+    const color = inRange===null?'var(--text-tertiary)':inRange?'#6BE3A4':'#FF6B6B';
+    return `<div class="stack-card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text-primary)">${ref.name}</div>
+          ${ref.lo!=null?`<div style="font-size:11px;color:var(--text-tertiary)">Ref: ${ref.lo}–${ref.hi} ${ref.unit}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:22px;font-weight:800;color:${color}">${latest.value}</div>
+          <div style="font-size:11px;color:var(--text-tertiary)">${ref.unit} · ${fmtDate(latest.date)}</div>
+        </div>
+      </div>
+      ${entries.length>1?`<div style="font-size:11px;color:var(--text-tertiary)">${entries.slice(-5).map(e=>`${fmtDate(e.date)}: ${e.value}`).join(' → ')}</div>`:''}
+      ${entries.map(e=>`<button class="stack-check" style="float:right;margin-top:4px;font-size:11px;padding:2px 8px;border-radius:6px" data-del-lab="${e.id}">✕</button>`).slice(-1).join('')}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-del-lab]').forEach(btn => btn.addEventListener('click', ()=>{
+    labs = labs.filter(l=>l.id!==btn.dataset.delLab);
+    hSave(LABS_KEY,labs);
+    renderLabs();
+  }));
+}
+
+// pre-fill date
+document.getElementById('labDate').value = todayStr();
+
+document.getElementById('labSaveBtn').addEventListener('click', ()=>{
+  const marker = document.getElementById('labMarker').value;
+  const value  = parseFloat(document.getElementById('labValue').value);
+  const date   = document.getElementById('labDate').value || todayStr();
+  const notes  = document.getElementById('labNotes').value.trim();
+  if (!value) return;
+  const entry = { id:Date.now().toString(36), marker, value, date, notes };
+  labs.push(entry);
+  labs.sort((a,b)=>a.date>b.date?1:-1);
+  hSave(LABS_KEY,labs);
+  try { fetch('/api/health/bloodwork', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch {}
+  document.getElementById('labValue').value='';
+  document.getElementById('labNotes').value='';
+  renderLabs();
+});
+
+renderLabs();
+
+})();
+</script>
+
+<script>
+// ===== BODY COMPOSITION TRACKER =====
+(function bodyComp() {
+  const KEY = 'health:body:v1';
+  function load() { return JSON.parse(localStorage.getItem(KEY)||'[]'); }
+  function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+
+  function render() {
+    const logs = load().slice(-30);
+    const last = logs[logs.length-1];
+    const valEl   = document.getElementById('bfValDisplay');
+    const waistEl = document.getElementById('bfWaistDisplay');
+    const trendEl = document.getElementById('bfTrendDisplay');
+    const chartEl = document.getElementById('bfChart');
+    if (!valEl) return;
+
+    valEl.textContent   = last ? last.bf.toFixed(1) : '—';
+    waistEl.textContent = last?.waist ? last.waist.toFixed(1) : '—';
+
+    // 4-week trend
+    if (logs.length >= 2) {
+      const recent = logs.slice(-28);
+      const delta = recent[recent.length-1].bf - recent[0].bf;
+      trendEl.textContent = (delta > 0 ? '+' : '') + delta.toFixed(1);
+      trendEl.style.color = delta < 0 ? '#4BC9A0' : delta > 0 ? '#FF6B6B' : 'var(--text-primary)';
+    } else {
+      trendEl.textContent = '—';
+    }
+
+    // Mini bar chart
+    if (chartEl && logs.length) {
+      const vals = logs.map(l => l.bf);
+      const maxV = Math.max(...vals);
+      const minV = Math.max(0, Math.min(...vals) - 2);
+      const range = maxV - minV || 1;
+      chartEl.innerHTML = logs.map(l => {
+        const h = Math.max(3, ((l.bf - minV) / range) * 44);
+        const col = l.bf < 15 ? '#5B8DEF' : l.bf < 25 ? '#4BC9A0' : '#FF8A4D';
+        return `<div style="flex:1;min-width:3px;height:${h}px;background:${col};border-radius:2px 2px 0 0;opacity:0.75" title="${l.date}: ${l.bf}%"></div>`;
+      }).join('');
+    }
+  }
+
+  const saveBtn = document.getElementById('bfSaveBtn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      const bf = parseFloat(document.getElementById('bfInput').value);
+      if (isNaN(bf) || bf < 3 || bf > 60) return;
+      const today = new Date().toISOString().slice(0,10);
+      const logs = load();
+      const entry = {
+        date:  today,
+        bf,
+        waist: parseFloat(document.getElementById('bfWaistInput').value) || null,
+        hips:  parseFloat(document.getElementById('bfHipsInput').value)  || null,
+        neck:  parseFloat(document.getElementById('bfNeckInput').value)  || null,
+      };
+      const filtered = logs.filter(l => l.date !== today);
+      filtered.push(entry);
+      filtered.sort((a,b) => a.date.localeCompare(b.date));
+      save(filtered);
+      document.getElementById('bfInput').value = '';
+      render();
+      try { fetch('/api/health/bodyfat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(() => {}); } catch (_) {}
+      try { fetch('/api/health/weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: entry.date, body_fat_pct: entry.bf, waist_cm: entry.waist }) }).catch(() => {}); } catch (_) {}
+    });
+  }
+
+  document.querySelector('[data-tab="metrics"]')?.addEventListener('click', () => setTimeout(render, 0));
+  render();
+})();
+</script>
+
+<script>
+(function healthSync() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var APP_KEY  = 'health-app';
+  var SYNC_KEYS = ['sleep:logs', 'stack:items', 'stack:low', 'blood:logs', 'health:metrics:v1', 'health:labs:v1', 'health:body:v1'];
+  var _origSet = localStorage.setItem.bind(localStorage);
+  var pushTimer = null;
+  var lastJson = null;
+
+  localStorage.setItem = function(k, v) {
+    _origSet(k, v);
+    if (SYNC_KEYS.indexOf(k) !== -1) schedulePush();
+  };
+
+  function collect() {
+    var out = {};
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var v = localStorage.getItem(SYNC_KEYS[i]);
+      if (v != null) try { out[SYNC_KEYS[i]] = JSON.parse(v); } catch (_) {}
+    }
+    return out;
+  }
+
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 400); }
+
+  function pushNow() {
+    var data = collect();
+    var json = JSON.stringify(data);
+    if (json === lastJson) return;
+    lastJson = json;
+    try {
+      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }),
+        keepalive: true,
+      }).catch(function() {});
+    } catch (_) {}
+  }
+
+  (async function init() {
+    var url = SUPA_URL + '/rest/v1/app_state?select=data,updated_at&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1';
+    try {
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (!r.ok) return;
+      var rows = await r.json();
+      var remote = rows[0] && rows[0].data;
+      if (!remote) { if (Object.keys(collect()).length > 0) schedulePush(); return; }
+      lastJson = JSON.stringify(remote);
+      var changed = false;
+      for (var i = 0; i < SYNC_KEYS.length; i++) {
+        var k = SYNC_KEYS[i];
+        if (k in remote) {
+          var incoming = JSON.stringify(remote[k]);
+          if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch (_) {} }
+        }
+      }
+      if (changed && !sessionStorage.getItem('_hSyncR')) {
+        sessionStorage.setItem('_hSyncR', '1');
+        window.location.reload();
+      } else {
+        sessionStorage.removeItem('_hSyncR');
+      }
+    } catch (_) {}
+  })();
+
+  window.addEventListener('pagehide', pushNow);
+  window.addEventListener('beforeunload', pushNow);
+  document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
+})();
+</script>
+
+
+</body>
+</html>
