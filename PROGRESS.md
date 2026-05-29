@@ -110,32 +110,32 @@ None committed.
 
 ### Phase 2 — Health Modules
 - [x] Supplements: wire reminders.html supplement logs into `events` (type `supplements.taken`). Adherence streak from events. Added `events.js` script tag + new Supplements card to reminders.html: `supps:stack` (localStorage array of `{id,name,dose,time}`) + `supps:taken` log; tap-to-confirm "Take" button fires `addEvent('supplements.taken', ['supplements'], {name,dose,time,date})`; streak computed from consecutive days with ≥1 taken entry; both keys added to remindersSync SYNC_KEYS for Supabase backup.
-- [ ] Bloodwork: wire health.html bloodwork entry into `events` (type `bloodwork.panel`). Reference-range bands on chart.
-- [ ] Skin: wire skin.html routine log into `events` (type `skin.routine`). Correlate irritation with routine from events.
+- [x] Bloodwork: wire health.html bloodwork entry into `events` (type `bloodwork.panel`). Reference-range bands on chart. `addEvent('bloodwork.panel')` added to both `bloodSave` (full panel) and `labSaveBtn` (single-marker) handlers. Reference-range bands already present in `drawChart()` (green rect for ref range).
+- [x] Skin: wire skin.html routine log into `events` (type `skin.routine`). Correlate irritation with routine from events. `events.js` script tag added; routine item click fires `addEvent('skin.routine', ['skin'], {product,type,time,date})` on toggle-on. `renderCorrelation()` added — computes bad-day vs good-day product frequency over last 14 rated entries, shows red (irritants) / green (helpers) chips.
 
 ### Phase 3 — AI Intelligence Layer
-- [ ] Wire `CLAUDE_MODEL` env var (already in Phase 0; full AI service refactor).
-- [ ] NL input parsing → events: extend `/api/events/add.js` with NL parse mode — POST `{ text }` → Claude parses → calls `addEvent()` for each detected event. Wire into Universal Input Bar as primary path.
-- [ ] Daily briefing upgraded: agent.js to read from `events` table (in addition to existing health tables) for manual entries; store briefing as `ai.briefing` event; display on `index.html`.
-- [ ] Cross-domain insight engine: standalone `/api/ai/insights.js` — reads events across domains, calls Claude, writes `ai.insight` events. Run from Vercel Cron.
-- [ ] Anomaly/flag detection: `/api/ai/flags.js` — biomarker out-of-range, weight swings, skin spikes, finance blowouts → write `ai.flag` events → surface in `index.html` insight strip.
-- [ ] AI Panel: new `ai.html` page — full briefing, insights list, flags, active experiments, chat interface.
-- [ ] Experiment engine: propose/track/report via `ai.experiment` events.
+- [x] Wire `CLAUDE_MODEL` env var (already done in Phase 0 — agent.js, nutrition-ai.js, gcal-nlp.js all read from process.env.CLAUDE_MODEL[_FAST]).
+- [x] NL input parsing → events: extended `api/events/add.js` — POST `{ text }` → Claude Haiku parses into structured event array → each inserted to events table. UIB upgraded: primary NL text input fires `/api/events/add` with `{ text }`, returns `parsed_count`. Structured fallback preserved below.
+- [x] Daily briefing upgraded: `agent.js` — `save_briefing` tool writes `ai.briefing` event to events table; updated SYSTEM prompt instructs agent to call `save_briefing` on daily_summary. `index.html` loads latest `ai.briefing` event from Supabase as fallback if no local cache.
+- [x] Cross-domain insight engine: `read_events` tool added to `agent.js`; SYSTEM prompt instructs cross-domain analysis across ≥2 domains, save via `save_insight`. `index.html` AI insight strip reads `ai.insight` events from events table.
+- [x] Anomaly/flag detection: `save_flag` tool added to `agent.js`; SYSTEM prompt instructs: out-of-range bloodwork markers, weight swings, consecutive poor sleep, no nutrition logged → `save_flag`. `index.html` insight strip displays `ai.flag` events (red for alert, amber for warning).
+- [x] AI Panel: `ai.html` — briefing display (loads from events table), flags+insights list (14-day events), experiments UI (localStorage `experiments:v1` + `addEvent('ai.experiment')`), chat interface (uses existing `/api/health-ai/agent` chat mode). Trigger briefing button fires `daily_summary` event.
+- [x] Experiment engine: `ai.html` — propose (name + hypothesis + end date), start/complete/abandon; start/complete fire `addEvent('ai.experiment', ['ai'], {name,hypothesis,action,...})`.
 
 ### Phase 4 — Integrations
 - [x] Sleep + activity import (Samsung Health via watch.html + Health Connect Android app). _(already working)_
 - [x] Google Calendar two-way sync. _(already working in calendar.html)_
-- [ ] Lab PDF upload → server OCR → bloodwork fields prefilled.
-- [ ] Finance CSV import (supplement to GoCardless/Salt Edge live sync).
+- [x] Lab PDF upload → server OCR → bloodwork fields prefilled. `api/events/add.js` lab_ocr mode: POST `{mode:'lab_ocr', image_base64, media_type}` → Claude vision extracts marker values → returns `{ok, markers}`. `health.html` bloodwork section: "Upload lab image" button → reads file → base64 → OCR → pre-fills form inputs; opens form on success.
+- [x] Finance CSV import. `finance.html` INCOMING ORDERS section: "Import CSV" button → FileReader → parses date/name/amount/currency/category columns → appends to `incoming_orders` localStorage + fires `addEvent('finance.expense')` per row + calls `renderOrders()`.
 
 ### Phase 5 — Polish & Hardening
-- [ ] Mobile layout pass (fast-capture flows — InputBar usable on mobile).
-- [ ] Charts pass: sparklines on Command Center tiles, range bands on bloodwork charts.
-- [ ] RLS review: verify `events` RLS actually blocks unintended access; document decision on single-user auth model.
-- [ ] Settings page (`settings.html`): goals, reminder config, what context gets sent to AI, data export/backup.
-- [ ] `.env.example` kept current (done in Phase 0).
-- [ ] Final verification + Definition of Done.
+- [x] Mobile layout pass: `@media (max-width:480px)` block in `index.html` — module tiles 2-col, UIB panel narrower, home layout column, AI summary card compact padding.
+- [x] Charts pass: sparklines on Command Center tiles. `index.html` module sparkline tiles section — `#moduleTiles` grid shows Weight / Sleep / Mood / Calories / Supps streak tiles, each with 7-day SVG polyline sparkline, rendered from localStorage. Bloodwork range bands already exist in `drawChart()`.
+- [x] RLS review: `events` table has anon-role full-access policies (no user_id auth — single-user app). Documented in `settings.html` Security section. Decision: acceptable for private single-user deployment; upgrade path = enable Supabase Auth + replace policies with `auth.uid() = user_id`. Health tables (weight, sleep, etc.) have same posture.
+- [x] Settings page: `settings.html` — Goals (calories/protein/sleep/water targets, propagates to `nt:tdee`), AI context (window days, include-finance toggle, include-bloodwork toggle), Integrations (links to configure pages), Data export (full localStorage JSON download), Security docs (RLS status, service key handling), Danger Zone (clear local).
+- [x] `.env.example` kept current (done in Phase 0).
+- [x] Final verification + Definition of Done.
 
 ---
 
-_Last updated: 2026-05-30. Phase 2 in progress. Supplements wired. Next: Bloodwork._
+_Last updated: 2026-05-30. All phases complete. See Definition of Done section above._
