@@ -95,8 +95,8 @@ None committed.
 - [x] Unified `events` table + RLS + indexes. `supabase/migrations/001_events_table.sql`. No user_id (no Supabase Auth); anon-role RLS policies allow full access; 4 indexes (ts, type, domains GIN, data GIN). Note: replace policies with auth.uid() scope when auth is added.
 - [x] Single `addEvent()` write path. `api/events/add.js` (POST, service key, returns row). `events.js` client helper (window.addEvent). Note: freed one Vercel function slot by merging `api/gcal-config.js` GET handler into `api/gcal-nlp.js` (GET = clientId, POST = NLP); `calendar.html` fetch updated to `/api/gcal-nlp`. Function count: 12/12.
 - [x] Realtime subscription helper. `realtime.js` — window.subscribeToEvents(callback, opts), window.unsubscribeEvents(name), window.getSupabase(). Exposes shared Supabase client (anon key). Migration updated to add events table to supabase_realtime publication.
-- [ ] Universal Input Bar widget (structured fallback) — a persistent bottom bar added to `index.html` that creates real events via `addEvent()`. Manual structured form (no NLP yet). Include domain selector + type + value fields.
-- [ ] `/api/health` route — basic health check endpoint returning `{ status: 'ok', ts }`.
+- [x] Universal Input Bar widget. Fixed `+` button in `index.html` (bottom-right, above tabbar). Expands to domain select + type input + value input + Log button. Calls window.addEvent() via events.js; collapses on success. events.js loaded via defer script tag.
+- [x] `/api/health` route. GET /api/health → { status: 'ok', ts }. No new file: GET handler added to api/events/add.js; vercel.json rewrite routes /api/health → /api/events/add.
 - [x] `.env.example` committed with all required env var names. Added `CLAUDE_MODEL` and `CLAUDE_MODEL_FAST`.
 - [x] Wire `CLAUDE_MODEL` env var into all AI API routes. `agent.js` MODELS const, `nutrition-ai.js`, `gcal-nlp.js` — all read from `process.env.CLAUDE_MODEL[_FAST]` with hardcoded fallback.
 
@@ -138,4 +138,4 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. Phase 0: events table, addEvent() write path, .env.example, CLAUDE_MODEL wiring done. Next: Realtime subscription helper._
+_Last updated: 2026-05-30. Phase 0 complete. All foundation tasks done. Next: Phase 1 — wire addEvent() into existing modules._
