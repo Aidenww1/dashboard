@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#0a0a0b">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Nutrition</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
 <script src="bus.js" defer></script>
 <script src="topbar.js" defer></script>
 <style>
@@ -2407,6 +2410,15 @@ function renderAnalytics() {
   })
   .catch(function() {});
 })();
+</script>
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  var d = e.detail; if (!d || !d.updated) return;
+  if (d.type === 'nutrition.meal') {
+    if (window.__ntRenderToday) window.__ntRenderToday();
+    if (window.__ntRenderLog) window.__ntRenderLog();
+  }
+});
 </script>
 
 </body>

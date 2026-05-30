@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Finances</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
 <script src="topbar.js" defer></script>
 <script src="events.js" defer></script>
 <style>
@@ -6617,8 +6619,12 @@ renderAccounts();
   document.querySelector('[data-tab="transactions"]')?.addEventListener('click', () => setTimeout(render, 0));
 })();
 </script>
-
-
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  var d = e.detail; if (!d || !d.updated) return;
+  if (d.type === 'finance.expense' && window._financeRenderAll) window._financeRenderAll();
+});
+</script>
 
 </body>
 </html>

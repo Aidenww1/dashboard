@@ -163,6 +163,9 @@ main { position: relative; z-index: 2; max-width: 720px; margin: 0 auto; padding
 }
 </style>
 <link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
 <script src="pwa.js" defer></script>
 <script src="events.js" defer></script>
 </head>
@@ -723,6 +726,12 @@ window._moodRenderAll = function() { moodLogs = load('mind:mood:v1') || []; rend
     if (changed) { try { if (typeof window._moodRenderAll === 'function') window._moodRenderAll(); } catch (_) {} }
   }).catch(function() {});
 })();
+</script>
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  var d = e.detail; if (!d || !d.updated) return;
+  if (d.type === 'mood.rating' && window._moodRenderAll) window._moodRenderAll();
+});
 </script>
 
 </body>

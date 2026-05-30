@@ -1020,6 +1020,9 @@ main {
 }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
 <script src="bus.js" defer></script>
 <script src="topbar.js" defer></script>
   <script src="tabbar.js" defer></script>
@@ -2772,6 +2775,7 @@ main {
   });
 
   document.querySelector('[data-tab="blood"]') && document.querySelector('[data-tab="blood"]').addEventListener('click', () => setTimeout(render, 0));
+  window._bloodRerender = function() { try { render(); } catch (_) {} };
   render();
 })();
 </script>
@@ -3135,7 +3139,12 @@ renderLabs();
   document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
 })();
 </script>
-
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  var d = e.detail; if (!d || !d.updated) return;
+  if (d.type === 'bloodwork.panel' && window._bloodRerender) window._bloodRerender();
+});
+</script>
 
 </body>
 </html>

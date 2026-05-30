@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#050506">
 <title>Body</title>
 <link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
 <style>
 :root {
   --bg:#050506; --bg-card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.06);
@@ -370,6 +373,12 @@ if (latestM) {
 })();
 
 })();
+</script>
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  var d = e.detail; if (!d || !d.updated) return;
+  if (d.type === 'body.weight') window.location.reload();
+});
 </script>
 </body>
 </html>

@@ -1808,6 +1808,8 @@ img, video, canvas, svg { max-width: 100%; }
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
 <script src="bus.js" defer></script>
 <script src="topbar.js" defer></script>
   <script src="tabbar.js" defer></script>
@@ -4888,6 +4890,7 @@ img, video, canvas, svg { max-width: 100%; }
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) pcFlushPushOnUnload();
   });
+  window._wtRerender = function() { try { wtRender(); } catch (_) {} };
 })();
 </script>
 
@@ -5770,7 +5773,13 @@ renderPRBoard();
   renderCycle();
 })();
 </script>
-
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  var d = e.detail; if (!d || !d.updated) return;
+  if (d.type === 'body.weight' && window._wtRerender) window._wtRerender();
+  if (d.type === 'body.measurement' && window._measRender) window._measRender();
+});
+</script>
 
 </body>
 </html>

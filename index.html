@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Aiden's Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
 <script src="topbar.js" defer></script>
 <style>
 :root {
@@ -2275,6 +2277,16 @@ setInterval(refreshStatChips, 60000);
   var valInput = document.getElementById('uib-value');
   if (valInput) valInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') window.uibSubmit(); });
 })();
+</script>
+
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  if (typeof buildTiles === 'function') buildTiles();
+  var t = e.detail && e.detail.type;
+  if (t === 'ai.flag' || t === 'ai.insight' || t === 'ai.briefing') {
+    if (typeof loadInsightStrip === 'function') loadInsightStrip();
+  }
+});
 </script>
 
 </body>
