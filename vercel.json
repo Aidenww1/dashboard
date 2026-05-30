@@ -4,6 +4,10 @@
     {
       "path": "/api/health-ai/agent",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/health-ai/agent?briefing=evening",
+      "schedule": "0 19 * * *"
     }
   ],
   "rewrites": [

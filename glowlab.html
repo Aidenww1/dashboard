@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>GlowLab</title>
+<script src="topbar.js" defer></script>
+<style>
+:root {
+  --bg: #0A0A0B;
+  --bg-deep: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --glass-bg: rgba(255,255,255,0.04);
+  --glass-border: transparent;
+  --glass-shadow: 0 1px 0 0 rgba(255,255,255,0.06) inset, 0 12px 40px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.25);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --text-quaternary: #4D4B47;
+  --border: transparent;
+  --accent: #A78BFA;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger: #FF6B6B;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+body::before {
+  content: '';
+  position: fixed; inset: -10%; z-index: -2;
+  background:
+    radial-gradient(60% 45% at 75% 10%, rgba(167,139,250,0.14) 0%, transparent 55%),
+    radial-gradient(55% 45% at 25% 90%, rgba(110,231,183,0.06) 0%, transparent 55%),
+    linear-gradient(180deg, #0A0A0B 0%, #050506 100%);
+  filter: blur(40px) saturate(1.05);
+  pointer-events: none;
+}
+body::after {
+  content: ''; position: fixed; inset: 0; z-index: -1;
+  background-image: radial-gradient(rgba(255,255,255,0.014) 1px, transparent 1px);
+  background-size: 3px 3px; opacity: 0.7; pointer-events: none;
+}
+body { padding-bottom: 90px; }
+html, body { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
+
+.shell { max-width: 880px; margin: 0 auto; padding: 24px 16px 100px; }
+
+/* ===== Tab nav ===== */
+.gl-tabs {
+  display: flex; gap: 4px; padding: 4px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px; margin-bottom: 20px;
+}
+.gl-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: transparent; border: 1px solid transparent;
+  color: var(--text-tertiary); padding: 8px 10px 7px;
+  border-radius: 12px; font-family: inherit; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.gl-tab:hover { color: var(--text-secondary); background: rgba(255,255,255,0.025); }
+.gl-tab.active { color: var(--text-primary); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10); }
+.gl-tab-icon { font-size: 16px; line-height: 1; }
+.gl-tab-label { font-size: 9px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; }
+
+.gl-section[hidden] { display: none !important; }
+
+/* ===== Site tabbar ===== */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; justify-content: center;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(10,10,11,0) 0%, rgba(10,10,11,0.78) 38%, rgba(10,10,11,0.94) 100%);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); pointer-events: none;
+}
+.tabbar-inner {
+  pointer-events: auto; display: flex; width: 100%; max-width: 460px;
+  gap: 6px; padding: 6px;
+  background: rgba(20,20,22,0.72); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px; box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+}
+.tab {
+  flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 10px 8px; border-radius: 13px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap;
+  color: var(--text-secondary); text-decoration: none; background: transparent;
+  border: 1px solid transparent; transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tab:hover { color: var(--text-primary); }
+.tab[aria-current="page"] {
+  color: var(--text-primary); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10);
+}
+.tab-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tab-icon svg { width: 100%; height: 100%; display: block; }
+
+/* ===== Section title ===== */
+.section-title {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.section-title::before { content: ''; width: 18px; height: 1px; background: var(--text-tertiary); opacity: 0.6; }
+.section-title-text { display: inline-flex; align-items: center; gap: 8px; }
+.section-title-text::before { content: '⚡'; font-size: 14px; color: var(--text-tertiary); opacity: 0.5; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent); }
+
+/* ===== Cards ===== */
+.card {
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 10px;
+  backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: var(--glass-shadow); position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 14px; right: 14px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent); pointer-events: none;
+}
+
+/* ===== Overview / P&L ===== */
+.pl-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 10px; margin-bottom: 14px;
+}
+@media (max-width: 480px) { .pl-grid { grid-template-columns: 1fr 1fr; } }
+.pl-stat-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 4px;
+}
+.pl-stat-val { font-size: 22px; font-weight: 700; }
+.pl-stat-val.pos { color: #6BE3A4; }
+.pl-stat-val.neg { color: #FF8A8A; }
+.pl-stat-val.neu { color: var(--text-primary); }
+.pl-margin-bar-track {
+  height: 6px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; margin-bottom: 8px;
+}
+.pl-margin-bar-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #A78BFA, #7C3AED);
+  transition: width 0.4s ease;
+}
+.pl-margin-bar-fill.loss { background: linear-gradient(90deg, #FF6B6B, #E53E3E); }
+.pl-footer { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 11px; color: var(--text-tertiary); }
+
+/* ===== Add forms ===== */
+.gl-add-card {
+  background: rgba(255,255,255,0.025) !important;
+  border: 1px solid rgba(255,255,255,0.05) !important;
+  margin-bottom: 12px;
+}
+.gl-add-eyebrow {
+  font-size: 10px; letter-spacing: 0.18em; font-weight: 800;
+  text-transform: uppercase; color: var(--text-tertiary);
+  font-family: var(--font-mono); margin-bottom: 10px;
+}
+.gl-add-grid {
+  display: grid; grid-template-columns: 1.6fr 1fr 1.1fr 1.1fr auto;
+  gap: 8px; align-items: center;
+}
+.gl-add-grid-3 {
+  display: grid; grid-template-columns: 1.6fr 1fr 1fr auto;
+  gap: 8px; align-items: center;
+}
+@media (max-width: 640px) {
+  .gl-add-grid, .gl-add-grid-3 { grid-template-columns: 1fr 1fr; }
+  .gl-input-name { grid-column: 1 / -1; }
+  .gl-add-btn { grid-column: 1 / -1; }
+}
+.gl-input {
+  background: transparent; border: none; outline: none;
+  color: var(--text-primary); font-size: 13px; font-family: inherit;
+  padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08);
+  width: 100%; -moz-appearance: textfield;
+}
+.gl-input::-webkit-outer-spin-button,
+.gl-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.gl-input::placeholder { color: var(--text-tertiary); }
+.gl-select {
+  background: rgba(255,255,255,0.04); border-radius: 8px;
+  padding: 6px 8px; font-size: 12px; border: none; outline: none;
+  color: var(--text-primary); font-family: inherit; cursor: pointer; width: 100%;
+}
+.gl-add-btn {
+  padding: 7px 14px; border: none; border-radius: 8px; cursor: pointer;
+  background: linear-gradient(180deg, #C4B5FD, #A78BFA);
+  color: #1A0A40; font-size: 12px; font-weight: 700; font-family: inherit; white-space: nowrap;
+  transition: transform 0.12s, box-shadow 0.18s;
+}
+.gl-add-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(167,139,250,0.35); }
+.gl-add-btn:active { transform: scale(0.97); }
+
+/* ===== Entry cards ===== */
+.gl-entry {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(255,255,255,0.025); border-radius: 12px;
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.gl-entry.revenue { border-left: 3px solid #6BE3A4; }
+.gl-entry.expense { border-left: 3px solid #FF8A8A; }
+.gl-entry-body { flex: 1; min-width: 0; }
+.gl-entry-name {
+  font-size: 13px; font-weight: 600; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gl-entry-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.gl-entry-amt { font-size: 15px; font-weight: 700; white-space: nowrap; }
+.gl-entry-amt.pos { color: #6BE3A4; }
+.gl-entry-amt.neg { color: #FF8A8A; }
+.gl-entry-x {
+  background: transparent; border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-tertiary); cursor: pointer; border-radius: 6px;
+  width: 22px; height: 22px; font-size: 14px; font-family: inherit; line-height: 1;
+}
+.gl-entry-x:hover { color: #FF8A8A; }
+.gl-empty {
+  text-align: center; padding: 28px 16px; color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* ===== Hourly rate ===== */
+.rate-card {
+  background: linear-gradient(135deg, rgba(167,139,250,0.08), rgba(110,231,183,0.04));
+  border: 1px solid rgba(167,139,250,0.18); border-radius: var(--radius-lg);
+  padding: 22px 24px; margin-bottom: 14px;
+}
+.rate-result {
+  font-size: 48px; font-weight: 800; color: #A78BFA;
+  line-height: 1; margin: 16px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.rate-sub { font-size: 13px; color: var(--text-tertiary); }
+.rate-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+@media (max-width: 480px) { .rate-inputs { grid-template-columns: 1fr; } }
+.rate-field label {
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px;
+}
+.rate-field input {
+  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px; padding: 10px 12px; font-size: 16px; font-weight: 600;
+  color: var(--text-primary); font-family: inherit; outline: none;
+  -moz-appearance: textfield;
+}
+.rate-field input::-webkit-outer-spin-button,
+.rate-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.rate-field input:focus { border-color: rgba(167,139,250,0.5); }
+.rate-context {
+  margin-top: 14px; padding: 12px 14px;
+  background: rgba(255,255,255,0.025); border-radius: 10px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.rate-ctx-stat label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); display: block; margin-bottom: 3px; }
+.rate-ctx-stat span { font-size: 14px; font-weight: 700; color: var(--text-secondary); }
+
+/* Month filter chips */
+.gl-filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.gl-filter-chip {
+  padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,0.07); background: transparent;
+  color: var(--text-tertiary); font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.gl-filter-chip:hover { color: var(--text-secondary); background: rgba(255,255,255,0.04); }
+.gl-filter-chip.active { background: rgba(167,139,250,0.12); color: #C4B5FD; border-color: rgba(167,139,250,0.25); }
+@media(min-width:900px){.shell{max-width:1280px!important;padding-left:32px!important;padding-right:32px!important}}
+</style>
+<link rel="manifest" href="manifest.json">
+<script src="pwa.js" defer></script>
+</head>
+<body>
+<div class="shell">
+
+  <div style="margin-bottom:20px">
+    <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px">Business</div>
+    <div style="font-size:28px;font-weight:800;color:var(--text-primary)">GlowLab</div>
+  </div>
+
+  <!-- Internal tab nav -->
+  <div class="gl-tabs">
+    <button class="gl-tab active" data-tab="overview">
+      <span class="gl-tab-icon">📊</span>
+      <span class="gl-tab-label">Overview</span>
+    </button>
+    <button class="gl-tab" data-tab="revenue">
+      <span class="gl-tab-icon">💚</span>
+      <span class="gl-tab-label">Revenue</span>
+    </button>
+    <button class="gl-tab" data-tab="expenses">
+      <span class="gl-tab-icon">🔴</span>
+      <span class="gl-tab-label">Expenses</span>
+    </button>
+    <button class="gl-tab" data-tab="rate">
+      <span class="gl-tab-icon">⏱</span>
+      <span class="gl-tab-label">Rate</span>
+    </button>
+  </div>
+
+  <!-- ===== OVERVIEW ===== -->
+  <div class="gl-section" data-section="overview">
+    <div class="section-title"><span class="section-title-text">P&amp;L OVERVIEW</span></div>
+    <div id="plCard" class="card">
+      <div class="pl-grid">
+        <div>
+          <div class="pl-stat-label">Total revenue</div>
+          <div class="pl-stat-val pos" id="plRevenue">€ 0</div>
+        </div>
+        <div>
+          <div class="pl-stat-label">Total expenses</div>
+          <div class="pl-stat-val neg" id="plExpenses">€ 0</div>
+        </div>
+        <div>
+          <div class="pl-stat-label">Net profit</div>
+          <div class="pl-stat-val neu" id="plNet">€ 0</div>
+        </div>
+      </div>
+      <div class="pl-margin-bar-track">
+        <div class="pl-margin-bar-fill" id="plMarginFill" style="width:0%"></div>
+      </div>
+      <div class="pl-footer">
+        <span id="plMarginLabel">No data yet</span>
+        <span id="plPeriodLabel"></span>
+      </div>
+    </div>
+
+    <!-- Recent entries combined -->
+    <div class="section-title" style="margin-top:10px"><span class="section-title-text">RECENT ACTIVITY</span></div>
+    <div id="recentList"></div>
+    <div class="gl-empty" id="recentEmpty">Add revenue or expenses to see activity here.</div>
+  </div>
+
+  <!-- ===== REVENUE ===== -->
+  <div class="gl-section" data-section="revenue" hidden>
+    <div class="section-title"><span class="section-title-text">REVENUE</span></div>
+
+    <div class="card gl-add-card">
+      <div class="gl-add-eyebrow">+ LOG REVENUE</div>
+      <div class="gl-add-grid">
+        <input type="text"   id="revClient"  placeholder="Client / project" class="gl-input gl-input-name">
+        <input type="number" id="revAmount"  placeholder="Amount (EUR)" step="0.01" class="gl-input">
+        <input type="text"   id="revDesc"    placeholder="Description (optional)" class="gl-input">
+        <input type="date"   id="revDate"    class="gl-input">
+        <button class="gl-add-btn" id="revAddBtn">+ Add</button>
+      </div>
+    </div>
+
+    <div class="gl-filter-bar" id="revFilterBar"></div>
+    <div id="revList"></div>
+    <div class="gl-empty" id="revEmpty">No revenue logged yet — add your first entry above.</div>
+  </div>
+
+  <!-- ===== EXPENSES ===== -->
+  <div class="gl-section" data-section="expenses" hidden>
+    <div class="section-title"><span class="section-title-text">EXPENSES</span></div>
+
+    <div class="card gl-add-card">
+      <div class="gl-add-eyebrow">+ LOG EXPENSE</div>
+      <div class="gl-add-grid-3">
+        <input type="text"   id="expDesc"    placeholder="Description" class="gl-input gl-input-name">
+        <input type="number" id="expAmount"  placeholder="Amount (EUR)" step="0.01" class="gl-input">
+        <select id="expCategory" class="gl-select">
+          <option value="">Category</option>
+          <option value="tools">🛠 Tools & Software</option>
+          <option value="marketing">📣 Marketing</option>
+          <option value="equipment">💻 Equipment</option>
+          <option value="travel">✈️ Travel</option>
+          <option value="contractor">🤝 Contractor</option>
+          <option value="education">📚 Education</option>
+          <option value="other">📦 Other</option>
+        </select>
+        <input type="date"   id="expDate"    class="gl-input">
+        <button class="gl-add-btn" id="expAddBtn">+ Add</button>
+      </div>
+    </div>
+
+    <div class="gl-filter-bar" id="expFilterBar"></div>
+    <div id="expList"></div>
+    <div class="gl-empty" id="expEmpty">No expenses logged yet — add your first entry above.</div>
+  </div>
+
+  <!-- ===== HOURLY RATE ===== -->
+  <div class="gl-section" data-section="rate" hidden>
+    <div class="section-title"><span class="section-title-text">HOURLY RATE</span></div>
+
+    <div class="rate-card">
+      <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.06em;font-weight:700">Your effective hourly rate</div>
+      <div class="rate-result" id="rateResult">€ —</div>
+      <div class="rate-sub" id="rateSub">Enter your monthly income and hours worked to calculate.</div>
+
+      <div class="rate-inputs">
+        <div class="rate-field">
+          <label>Monthly net income (EUR)</label>
+          <input type="number" id="rateIncome" placeholder="e.g. 2500" step="0.01">
+        </div>
+        <div class="rate-field">
+          <label>Hours worked per month</label>
+          <input type="number" id="rateHours" placeholder="e.g. 160" step="1">
+        </div>
+      </div>
+
+      <div class="rate-context" id="rateContext" style="display:none">
+        <div class="rate-ctx-stat">
+          <label>Daily rate (8h)</label>
+          <span id="rateDaily">—</span>
+        </div>
+        <div class="rate-ctx-stat">
+          <label>Weekly rate (40h)</label>
+          <span id="rateWeekly">—</span>
+        </div>
+        <div class="rate-ctx-stat">
+          <label>Task threshold</label>
+          <span id="rateThreshold">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="background:rgba(255,255,255,0.02)">
+      <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:8px">How to use this</div>
+      <div style="font-size:12px;color:var(--text-tertiary);line-height:1.6">
+        Your hourly rate tells you whether a task is worth doing yourself or outsourcing.
+        If a contractor charges less per hour than your effective rate, delegate it.
+        The <strong style="color:var(--text-secondary)">task threshold</strong> is your rate × 0.5 —
+        if a task can be outsourced for less than that, it's almost always worth it.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="tabbar">
+  <div class="tabbar-inner">
+    <a href="index.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      Dashboard
+    </a>
+    <a href="health.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
+      Health
+    </a>
+    <a href="water.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></span>
+      Water
+    </a>
+    <a href="gym.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4v16M18 4v16M6 12h12M2 8h4M18 8h4M2 16h4M18 16h4"/></svg></span>
+      Gym
+    </a>
+    <a href="finance.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
+      Finance
+    </a>
+    <a href="nutrition.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h1"/><path d="M21 15v7"/></svg></span>
+      Nutrition
+    </a>
+    <a href="glowlab.html" class="tab" aria-current="page">
+      <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg></span>
+      GlowLab
+    </a>
+  </div>
+</nav>
+
+<script>
+(function () {
+'use strict';
+
+function glGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
+function glSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, function(c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function fmt(n) {
+  var x = Number(n) || 0;
+  return '€ ' + x.toLocaleString('en-US', { minimumFractionDigits: x % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
+}
+function today() { return new Date().toISOString().slice(0,10); }
+function monthLabel(iso) {
+  if (!iso) return '';
+  var p = iso.split('-');
+  return new Date(Number(p[0]), Number(p[1])-1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+}
+
+// ---- Tab switching ----
+var tabs    = document.querySelectorAll('.gl-tab');
+var sections = document.querySelectorAll('.gl-section');
+function setTab(name) {
+  tabs.forEach(function(t) { t.classList.toggle('active', t.dataset.tab === name); });
+  sections.forEach(function(s) {
+    if (s.dataset.section === name) s.removeAttribute('hidden');
+    else s.setAttribute('hidden', '');
+  });
+  if (name === 'overview') renderOverview();
+  if (name === 'revenue')  renderRevenue();
+  if (name === 'expenses') renderExpenses();
+}
+tabs.forEach(function(t) {
+  t.addEventListener('click', function() { setTab(t.dataset.tab); });
+});
+
+// ---- Revenue ----
+var revMonthFilter = '';
+
+function addRevenue() {
+  var cl = document.getElementById('revClient');
+  var am = document.getElementById('revAmount');
+  var de = document.getElementById('revDesc');
+  var dt = document.getElementById('revDate');
+  var client = (cl.value || '').trim();
+  var amount = parseFloat(am.value);
+  if (!client || isNaN(amount) || amount <= 0) { cl.focus(); return; }
+  var arr = glGet('gl:revenue') || [];
+  arr.push({ id: 'r_' + Date.now(), client: client, description: (de.value||'').trim(), amount: amount, date: dt.value || today(), ts: Date.now() });
+  glSet('gl:revenue', arr);
+  cl.value = ''; am.value = ''; de.value = ''; dt.value = '';
+  renderRevenue(); renderOverview();
+}
+document.getElementById('revAddBtn').addEventListener('click', addRevenue);
+['revClient','revAmount'].forEach(function(id) {
+  document.getElementById(id).addEventListener('keydown', function(e) { if (e.key === 'Enter') addRevenue(); });
+});
+
+function renderRevenue() {
+  var list  = document.getElementById('revList');
+  var empty = document.getElementById('revEmpty');
+  var bar   = document.getElementById('revFilterBar');
+  var all   = glGet('gl:revenue') || [];
+
+  // Build month filter chips
+  var months = Array.from(new Set(all.map(function(r) { return r.date.slice(0,7); }))).sort().reverse();
+  if (months.length > 1) {
+    bar.innerHTML = [{ id: '', label: 'All' }]
+      .concat(months.map(function(m) { return { id: m, label: monthLabel(m+'-01') }; }))
+      .map(function(c) {
+        return '<button class="gl-filter-chip' + (revMonthFilter === c.id ? ' active' : '') + '" data-m="' + esc(c.id) + '">' + esc(c.label) + '</button>';
+      }).join('');
+    bar.querySelectorAll('.gl-filter-chip').forEach(function(b) {
+      b.addEventListener('click', function() { revMonthFilter = b.dataset.m; renderRevenue(); });
+    });
+  } else { bar.innerHTML = ''; revMonthFilter = ''; }
+
+  var items = revMonthFilter ? all.filter(function(r) { return r.date.slice(0,7) === revMonthFilter; }) : all;
+  items = items.slice().sort(function(a,b) { return b.date.localeCompare(a.date); });
+
+  if (!items.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = items.map(function(r) {
+    return '<div class="gl-entry revenue">'
+      + '<div class="gl-entry-body">'
+        + '<div class="gl-entry-name">' + esc(r.client) + (r.description ? ' — ' + esc(r.description) : '') + '</div>'
+        + '<div class="gl-entry-meta">' + esc(r.date) + '</div>'
+      + '</div>'
+      + '<div class="gl-entry-amt pos">+' + fmt(r.amount) + '</div>'
+      + '<button class="gl-entry-x" data-del-rev="' + esc(r.id) + '">×</button>'
+      + '</div>';
+  }).join('');
+  list.querySelectorAll('[data-del-rev]').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var arr = (glGet('gl:revenue')||[]).filter(function(x) { return x.id !== b.dataset.delRev; });
+      glSet('gl:revenue', arr);
+      renderRevenue(); renderOverview();
+    });
+  });
+}
+
+// ---- Expenses ----
+var expMonthFilter = '';
+
+function addExpense() {
+  var de = document.getElementById('expDesc');
+  var am = document.getElementById('expAmount');
+  var ca = document.getElementById('expCategory');
+  var dt = document.getElementById('expDate');
+  var desc = (de.value || '').trim();
+  var amount = parseFloat(am.value);
+  if (!desc || isNaN(amount) || amount <= 0) { de.focus(); return; }
+  var arr = glGet('gl:expenses') || [];
+  arr.push({ id: 'e_' + Date.now(), description: desc, category: ca.value||'', amount: amount, date: dt.value || today(), ts: Date.now() });
+  glSet('gl:expenses', arr);
+  de.value = ''; am.value = ''; ca.value = ''; dt.value = '';
+  renderExpenses(); renderOverview();
+}
+document.getElementById('expAddBtn').addEventListener('click', addExpense);
+['expDesc','expAmount'].forEach(function(id) {
+  document.getElementById(id).addEventListener('keydown', function(e) { if (e.key === 'Enter') addExpense(); });
+});
+
+var EXP_CATS = {
+  tools: '🛠 Tools', marketing: '📣 Marketing', equipment: '💻 Equipment',
+  travel: '✈️ Travel', contractor: '🤝 Contractor', education: '📚 Education', other: '📦 Other'
+};
+
+function renderExpenses() {
+  var list  = document.getElementById('expList');
+  var empty = document.getElementById('expEmpty');
+  var bar   = document.getElementById('expFilterBar');
+  var all   = glGet('gl:expenses') || [];
+
+  var months = Array.from(new Set(all.map(function(e) { return e.date.slice(0,7); }))).sort().reverse();
+  if (months.length > 1) {
+    bar.innerHTML = [{ id: '', label: 'All' }]
+      .concat(months.map(function(m) { return { id: m, label: monthLabel(m+'-01') }; }))
+      .map(function(c) {
+        return '<button class="gl-filter-chip' + (expMonthFilter === c.id ? ' active' : '') + '" data-m="' + esc(c.id) + '">' + esc(c.label) + '</button>';
+      }).join('');
+    bar.querySelectorAll('.gl-filter-chip').forEach(function(b) {
+      b.addEventListener('click', function() { expMonthFilter = b.dataset.m; renderExpenses(); });
+    });
+  } else { bar.innerHTML = ''; expMonthFilter = ''; }
+
+  var items = expMonthFilter ? all.filter(function(e) { return e.date.slice(0,7) === expMonthFilter; }) : all;
+  items = items.slice().sort(function(a,b) { return b.date.localeCompare(a.date); });
+
+  if (!items.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = items.map(function(e) {
+    var catLabel = e.category ? (EXP_CATS[e.category] || e.category) : '';
+    return '<div class="gl-entry expense">'
+      + '<div class="gl-entry-body">'
+        + '<div class="gl-entry-name">' + esc(e.description) + '</div>'
+        + '<div class="gl-entry-meta">' + esc(e.date) + (catLabel ? ' · ' + catLabel : '') + '</div>'
+      + '</div>'
+      + '<div class="gl-entry-amt neg">-' + fmt(e.amount) + '</div>'
+      + '<button class="gl-entry-x" data-del-exp="' + esc(e.id) + '">×</button>'
+      + '</div>';
+  }).join('');
+  list.querySelectorAll('[data-del-exp]').forEach(function(b) {
+    b.addEventListener('click', function() {
+      var arr = (glGet('gl:expenses')||[]).filter(function(x) { return x.id !== b.dataset.delExp; });
+      glSet('gl:expenses', arr);
+      renderExpenses(); renderOverview();
+    });
+  });
+}
+
+// ---- Overview / P&L ----
+function renderOverview() {
+  var rev = (glGet('gl:revenue') || []).reduce(function(s,r) { return s + (Number(r.amount)||0); }, 0);
+  var exp = (glGet('gl:expenses') || []).reduce(function(s,e) { return s + (Number(e.amount)||0); }, 0);
+  var net = rev - exp;
+  var margin = rev > 0 ? Math.max(0, Math.min(100, (net / rev) * 100)) : 0;
+
+  document.getElementById('plRevenue').textContent  = fmt(rev);
+  document.getElementById('plExpenses').textContent = fmt(exp);
+  var netEl = document.getElementById('plNet');
+  netEl.textContent = (net >= 0 ? '+' : '') + fmt(net);
+  netEl.className = 'pl-stat-val ' + (net > 0 ? 'pos' : net < 0 ? 'neg' : 'neu');
+
+  var fill = document.getElementById('plMarginFill');
+  fill.style.width = Math.abs(margin).toFixed(1) + '%';
+  fill.className = 'pl-margin-bar-fill' + (net < 0 ? ' loss' : '');
+
+  document.getElementById('plMarginLabel').textContent = rev > 0
+    ? 'Profit margin: ' + margin.toFixed(1) + '%'
+    : 'No data yet — add revenue or expenses';
+
+  // Recent activity (last 8 entries combined, newest first)
+  var revAll = (glGet('gl:revenue') || []).map(function(r) { return { type:'rev', date:r.date, name:r.client + (r.description?' — '+r.description:''), amount:r.amount, id:r.id }; });
+  var expAll = (glGet('gl:expenses') || []).map(function(e) { return { type:'exp', date:e.date, name:e.description, amount:e.amount, id:e.id }; });
+  var all = revAll.concat(expAll).sort(function(a,b) { return b.date.localeCompare(a.date); }).slice(0,8);
+
+  var rList  = document.getElementById('recentList');
+  var rEmpty = document.getElementById('recentEmpty');
+  if (!all.length) { rList.innerHTML = ''; rEmpty.style.display = 'block'; return; }
+  rEmpty.style.display = 'none';
+  rList.innerHTML = all.map(function(e) {
+    return '<div class="gl-entry ' + (e.type === 'rev' ? 'revenue' : 'expense') + '">'
+      + '<div class="gl-entry-body">'
+        + '<div class="gl-entry-name">' + esc(e.name) + '</div>'
+        + '<div class="gl-entry-meta">' + esc(e.date) + '</div>'
+      + '</div>'
+      + '<div class="gl-entry-amt ' + (e.type === 'rev' ? 'pos' : 'neg') + '">'
+        + (e.type === 'rev' ? '+' : '-') + fmt(e.amount)
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+// ---- Hourly rate ----
+function calcRate() {
+  var income = parseFloat(document.getElementById('rateIncome').value);
+  var hours  = parseFloat(document.getElementById('rateHours').value);
+  var resEl  = document.getElementById('rateResult');
+  var subEl  = document.getElementById('rateSub');
+  var ctx    = document.getElementById('rateContext');
+  if (isNaN(income) || isNaN(hours) || hours <= 0) {
+    resEl.textContent = '€ —';
+    subEl.textContent = 'Enter your monthly income and hours worked to calculate.';
+    ctx.style.display = 'none';
+    return;
+  }
+  var rate = income / hours;
+  resEl.textContent = '€ ' + rate.toFixed(2) + ' / hr';
+  subEl.textContent = 'Based on ' + fmt(income) + ' / month over ' + Math.round(hours) + ' hours.';
+  ctx.style.display = 'grid';
+  document.getElementById('rateDaily').textContent   = '€ ' + (rate * 8).toFixed(0);
+  document.getElementById('rateWeekly').textContent  = '€ ' + (rate * 40).toFixed(0);
+  document.getElementById('rateThreshold').textContent = '€ ' + (rate * 0.5).toFixed(2) + ' / hr';
+
+  // Persist inputs
+  glSet('gl:rateInputs', { income: income, hours: hours });
+}
+['rateIncome','rateHours'].forEach(function(id) {
+  document.getElementById(id).addEventListener('input', calcRate);
+});
+
+// Restore saved rate inputs
+var saved = glGet('gl:rateInputs');
+if (saved) {
+  if (saved.income) document.getElementById('rateIncome').value = saved.income;
+  if (saved.hours)  document.getElementById('rateHours').value  = saved.hours;
+  calcRate();
+}
+
+// Initial render
+window._glRender = renderOverview;
+renderOverview();
+
+})();
+</script>
+
+<script>
+(function glowlabSync() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var APP_KEY  = 'glowlab-app';
+  var SYNC_KEYS = ['gl:revenue', 'gl:expenses', 'gl:rateInputs'];
+  var _origSet = localStorage.setItem.bind(localStorage);
+  var pushTimer = null;
+  var lastJson = null;
+
+  localStorage.setItem = function(k, v) {
+    _origSet(k, v);
+    if (SYNC_KEYS.indexOf(k) !== -1) schedulePush();
+  };
+
+  function collect() {
+    var out = {};
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var v = localStorage.getItem(SYNC_KEYS[i]);
+      if (v != null) try { out[SYNC_KEYS[i]] = JSON.parse(v); } catch (_) {}
+    }
+    return out;
+  }
+
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 400); }
+
+  function pushNow() {
+    var data = collect();
+    var json = JSON.stringify(data);
+    if (json === lastJson) return;
+    lastJson = json;
+    try {
+      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }),
+        keepalive: true,
+      }).catch(function() {});
+    } catch (_) {}
+  }
+
+  function applyRemote(remote) {
+    if (!remote || typeof remote !== 'object') return;
+    var changed = false;
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var k = SYNC_KEYS[i];
+      if (k in remote) {
+        var incoming = JSON.stringify(remote[k]);
+        if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch (_) {} }
+      }
+    }
+    if (changed && window._glRender) try { window._glRender(); } catch (_) {}
+  }
+
+  (async function init() {
+    var url = SUPA_URL + '/rest/v1/app_state?select=data,updated_at&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1';
+    try {
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (r.ok) {
+        var rows = await r.json();
+        if (rows[0] && rows[0].data) {
+          lastJson = JSON.stringify(rows[0].data);
+          applyRemote(rows[0].data);
+        } else if (Object.keys(collect()).length > 0) {
+          schedulePush();
+        }
+      }
+    } catch (_) {}
+  })();
+
+  window.addEventListener('pagehide', pushNow);
+  window.addEventListener('beforeunload', pushNow);
+  document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
+})();
+</script>
+</body>
+</html>

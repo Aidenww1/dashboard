@@ -1,0 +1,24 @@
+{
+  "name": "Life Dashboard",
+  "short_name": "Dashboard",
+  "description": "Your all-in-one life tracking dashboard",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#050506",
+  "theme_color": "#050506",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%23E07658' rx='100'/><rect x='56' y='56' width='176' height='176' rx='28' fill='white'/><rect x='280' y='56' width='176' height='176' rx='28' fill='white'/><rect x='56' y='280' width='176' height='176' rx='28' fill='white'/><rect x='280' y='280' width='176' height='176' rx='28' fill='white'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Habits", "url": "/habits.html", "description": "Check in your habits" },
+    { "name": "Nutrition", "url": "/nutrition.html", "description": "Log your food" },
+    { "name": "Gym", "url": "/gym.html", "description": "Log your workout" },
+    { "name": "Finance", "url": "/finance.html", "description": "Track spending" }
+  ]
+}

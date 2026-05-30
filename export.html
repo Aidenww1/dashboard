@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Export Data</title>
+<script src="bus.js" defer></script>
+<script src="topbar.js" defer></script>
+<style>
+:root {
+  --bg:#0A0A0B; --bg-deep:#050506; --bg-card:rgba(255,255,255,0.04);
+  --text-primary:#FAFAFA; --text-secondary:#B8B6B0; --text-tertiary:#76746E;
+  --accent:#E07658; --success:#6BE3A4; --danger:#FF6B6B;
+  --radius-md:12px; --radius-lg:16px;
+  --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg-deep);color:var(--text-primary);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100%;}
+body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-gradient(60% 45% at 82% 14%,rgba(224,118,88,.14) 0%,transparent 55%),linear-gradient(180deg,#0A0A0B 0%,#050506 100%);filter:blur(40px);pointer-events:none;}
+.shell{max-width:640px;margin:0 auto;padding:20px 16px 100px;}
+.page-title{font-size:22px;font-weight:800;color:var(--text-primary);margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--text-tertiary);margin-bottom:24px;}
+.card{background:var(--bg-card);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px;box-shadow:0 1px 0 0 rgba(255,255,255,.06) inset,0 12px 40px rgba(0,0,0,.45);}
+.section-title{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:12px;}
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.export-btn{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius-md);cursor:pointer;font-family:var(--font);text-align:left;transition:background .15s;}
+.export-btn:hover{background:rgba(255,255,255,.09);}
+.export-btn-icon{font-size:20px;}
+.export-btn-label{font-size:13px;font-weight:700;color:var(--text-primary);}
+.export-btn-sub{font-size:11px;color:var(--text-tertiary);}
+.full-btn{width:100%;padding:14px 20px;border-radius:var(--radius-md);background:var(--accent);border:none;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:var(--font);margin-bottom:10px;}
+.danger-btn{background:rgba(255,107,107,.15);border:1px solid rgba(255,107,107,.3);color:var(--danger);}
+#statusMsg{font-size:13px;color:var(--success);text-align:center;padding:8px;min-height:24px;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+.stat-box{background:rgba(255,255,255,.03);border-radius:10px;padding:10px;text-align:center;}
+.stat-num{font-size:20px;font-weight:800;color:var(--accent);}
+.stat-lbl{font-size:11px;color:var(--text-tertiary);margin-top:2px;}
+@media(min-width:900px){.shell{max-width:960px!important;padding-left:32px!important;padding-right:32px!important}.stats-grid{grid-template-columns:repeat(6,1fr)!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="page-title">Export &amp; Backup</div>
+  <div class="page-sub">Download all your data. Nothing leaves your device — exports are generated locally.</div>
+
+  <!-- Storage overview -->
+  <div class="card">
+    <div class="section-title">Storage overview</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-num" id="statKeys">—</div><div class="stat-lbl">Keys stored</div></div>
+      <div class="stat-box"><div class="stat-num" id="statSize">—</div><div class="stat-lbl">KB used</div></div>
+      <div class="stat-box"><div class="stat-num" id="statLast">—</div><div class="stat-lbl">Modules</div></div>
+    </div>
+  </div>
+
+  <!-- Full export -->
+  <div class="card">
+    <div class="section-title">Full backup</div>
+    <button class="full-btn" id="exportAllBtn">⬇ Download everything (JSON)</button>
+    <button class="full-btn" id="importBtn" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--text-primary)">⬆ Restore from backup (JSON)</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+    <div id="statusMsg"></div>
+  </div>
+
+  <!-- Per-module CSV exports -->
+  <div class="card">
+    <div class="section-title">Per-module CSV export</div>
+    <div class="export-grid" id="moduleGrid"></div>
+  </div>
+
+  <!-- Import from other apps -->
+  <div class="card">
+    <div class="section-title">Import from other apps</div>
+
+    <!-- Strong CSV -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px">💪 Strong — workout history (CSV)</div>
+      <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px">Export from Strong → Settings → Export Data → CSV. Imports all sets into your Gym workout log.</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:12px;cursor:pointer">
+        <span style="font-size:20px">📂</span>
+        <span>
+          <span style="font-size:13px;font-weight:700;color:var(--text-primary);display:block">Choose Strong CSV file</span>
+          <span style="font-size:11px;color:var(--text-tertiary)">strong_data.csv</span>
+        </span>
+        <input type="file" id="strongFile" accept=".csv" style="display:none">
+      </label>
+      <div id="strongStatus" style="font-size:12px;color:var(--success);padding:6px 0;min-height:20px"></div>
+    </div>
+
+    <!-- Apple Health XML -->
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px">🍎 Apple Health — export.xml</div>
+      <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px">Health app → your profile picture → Export All Health Data → share export.zip → unzip → select export.xml. Imports steps, HRV, RHR, weight, sleep.</div>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);border-radius:12px;cursor:pointer">
+        <span style="font-size:20px">📂</span>
+        <span>
+          <span style="font-size:13px;font-weight:700;color:var(--text-primary);display:block">Choose Apple Health XML</span>
+          <span style="font-size:11px;color:var(--text-tertiary)">export.xml (may be large)</span>
+        </span>
+        <input type="file" id="appleHealthFile" accept=".xml" style="display:none">
+      </label>
+      <div id="appleHealthStatus" style="font-size:12px;color:var(--success);padding:6px 0;min-height:20px"></div>
+    </div>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="card">
+    <div class="section-title">Danger zone</div>
+    <button class="full-btn danger-btn" id="clearAllBtn">🗑 Clear all dashboard data</button>
+    <div style="font-size:12px;color:var(--text-tertiary);text-align:center;margin-top:4px">This permanently deletes all your data. Export a backup first.</div>
+  </div>
+</div>
+
+<script src="tabbar.js" defer></script>
+<script>
+(function() {
+  'use strict';
+
+  const MODULES = [
+    { id:'habits',     label:'Habits',       icon:'✅', keys:['habits:v2','habits:v1'], toCSV: habitsCsv },
+    { id:'sleep',      label:'Sleep',         icon:'🌙', keys:['health:sleep:v1'], toCSV: sleepCsv },
+    { id:'nutrition',  label:'Nutrition',     icon:'🥗', keys:['nt:logs'], toCSV: nutritionCsv },
+    { id:'gym',        label:'Gym workouts',  icon:'🏋', keys:['po_coach_v1','gym:cardio:v1'], toCSV: gymCsv },
+    { id:'finance',    label:'Finance',       icon:'💰', keys:['fin:accounts:v1','fin:transactions:v1','fin:invoices:v1','fin:debts:v1','fin:portfolio:v1','fin:dividends:v1'], toCSV: financeCsv },
+    { id:'tasks',      label:'Tasks',         icon:'☑', keys:['tasks:v1'], toCSV: tasksCsv },
+    { id:'health',     label:'Health metrics',icon:'📊', keys:['health:metrics:v1','health:body:v1','health:vaccinations:v1','health:visits:v1','health:measurements:v1'], toCSV: healthCsv },
+    { id:'water',      label:'Water',         icon:'💧', keys:['po_water_v1'], toCSV: waterCsv },
+    { id:'skin',       label:'Skin',          icon:'✨', keys:['skin:logs'], toCSV: skinCsv },
+  ];
+
+  function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
+  function esc(v) { if (v === null || v === undefined) return ''; const s = String(v); return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g,'""') + '"' : s; }
+  function csvRow(arr) { return arr.map(esc).join(','); }
+
+  function downloadText(filename, content, type='text/plain') {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], {type}));
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ── CSV generators ──
+  function habitsCsv() {
+    const data = load('habits:v2') || load('habits:v1') || [];
+    if (!data.length) return null;
+    const header = 'id,name,frequency,streak,completions';
+    return header + '\n' + data.map(h => csvRow([h.id, h.name, h.freq||h.frequency||'daily', h.streak||0, (h.completions||[]).length])).join('\n');
+  }
+  function sleepCsv() {
+    const logs = load('health:sleep:v1') || [];
+    if (!logs.length) return null;
+    return 'date,duration_h,quality,deep_pct,rem_pct,light_pct,notes\n' + logs.map(l => csvRow([l.date, l.duration||l.dur, l.quality||l.qual, l.deep||'', l.rem||'', l.light||'', l.notes||''])).join('\n');
+  }
+  function nutritionCsv() {
+    const logs = load('nt:logs') || [];
+    if (!logs.length) return null;
+    return 'date,name,calories,protein_g,carbs_g,fat_g,alcohol_g\n' + logs.map(l => csvRow([l.dateKey, l.name, l.calories, l.protein, l.carbs, l.fat, l.alcohol_g||0])).join('\n');
+  }
+  function gymCsv() {
+    const state = load('po_coach_v1') || {};
+    const rows = [];
+    const exMap = {};
+    (state.exercises||[]).forEach(e => { exMap[e.id] = e.name; });
+    Object.entries(state.logs||{}).forEach(([exId, sets]) => {
+      (sets||[]).forEach(s => rows.push([s.date?.slice(0,10), exMap[exId]||exId, s.weight, s.reps, s.rpe||'']));
+    });
+    if (!rows.length) return null;
+    return 'date,exercise,weight,reps,rpe\n' + rows.map(r => csvRow(r)).join('\n');
+  }
+  function financeCsv() {
+    const txs = load('fin:transactions:v1') || [];
+    if (!txs.length) return null;
+    return 'date,description,amount,category,account\n' + txs.map(t => csvRow([t.date, t.description||t.desc, t.amount, t.category||'', t.account||''])).join('\n');
+  }
+  function tasksCsv() {
+    const tasks = load('tasks:v1') || [];
+    if (!tasks.length) return null;
+    return 'id,title,project,priority,due,done,created\n' + tasks.map(t => csvRow([t.id, t.title, t.project||'', t.priority||'medium', t.due||'', t.done?'yes':'no', t.createdAt?.slice(0,10)||''])).join('\n');
+  }
+  function healthCsv() {
+    const metrics = load('health:metrics:v1') || [];
+    if (!metrics.length) return null;
+    return 'date,hrv_ms,rhr_bpm,spo2_pct,steps,weight_kg\n' + metrics.map(m => csvRow([m.date, m.hrv||'', m.rhr||'', m.spo2||'', m.steps||'', m.weight||''])).join('\n');
+  }
+  function waterCsv() {
+    const data = load('po_water_v1') || {};
+    const rows = Object.entries(data).map(([date, ml]) => csvRow([date, ml]));
+    if (!rows.length) return null;
+    return 'date,ml\n' + rows.join('\n');
+  }
+  function skinCsv() {
+    const logs = load('skin:logs') || [];
+    if (!logs.length) return null;
+    return 'date,rating,treatments,notes\n' + logs.map(l => csvRow([l.date, l.rating||'', l.treatments||'', l.notes||''])).join('\n');
+  }
+
+  // ── UI ──
+  function updateStats() {
+    const keys = Object.keys(localStorage);
+    const size = keys.reduce((s,k) => s + (localStorage.getItem(k)||'').length, 0);
+    document.getElementById('statKeys').textContent = keys.length;
+    document.getElementById('statSize').textContent = Math.round(size/1024);
+    const mods = MODULES.filter(m => m.keys.some(k => localStorage.getItem(k))).length;
+    document.getElementById('statLast').textContent = mods;
+  }
+
+  function buildModuleGrid() {
+    const grid = document.getElementById('moduleGrid');
+    grid.innerHTML = MODULES.map(m => {
+      const hasData = m.keys.some(k => localStorage.getItem(k));
+      return `<button class="export-btn" data-mod="${m.id}" ${hasData?'':'style="opacity:0.4;pointer-events:none"'}>
+        <span class="export-btn-icon">${m.icon}</span>
+        <span class="export-btn-label">${m.label}</span>
+        <span class="export-btn-sub">${hasData?'Download CSV':'No data'}</span>
+      </button>`;
+    }).join('');
+    grid.addEventListener('click', e => {
+      const btn = e.target.closest('[data-mod]'); if (!btn) return;
+      const mod = MODULES.find(m => m.id === btn.dataset.mod); if (!mod) return;
+      const csv = mod.toCSV();
+      if (!csv) { showStatus('No data to export.', 'danger'); return; }
+      downloadText(mod.id + '_' + new Date().toISOString().slice(0,10) + '.csv', csv, 'text/csv');
+      showStatus(mod.label + ' exported.');
+    });
+  }
+
+  function showStatus(msg, type='success') {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.style.color = type === 'danger' ? 'var(--danger)' : 'var(--success)';
+    setTimeout(() => { el.textContent = ''; }, 3000);
+  }
+
+  // Full JSON export
+  document.getElementById('exportAllBtn').addEventListener('click', () => {
+    const all = {};
+    Object.keys(localStorage).forEach(k => { try { all[k] = JSON.parse(localStorage.getItem(k)); } catch { all[k] = localStorage.getItem(k); } });
+    downloadText('dashboard_backup_' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(all, null, 2), 'application/json');
+    showStatus('Full backup downloaded.');
+  });
+
+  // Import JSON
+  document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+  document.getElementById('importFile').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (typeof data !== 'object') throw new Error('Invalid format');
+        if (!confirm('This will overwrite your current data with the backup. Continue?')) return;
+        Object.entries(data).forEach(([k,v]) => localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)));
+        showStatus('Backup restored successfully. Reload the page.');
+        updateStats();
+      } catch { showStatus('Invalid backup file.', 'danger'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // Clear all
+  document.getElementById('clearAllBtn').addEventListener('click', () => {
+    if (!confirm('Delete ALL dashboard data permanently? This cannot be undone.')) return;
+    if (!confirm('Are you absolutely sure? All habits, workouts, finances, and health data will be gone.')) return;
+    localStorage.clear();
+    showStatus('All data cleared.');
+    updateStats();
+    buildModuleGrid();
+  });
+
+  // ── Strong CSV import ──
+  function parseStrongCsv(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return 0;
+    // Strong CSV columns: Date, Workout Name, Duration, Exercise Name, Set Order, Weight, Reps, Distance, Seconds, Notes, Workout Notes, RPE
+    const headers = lines[0].split(',').map(h => h.replace(/"/g,'').trim().toLowerCase());
+    const iDate = headers.indexOf('date');
+    const iEx   = headers.findIndex(h => h.includes('exercise'));
+    const iSet  = headers.findIndex(h => h.includes('set order'));
+    const iWt   = headers.findIndex(h => h === 'weight' || h === 'weight (kg)' || h === 'weight (lbs)');
+    const iReps = headers.indexOf('reps');
+    const iRpe  = headers.indexOf('rpe');
+    const iWo   = headers.findIndex(h => h.includes('workout name'));
+    if (iDate < 0 || iEx < 0) return 0;
+
+    const existing = JSON.parse(localStorage.getItem('po_coach_v1') || '{}');
+    let imported = 0;
+    const rowsByDay = {};
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g).map(c => c.replace(/^"|"$/g,'').replace(/""/g,'"').trim());
+      const raw = cols[iDate] || '';
+      const dateKey = raw.slice(0,10);
+      if (!dateKey.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
+      const exName = cols[iEx] || 'Unknown';
+      const w = parseFloat(cols[iWt]) || 0;
+      const r = parseInt(cols[iReps]) || 0;
+      const rpe = iRpe >= 0 ? (parseFloat(cols[iRpe]) || null) : null;
+      if (!r) continue;
+      if (!rowsByDay[dateKey]) rowsByDay[dateKey] = {};
+      if (!rowsByDay[dateKey][exName]) rowsByDay[dateKey][exName] = [];
+      rowsByDay[dateKey][exName].push({ weight: w, reps: r, rpe, date: dateKey });
+      imported++;
+    }
+
+    Object.entries(rowsByDay).forEach(([date, exercises]) => {
+      if (!existing[date]) existing[date] = { exercises: {}, done: false, notes: '' };
+      if (!existing[date].exercises) existing[date].exercises = {};
+      Object.entries(exercises).forEach(([ex, sets]) => {
+        if (!existing[date].exercises[ex]) existing[date].exercises[ex] = [];
+        existing[date].exercises[ex].push(...sets);
+      });
+    });
+
+    localStorage.setItem('po_coach_v1', JSON.stringify(existing));
+    return imported;
+  }
+
+  document.getElementById('strongFile').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const st = document.getElementById('strongStatus');
+    st.style.color = 'var(--text-tertiary)';
+    st.textContent = 'Parsing…';
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const n = parseStrongCsv(ev.target.result);
+        if (n === 0) { st.style.color = 'var(--danger)'; st.textContent = 'No sets found — check the file format.'; }
+        else { st.style.color = 'var(--success)'; st.textContent = `Imported ${n} sets into Gym.`; }
+      } catch(err) { st.style.color = 'var(--danger)'; st.textContent = 'Error: ' + err.message; }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // ── Apple Health XML import ──
+  function parseAppleHealthXml(xmlText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    const records = Array.from(doc.querySelectorAll('Record'));
+
+    const metrics = JSON.parse(localStorage.getItem('health:metrics:v1') || '[]');
+    const metricsMap = {};
+    metrics.forEach(m => { metricsMap[m.date] = m; });
+
+    const sleepLogs = JSON.parse(localStorage.getItem('health:sleep:v1') || '[]');
+    const sleepMap = {};
+    sleepLogs.forEach(s => { sleepMap[s.date] = s; });
+
+    const bodyData = JSON.parse(localStorage.getItem('health:body:v1') || '{}');
+
+    let counts = { steps:0, hrv:0, rhr:0, weight:0, sleep:0 };
+
+    records.forEach(r => {
+      const type = r.getAttribute('type') || '';
+      const val  = parseFloat(r.getAttribute('value'));
+      const startDate = (r.getAttribute('startDate') || '').slice(0,10);
+      const endDate   = (r.getAttribute('endDate')   || '').slice(0,10);
+      if (!startDate || isNaN(val)) return;
+
+      if (type === 'HKQuantityTypeIdentifierStepCount') {
+        if (!metricsMap[startDate]) metricsMap[startDate] = { date: startDate };
+        metricsMap[startDate].steps = (metricsMap[startDate].steps || 0) + Math.round(val);
+        counts.steps++;
+      } else if (type === 'HKQuantityTypeIdentifierHeartRateVariabilitySDNN') {
+        if (!metricsMap[startDate]) metricsMap[startDate] = { date: startDate };
+        metricsMap[startDate].hrv = Math.round(val);
+        counts.hrv++;
+      } else if (type === 'HKQuantityTypeIdentifierRestingHeartRate') {
+        if (!metricsMap[startDate]) metricsMap[startDate] = { date: startDate };
+        metricsMap[startDate].rhr = Math.round(val);
+        counts.rhr++;
+      } else if (type === 'HKQuantityTypeIdentifierBodyMass') {
+        if (!metricsMap[startDate]) metricsMap[startDate] = { date: startDate };
+        metricsMap[startDate].weight = parseFloat(val.toFixed(1));
+        bodyData.weight = parseFloat(val.toFixed(1));
+        counts.weight++;
+      } else if (type === 'HKCategoryTypeIdentifierSleepAnalysis') {
+        if (!sleepMap[endDate]) sleepMap[endDate] = { date: endDate, duration: 0 };
+        const start = new Date(r.getAttribute('startDate'));
+        const end   = new Date(r.getAttribute('endDate'));
+        const hrs = (end - start) / 3600000;
+        if (hrs > 0 && hrs < 16) {
+          sleepMap[endDate].duration = parseFloat(((sleepMap[endDate].duration || 0) + hrs).toFixed(2));
+        }
+        counts.sleep++;
+      }
+    });
+
+    const newMetrics = Object.values(metricsMap).sort((a,b) => a.date < b.date ? -1 : 1);
+    const newSleep   = Object.values(sleepMap).sort((a,b) => a.date < b.date ? -1 : 1);
+    localStorage.setItem('health:metrics:v1', JSON.stringify(newMetrics));
+    localStorage.setItem('health:sleep:v1', JSON.stringify(newSleep));
+    localStorage.setItem('health:body:v1', JSON.stringify(bodyData));
+    return counts;
+  }
+
+  document.getElementById('appleHealthFile').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const st = document.getElementById('appleHealthStatus');
+    st.style.color = 'var(--text-tertiary)';
+    st.textContent = 'Parsing (this may take a few seconds for large files)…';
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const c = parseAppleHealthXml(ev.target.result);
+        const total = c.steps + c.hrv + c.rhr + c.weight + c.sleep;
+        if (total === 0) { st.style.color = 'var(--danger)'; st.textContent = 'No matching records found.'; }
+        else {
+          st.style.color = 'var(--success)';
+          st.textContent = `Imported: ${c.steps} step records, ${c.hrv} HRV, ${c.rhr} RHR, ${c.weight} weight, ${c.sleep} sleep records.`;
+        }
+      } catch(err) { st.style.color = 'var(--danger)'; st.textContent = 'Parse error: ' + err.message; }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  updateStats();
+  buildModuleGrid();
+})();
+</script>
+
+</body>
+</html>

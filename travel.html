@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Travel · Daily Stack</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#050506;--bg-card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.06);--border-strong:rgba(255,255,255,0.12);--text-primary:#FAFAFA;--text-secondary:#B8B6B0;--text-tertiary:#76746E;--accent:#1D9E75;--font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text-secondary);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(60% 50% at 70% 10%,rgba(75,201,160,0.1) 0%,transparent 60%),radial-gradient(50% 40% at 20% 85%,rgba(91,141,239,0.07) 0%,transparent 60%);filter:blur(40px);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.014) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:1}
+main{position:relative;z-index:2;max-width:720px;margin:0 auto;padding:56px 20px 120px;padding-top:max(56px,env(safe-area-inset-top,56px))}
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;background:rgba(255,255,255,0.03);border-radius:12px;padding:4px}
+.tab-btn{flex:1;padding:8px 10px;border-radius:9px;border:none;background:transparent;color:var(--text-tertiary);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s;white-space:nowrap}
+.tab-btn.active{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.section-panel{display:none}.section-panel.active{display:block}
+.card{background:var(--bg-card);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:10px}
+.label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px}
+.inp{width:100%;background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none}
+.inp:focus{border-color:var(--border-strong)}
+.save-btn{width:100%;padding:12px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.trip-card{background:var(--bg-card);border-radius:14px;border:1px solid var(--border);margin-bottom:12px;overflow:hidden}
+.trip-header{padding:16px;display:flex;justify-content:space-between;align-items:flex-start}
+.trip-dest{font-size:18px;font-weight:800;color:var(--text-primary)}
+.trip-dates{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+.trip-body{padding:0 16px 16px}
+.pack-section{margin-bottom:12px}
+.pack-section-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:8px}
+.pack-item{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
+.pack-check{width:18px;height:18px;border-radius:4px;border:1.5px solid rgba(255,255,255,.2);background:transparent;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.pack-check.checked{background:var(--accent);border-color:var(--accent)}
+.pack-check.checked::after{content:'✓';color:#fff;font-size:10px;font-weight:800}
+.pack-label{font-size:13px;color:var(--text-secondary);flex:1}
+.pack-label.done{text-decoration:line-through;color:var(--text-tertiary)}
+.status-badge{padding:4px 10px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.empty{text-align:center;padding:40px 20px;color:var(--text-tertiary);font-size:14px}
+.expense-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.budget-bar{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin:8px 0 4px}
+.budget-fill{height:100%;border-radius:3px;transition:width .3s}
+@media(min-width:900px){main{max-width:1280px!important;padding-left:32px!important;padding-right:32px!important}}
+</style>
+</head>
+<body>
+<script src="topbar.js" defer></script>
+<script src="tabbar.js" defer></script>
+<script src="pwa.js" defer></script>
+<main>
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="trips">✈️ Trips</button>
+  <button class="tab-btn" data-tab="add">+ New Trip</button>
+</div>
+
+<div class="section-panel active" id="panel-trips"><div id="tripList"></div></div>
+
+<div class="section-panel" id="panel-add">
+  <div class="card">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:14px">New trip</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="grid-column:span 2"><div class="label">Destination</div><input type="text" id="tDest" class="inp" placeholder="e.g. Tokyo, Japan"></div>
+      <div><div class="label">Departure</div><input type="date" id="tStart" class="inp"></div>
+      <div><div class="label">Return</div><input type="date" id="tEnd" class="inp"></div>
+      <div><div class="label">Budget (€)</div><input type="number" id="tBudget" class="inp" placeholder="e.g. 1500" min="0"></div>
+      <div><div class="label">Status</div>
+        <select id="tStatus" class="inp">
+          <option value="planning">Planning</option>
+          <option value="booked">Booked</option>
+          <option value="current">Current</option>
+          <option value="past">Past</option>
+        </select>
+      </div>
+      <div style="grid-column:span 2"><div class="label">Notes</div><input type="text" id="tNotes" class="inp" placeholder="Hotel, purpose, who's coming…"></div>
+    </div>
+    <button class="save-btn" id="tSaveBtn">Create trip</button>
+  </div>
+</div>
+</main>
+
+<script>
+(function(){
+'use strict';
+const KEY='travel:trips:v1';
+const PACK_DEFAULTS=['🛂 Passport','✈️ Tickets','🏨 Hotel booking','💳 Cards','🔋 Phone charger','💊 Medications','👗 Clothes (5 days)','🧴 Toiletries','📷 Camera','🎧 Headphones','💵 Cash (local currency)','🩺 Travel insurance'];
+const STATUS={planning:{label:'Planning',color:'#F2C063'},booked:{label:'Booked',color:'#5B8DEF'},current:{label:'Now',color:'#4BC9A0'},past:{label:'Past',color:'#76746E'}};
+function load(){return JSON.parse(localStorage.getItem(KEY)||'[]')}
+function save(d){localStorage.setItem(KEY,JSON.stringify(d))}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function today(){return new Date().toISOString().slice(0,10)}
+function nightCount(s,e){if(!s||!e)return null;return Math.round((new Date(e)-new Date(s))/864e5)}
+
+function tripCard(trip){
+  const nights=nightCount(trip.start,trip.end);
+  const st=STATUS[trip.status]||STATUS.planning;
+  const spent=((trip.expenses||[]).reduce((s,e)=>s+(e.amount||0),0));
+  const budget=trip.budget||0;
+  const budgetPct=budget?Math.min(100,Math.round(spent/budget*100)):0;
+  const packTotal=(trip.pack||[]).length;
+  const packDone=(trip.pack||[]).filter(p=>p.done).length;
+
+  // Is trip in past/current?
+  const now=today();
+  let daysLabel='';
+  if(trip.start){
+    const diff=Math.ceil((new Date(trip.start)-new Date(now))/864e5);
+    if(diff>0)daysLabel=`in ${diff} days`;
+    else if(diff===0)daysLabel='today!';
+    else if(trip.end&&now<=trip.end)daysLabel='ongoing';
+    else daysLabel=`${Math.abs(diff)} days ago`;
+  }
+
+  return `<div class="trip-card">
+    <div class="trip-header">
+      <div>
+        <div class="trip-dest">📍 ${escHtml(trip.destination)}</div>
+        <div class="trip-dates">${trip.start||'?'} → ${trip.end||'?'}${nights?` · ${nights} nights`:''}${daysLabel?' · '+daysLabel:''}</div>
+        ${trip.notes?`<div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">${escHtml(trip.notes)}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <span class="status-badge" style="background:${st.color}22;color:${st.color};border:1px solid ${st.color}33">${st.label}</span>
+        <button onclick="deleteTrip('${trip.id}')" style="background:transparent;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:13px">Delete</button>
+      </div>
+    </div>
+    <div class="trip-body">
+      ${budget?`<div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+          <span style="font-size:12px;color:var(--text-tertiary)">Budget: €${budget}</span>
+          <span style="font-size:12px;font-weight:700;color:${budgetPct>90?'#FF6B6B':budgetPct>70?'#FF8A4D':'#4BC9A0'}">€${Math.round(spent)} spent · ${budgetPct}%</span>
+        </div>
+        <div class="budget-bar"><div class="budget-fill" style="width:${budgetPct}%;background:${budgetPct>90?'#FF6B6B':budgetPct>70?'#FF8A4D':'#4BC9A0'}"></div></div>
+      </div>`:''}
+
+      <!-- Expenses -->
+      <div style="margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="pack-section-title" style="margin-bottom:0">EXPENSES</div>
+          <div style="display:flex;gap:6px">
+            <input type="text" placeholder="Item" style="width:110px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text-primary);font-size:12px;font-family:inherit;outline:none" id="expName-${trip.id}">
+            <input type="number" placeholder="€" style="width:70px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text-primary);font-size:12px;font-family:inherit;outline:none" id="expAmt-${trip.id}">
+            <button onclick="addExpense('${trip.id}')" style="padding:5px 10px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit">+</button>
+          </div>
+        </div>
+        ${(trip.expenses||[]).slice(-5).map(e=>`<div class="expense-item"><span style="font-size:13px;color:var(--text-secondary)">${escHtml(e.name)}</span><span style="font-size:13px;font-weight:700;color:var(--text-primary)">€${e.amount}</span></div>`).join('')}
+      </div>
+
+      <!-- Packing list -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="pack-section-title" style="margin-bottom:0">PACKING LIST · ${packDone}/${packTotal}</div>
+          ${!packTotal?`<button onclick="initPacking('${trip.id}')" style="padding:5px 12px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit">Load defaults</button>`:''}
+        </div>
+        ${(trip.pack||[]).map((item,i)=>`<div class="pack-item">
+          <div class="pack-check${item.done?' checked':''}" onclick="togglePack('${trip.id}',${i})"></div>
+          <span class="pack-label${item.done?' done':''}">${escHtml(item.name)}</span>
+          <button onclick="removePack('${trip.id}',${i})" style="background:transparent;border:none;color:rgba(255,107,107,.4);cursor:pointer;font-size:13px;padding:0 2px">×</button>
+        </div>`).join('')}
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input type="text" placeholder="Add item…" style="flex:1;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none" id="packNew-${trip.id}">
+          <button onclick="addPackItem('${trip.id}')" style="padding:6px 12px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit">+</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.deleteTrip=function(id){save(load().filter(t=>t.id!==id));render();}
+window.togglePack=function(id,idx){const ts=load();const t=ts.find(x=>x.id===id);if(t?.pack?.[idx]){t.pack[idx].done=!t.pack[idx].done;save(ts);render();}};
+window.removePack=function(id,idx){const ts=load();const t=ts.find(x=>x.id===id);if(t?.pack){t.pack.splice(idx,1);save(ts);render();}};
+window.addPackItem=function(id){const inp=document.getElementById('packNew-'+id);const name=inp?.value?.trim();if(!name)return;const ts=load();const t=ts.find(x=>x.id===id);if(t){if(!t.pack)t.pack=[];t.pack.push({name,done:false});save(ts);render();}};
+window.initPacking=function(id){const ts=load();const t=ts.find(x=>x.id===id);if(t){t.pack=PACK_DEFAULTS.map(n=>({name:n,done:false}));save(ts);render();}};
+window.addExpense=function(id){
+  const nameEl=document.getElementById('expName-'+id);
+  const amtEl=document.getElementById('expAmt-'+id);
+  const name=nameEl?.value?.trim();const amt=parseFloat(amtEl?.value);
+  if(!name||isNaN(amt))return;
+  const ts=load();const t=ts.find(x=>x.id===id);if(t){if(!t.expenses)t.expenses=[];t.expenses.push({name,amount:amt,date:today()});save(ts);render();}
+};
+
+function render(){
+  const trips=load();
+  const el=document.getElementById('tripList');
+  if(!trips.length){el.innerHTML='<div class="empty">No trips yet — plan one from the + tab</div>';return;}
+  const order={current:0,planning:1,booked:2,past:3};
+  const sorted=[...trips].sort((a,b)=>(order[a.status]||2)-(order[b.status]||2)||(a.start||'').localeCompare(b.start||''));
+  el.innerHTML=sorted.map(tripCard).join('');
+}
+
+const tSaveBtn=document.getElementById('tSaveBtn');
+tSaveBtn.addEventListener('click',()=>{
+  const dest=document.getElementById('tDest').value.trim();if(!dest)return;
+  const trips=load();
+  trips.push({id:Date.now().toString(36),destination:dest,start:document.getElementById('tStart').value||null,end:document.getElementById('tEnd').value||null,budget:parseFloat(document.getElementById('tBudget').value)||null,status:document.getElementById('tStatus').value,notes:document.getElementById('tNotes').value.trim()||null,pack:[],expenses:[]});
+  save(trips);
+  ['tDest','tStart','tEnd','tBudget','tNotes'].forEach(id=>document.getElementById(id).value='');
+  setTab('trips');render();
+});
+
+function setTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.section-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
+  if(name==='trips')render();
+}
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+window._travelRender = render;
+render();
+})();
+</script>
+
+<script>
+(function travelSync() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var APP_KEY  = 'travel-app';
+  var SYNC_KEYS = ['travel:trips:v1'];
+  var _origSet = localStorage.setItem.bind(localStorage);
+  var pushTimer = null;
+  var lastJson = null;
+
+  localStorage.setItem = function(k, v) {
+    _origSet(k, v);
+    if (SYNC_KEYS.indexOf(k) !== -1) schedulePush();
+  };
+
+  function collect() {
+    var out = {};
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var v = localStorage.getItem(SYNC_KEYS[i]);
+      if (v != null) try { out[SYNC_KEYS[i]] = JSON.parse(v); } catch (_) {}
+    }
+    return out;
+  }
+
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 400); }
+
+  function pushNow() {
+    var data = collect();
+    var json = JSON.stringify(data);
+    if (json === lastJson) return;
+    lastJson = json;
+    try {
+      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }),
+        keepalive: true,
+      }).catch(function() {});
+    } catch (_) {}
+  }
+
+  function applyRemote(remote) {
+    if (!remote || typeof remote !== 'object') return;
+    var changed = false;
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var k = SYNC_KEYS[i];
+      if (k in remote) {
+        var incoming = JSON.stringify(remote[k]);
+        if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch (_) {} }
+      }
+    }
+    if (changed && window._travelRender) try { window._travelRender(); } catch (_) {}
+  }
+
+  (async function init() {
+    var url = SUPA_URL + '/rest/v1/app_state?select=data,updated_at&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1';
+    try {
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (r.ok) {
+        var rows = await r.json();
+        if (rows[0] && rows[0].data) {
+          lastJson = JSON.stringify(rows[0].data);
+          applyRemote(rows[0].data);
+        } else if (Object.keys(collect()).length > 0) {
+          schedulePush();
+        }
+      }
+    } catch (_) {}
+  })();
+
+  window.addEventListener('pagehide', pushNow);
+  window.addEventListener('beforeunload', pushNow);
+  document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
+})();
+</script>
+
+</body>
+</html>

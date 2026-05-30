@@ -138,4 +138,19 @@ None committed.
 
 ---
 
-_Last updated: 2026-05-30. All phases complete. See Definition of Done section above._
+_Last updated: 2026-05-30._
+
+---
+
+## Gap Tasks (identified 2026-05-30 — audit found these unchecked items)
+
+- [x] Gym: fatigue/recovery signal — weekly volume vs 4-week rolling avg → Fresh/Normal/Fatigued status card. `fatigueSignal()` IIFE in gym.html reads `po_coach_v1`, computes acute (7d) vs chronic (4-wk) load, shows ratio + streak.
+- [x] Skin: unsafe-stacking warnings — detects retinoid + exfoliant or retinoid + vitamin C on same PM routine; red banner shown in `checkStackingWarning()`.
+- [x] Skin: device recovery windows — `skin:device_sessions` localStorage, log microneedling/LED/peel from skin.html, countdown banner shows remaining recovery days (microneedling=5d, LED=0d, peel=7d).
+- [x] Finance: cost-per-km / TCO — `finance:vehicles` localStorage, vehicle section (tab "vehicle") computes total cost / km owned, shows per-vehicle cards + fleet summary. vercel.json tabs updated.
+- [x] Finance: compounding projection — tab "compound", interactive calculator with bar chart (balance vs contributions), summary tiles for final balance / contributions / gains.
+- [x] AI commentary slots — added loader script to gym, nutrition, mood, health, skin, finance, reminders pages; fetches latest domain-matched ai.insight or ai.flag from events, injects card at top of shell.
+- [x] Supplements → Bloodwork link — `suppBloodLink()` IIFE in reminders.html maps supplement names to bloodwork marker keywords, shows recent bloodwork values for matched markers under each supplement.
+- [x] Evening briefing — 7pm Vercel Cron added to vercel.json (`0 19 * * *`); agent.js GET handler detects `?briefing=evening` or UTC hour ≥15, passes evening-style prompt (3-line wrap + tomorrow setup).
+- [x] Experiment auto-tracking — ai.html `lifeos:event` listener increments `dataPoints` on active experiments whose `trackedDomains` match incoming event domain; badge shown on experiment card.
+- [ ] Progress photos via Supabase Storage — body/skin photos currently stored as localStorage base64; migrate to Storage bucket

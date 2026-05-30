@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Weekly Review</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.12);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --accent: #E07658;
+  --accent-green: #1D9E75;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background:var(--bg); color:var(--text-secondary); font-family:var(--font); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+body { min-height:100vh; overflow-x:hidden; }
+
+body::before {
+  content:''; position:fixed; inset:0;
+  background: radial-gradient(60% 50% at 82% 14%, rgba(224,118,88,0.10) 0%, transparent 60%),
+              radial-gradient(50% 40% at 18% 90%, rgba(29,158,117,0.06) 0%, transparent 60%);
+  filter:blur(40px); pointer-events:none; z-index:0;
+}
+
+main { position:relative; z-index:2; max-width:680px; margin:0 auto; padding:56px 16px 120px; padding-top:max(56px,env(safe-area-inset-top,56px)); }
+
+h1 { font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px; }
+.week-range { font-size:13px; color:var(--text-tertiary); margin-bottom:24px; }
+
+.section { margin-bottom:20px; }
+.section-title { font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-tertiary); margin-bottom:10px; }
+
+.stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.stat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; }
+.stat-value { font-size:20px; font-weight:700; color:var(--text-primary); line-height:1.1; }
+.stat-label { font-size:11px; color:var(--text-tertiary); margin-top:2px; }
+.stat-sub { font-size:11px; color:var(--text-tertiary); margin-top:1px; }
+.stat-delta { font-size:10px; font-weight:700; margin-top:3px; }
+.stat-delta.good { color:#4BC9A0; }
+.stat-delta.bad { color:#FF6B6B; }
+
+.habits-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; }
+.habit-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; }
+.habit-name { font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.habit-dots { display:flex; gap:4px; flex-wrap:wrap; }
+.habit-dot { width:10px; height:10px; border-radius:3px; }
+.habit-dot.done { background:var(--accent-green); }
+.habit-dot.miss { background:rgba(255,255,255,0.08); }
+.habit-dot.skip { background:rgba(255,255,255,0.04); border:1px dashed rgba(255,255,255,0.12); }
+.habit-rate { font-size:11px; color:var(--text-tertiary); margin-top:5px; }
+
+.mood-row { display:flex; gap:6px; align-items:flex-end; height:48px; }
+.mood-bar-wrap { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.mood-bar { width:100%; border-radius:4px 4px 0 0; transition:height 0.3s; }
+.mood-bar-label { font-size:9px; color:var(--text-tertiary); }
+
+.ai-section { margin-top:24px; }
+.ai-btn {
+  width:100%; padding:14px 18px; border-radius:14px;
+  background:linear-gradient(135deg, rgba(224,118,88,0.18), rgba(29,158,117,0.12));
+  border:1px solid rgba(224,118,88,0.3);
+  color:var(--text-primary); font-size:14px; font-weight:600;
+  cursor:pointer; font-family:inherit; transition:opacity 0.15s;
+}
+.ai-btn:hover { opacity:0.85; }
+.ai-btn:disabled { opacity:0.5; cursor:not-allowed; }
+
+.ai-output {
+  display:none; margin-top:14px;
+  background:var(--bg-card); border:1px solid var(--border); border-radius:14px;
+  padding:16px; font-size:13px; color:var(--text-secondary);
+  line-height:1.65; white-space:pre-wrap;
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>Weekly Review</h1>
+  <div class="week-range" id="weekRange"></div>
+
+  <div class="section">
+    <div class="section-title">At a glance</div>
+    <div class="stat-grid" id="statGrid"></div>
+  </div>
+
+  <div class="section" id="habitsSection">
+    <div class="section-title">Habits</div>
+    <div class="habits-grid" id="habitsGrid"></div>
+  </div>
+
+  <div class="section" id="moodSection">
+    <div class="section-title">Mood this week</div>
+    <div class="mood-row" id="moodRow"></div>
+  </div>
+
+  <div class="ai-section">
+    <button class="ai-btn" id="aiBtn">Get AI Weekly Review</button>
+    <div class="ai-output" id="aiOutput"></div>
+  </div>
+</main>
+<script src="tabbar.js"></script>
+<script src="topbar.js"></script>
+<script>
+(function () {
+'use strict';
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function dateStr(d) { return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+// Get Mon-Sun for the most recently completed week (Mon=start)
+function getWeekDays() {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  // Days since last Monday
+  const sinceMon = (dow + 6) % 7;
+  // Start of this week (Monday)
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - sinceMon);
+  monday.setHours(0,0,0,0);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(dateStr(d));
+  }
+  return days;
+}
+
+function getPrevWeekDays() {
+  const today = new Date();
+  const dow = today.getDay();
+  const sinceMon = (dow + 6) % 7;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - sinceMon - 7);
+  monday.setHours(0,0,0,0);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(dateStr(d));
+  }
+  return days;
+}
+
+const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAYS = getWeekDays();
+const PREV_DAYS = getPrevWeekDays();
+const today = dateStr(new Date());
+
+// Week range display
+document.getElementById('weekRange').textContent = DAYS[0] + ' — ' + DAYS[6];
+
+function tryParse(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+}
+
+// ---- HABITS ----
+(function renderHabits() {
+  const habits = tryParse('habits:v1', []);
+  const logs = tryParse('habits:logs:v1', {});
+  if (!habits.length) { document.getElementById('habitsSection').style.display = 'none'; return; }
+
+  const grid = document.getElementById('habitsGrid');
+  grid.innerHTML = '';
+  habits.forEach(h => {
+    let done = 0;
+    const dots = DAYS.map(d => {
+      const isDue = (function() {
+        if (h.freq === 'daily') return true;
+        if (h.freq === 'weekdays') { const dow = new Date(d).getDay(); return dow >= 1 && dow <= 5; }
+        if (h.freq === 'weekly') return new Date(d).getDay() === 1;
+        return true;
+      })();
+      if (!isDue) return 'skip';
+      const logged = Array.isArray(logs[d]) && logs[d].includes(h.id);
+      if (logged) { done++; return 'done'; }
+      return d <= today ? 'miss' : 'skip';
+    });
+    const due = dots.filter(d => d !== 'skip').length;
+    const rate = due > 0 ? Math.round(done / due * 100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'habit-card';
+    card.innerHTML = `
+      <div class="habit-name">${h.name || 'Habit'}</div>
+      <div class="habit-dots">${dots.map(s => `<div class="habit-dot ${s}"></div>`).join('')}</div>
+      <div class="habit-rate">${done}/${due} days (${rate}%)</div>
+    `;
+    grid.appendChild(card);
+  });
+})();
+
+// ---- MOOD ----
+(function renderMood() {
+  const logs = tryParse('mind:mood:v1', []);
+  const byDay = {};
+  logs.forEach(e => { if (e.date && DAYS.includes(e.date)) byDay[e.date] = e.mood || e.score || 0; });
+  const hasData = Object.keys(byDay).length > 0;
+  if (!hasData) { document.getElementById('moodSection').style.display = 'none'; return; }
+
+  const MOOD_COLORS = {1:'#FF6B6B',2:'#FF8A4D',3:'#F2C063',4:'#4BC9A0',5:'#1D9E75'};
+  const maxMood = 5;
+  const row = document.getElementById('moodRow');
+  row.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const val = byDay[d] || 0;
+    const wrap = document.createElement('div');
+    wrap.className = 'mood-bar-wrap';
+    const pct = val ? (val / maxMood * 100) : 4;
+    wrap.innerHTML = `
+      <div class="mood-bar" style="height:${pct}%;background:${val ? MOOD_COLORS[Math.round(val)] || '#76746E' : 'rgba(255,255,255,0.06)'}"></div>
+      <div class="mood-bar-label">${DAY_LABELS[i]}</div>
+    `;
+    row.appendChild(wrap);
+  });
+})();
+
+// ---- STATS ----
+(function renderStats() {
+  function computeWeekStats(days) {
+    const ntLogs = tryParse('nt:logs', []);
+    const calsByDay = {};
+    ntLogs.forEach(l => {
+      const d = l.dateKey || (l.loggedAt ? new Date(l.loggedAt).toISOString().slice(0,10) : null);
+      if (d && days.includes(d)) calsByDay[d] = (calsByDay[d] || 0) + (l.calories || l.kcal || 0);
+    });
+    const calVals = Object.values(calsByDay);
+    const avgCals = calVals.length ? Math.round(calVals.reduce((a,b)=>a+b,0)/calVals.length) : null;
+
+    const workoutDone = tryParse('po_coach_workout_done', {});
+    const workouts = days.filter(d => workoutDone[d]).length;
+
+    const waterState = tryParse('po_water_v1', {});
+    const waterLogs = waterState.logs || {};
+    const unitMl = waterState.unit === 'glass' ? (waterState.glassMl || 250) : (waterState.bottleMl || 500);
+    const totalWater = days.reduce((sum, d) => {
+      const count = waterLogs[d]; if (!count) return sum;
+      return sum + count * unitMl;
+    }, 0);
+    const avgWater = totalWater > 0 ? Math.round(totalWater / days.length) : null;
+
+    const sleepLogs = tryParse('sleep:logs', []);
+    const weekSleep = sleepLogs.filter(e => days.includes(e.date));
+    const avgSleep = weekSleep.length
+      ? parseFloat((weekSleep.reduce((s,e)=>s+(e.duration||0),0)/weekSleep.length/60).toFixed(1))
+      : null;
+
+    const tasks = tryParse('tasks:v1', []);
+    const doneTasks = tasks.filter(t => t.done && days.includes((t.doneAt||'').slice(0,10))).length;
+
+    const medLogs = tryParse('mind:meditation:v1', []);
+    const medMins = medLogs.filter(e => days.includes(e.date)).reduce((s,e)=>s+Math.round((e.duration||0)/60),0);
+
+    const gratLogs = tryParse('mind:gratitude:v1', []);
+    const gratDays = gratLogs.filter(g => days.includes(g.date)).length;
+
+    const pomoSessions = tryParse('pomo:sessions:v1', []);
+    const pomos = pomoSessions.filter(s => days.includes(s.date) && s.type === 'focus').length;
+
+    return { avgCals, workouts, avgWater, avgSleep, doneTasks, medMins, gratDays, pomos };
+  }
+
+  const curr = computeWeekStats(DAYS);
+  const prev = computeWeekStats(PREV_DAYS);
+
+  function mkDelta(currVal, prevVal, higherBetter, fmt) {
+    if (currVal == null || prevVal == null) return '';
+    const d = currVal - prevVal;
+    if (Math.abs(d) < 0.05) return '';
+    const good = higherBetter ? d > 0 : d < 0;
+    return `<div class="stat-delta ${good?'good':'bad'}">${d>0?'+':''}${fmt(d)} vs last wk</div>`;
+  }
+
+  const stats = [
+    curr.avgCals != null ? {
+      value: curr.avgCals, label: 'Avg calories', sub: 'kcal/day',
+      delta: mkDelta(curr.avgCals, prev.avgCals, false, v => Math.abs(Math.round(v)))
+    } : null,
+    {
+      value: curr.workouts, label: 'Workouts', sub: 'this week',
+      delta: mkDelta(curr.workouts, prev.workouts, true, v => (v>0?'+':'')+v)
+    },
+    curr.avgSleep != null ? {
+      value: curr.avgSleep + 'h', label: 'Avg sleep', sub: 'per night',
+      delta: mkDelta(curr.avgSleep, prev.avgSleep, true, v => Math.abs(v).toFixed(1)+'h')
+    } : null,
+    curr.avgWater != null ? {
+      value: (curr.avgWater/1000).toFixed(1)+'L', label: 'Avg water', sub: 'per day',
+      delta: mkDelta(curr.avgWater, prev.avgWater, true, v => Math.abs(v/1000).toFixed(1)+'L')
+    } : null,
+    curr.doneTasks > 0 ? { value: curr.doneTasks, label: 'Tasks done', sub: 'this week', delta: mkDelta(curr.doneTasks, prev.doneTasks, true, v => Math.abs(Math.round(v))) } : null,
+    curr.medMins > 0 ? { value: curr.medMins, label: 'Meditation', sub: 'min this week', delta: mkDelta(curr.medMins, prev.medMins, true, v => Math.abs(Math.round(v))+'m') } : null,
+    curr.gratDays > 0 ? { value: curr.gratDays + '/7', label: 'Gratitude', sub: 'days logged', delta: '' } : null,
+    curr.pomos > 0 ? { value: curr.pomos, label: 'Focus sessions', sub: 'pomodoros', delta: mkDelta(curr.pomos, prev.pomos, true, v => Math.abs(Math.round(v))) } : null,
+  ].filter(Boolean).slice(0, 6);
+
+  const grid = document.getElementById('statGrid');
+  grid.innerHTML = stats.map(s => `
+    <div class="stat-card">
+      <div class="stat-value">${s.value}</div>
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-sub">${s.sub}</div>
+      ${s.delta || ''}
+    </div>
+  `).join('');
+})();
+
+// ---- AI REVIEW ----
+document.getElementById('aiBtn').addEventListener('click', function() {
+  const btn = this;
+  const out = document.getElementById('aiOutput');
+  btn.disabled = true;
+  btn.textContent = 'Thinking...';
+
+  // Build context from localStorage
+  const habits = tryParse('habits:v1', []);
+  const logs = tryParse('habits:logs:v1', {});
+  const moodLogs = tryParse('mind:mood:v1', []).filter(e => DAYS.includes(e.date));
+  const ntLogs = tryParse('nt:logs', []).filter(l => {
+    const d = l.dateKey || (l.loggedAt ? new Date(l.loggedAt).toISOString().slice(0,10) : null);
+    return DAYS.includes(d);
+  });
+  const workoutDone = tryParse('po_coach_workout_done', {});
+  const workouts = DAYS.filter(d => workoutDone[d]).length;
+  const sleepLogs = tryParse('sleep:logs', []).filter(e => DAYS.includes(e.date));
+
+  const habitSummary = habits.map(h => {
+    const done = DAYS.filter(d => Array.isArray(logs[d]) && logs[d].includes(h.id)).length;
+    return `${h.name}: ${done}/7`;
+  }).join(', ');
+
+  const moodAvg = moodLogs.length
+    ? (moodLogs.reduce((s,e)=>s+(e.mood||e.score||0),0)/moodLogs.length).toFixed(1)
+    : 'no data';
+
+  const calsByDay = {};
+  ntLogs.forEach(l => {
+    const d = l.dateKey || (l.loggedAt ? new Date(l.loggedAt).toISOString().slice(0,10) : null);
+    if (d) calsByDay[d] = (calsByDay[d]||0)+(l.calories||l.kcal||0);
+  });
+  const calVals = Object.values(calsByDay);
+  const avgCals = calVals.length ? Math.round(calVals.reduce((a,b)=>a+b,0)/calVals.length) : 0;
+
+  const sleepAvg = sleepLogs.length
+    ? (sleepLogs.reduce((s,e)=>s+(e.duration||0),0)/sleepLogs.length/60).toFixed(1)
+    : 'no data';
+
+  const prevWorkoutDone = tryParse('po_coach_workout_done', {});
+  const prevWorkouts = PREV_DAYS.filter(d => prevWorkoutDone[d]).length;
+  const prevSleepLogs = tryParse('sleep:logs', []).filter(e => PREV_DAYS.includes(e.date));
+  const prevSleepAvg = prevSleepLogs.length
+    ? (prevSleepLogs.reduce((s,e)=>s+(e.duration||0),0)/prevSleepLogs.length/60).toFixed(1)
+    : 'no data';
+  const medLogs = tryParse('mind:meditation:v1', []);
+  const medMins = medLogs.filter(e => DAYS.includes(e.date)).reduce((s,e)=>s+Math.round((e.duration||0)/60),0);
+  const gratLogs = tryParse('mind:gratitude:v1', []);
+  const gratDays = gratLogs.filter(g => DAYS.includes(g.date)).length;
+
+  const pomoSessions = tryParse('pomo:sessions:v1', []);
+  const pomos = pomoSessions.filter(s => DAYS.includes(s.date) && s.type === 'focus').length;
+
+  const context = `Week: ${DAYS[0]} to ${DAYS[6]}
+Previous week: ${PREV_DAYS[0]} to ${PREV_DAYS[6]}
+Habits: ${habitSummary || 'no data'}
+Mood avg: ${moodAvg}/5
+Avg calories: ${avgCals || 'no data'} kcal/day
+Workouts: ${workouts}/7 days (prev week: ${prevWorkouts})
+Avg sleep: ${sleepAvg}h (prev week: ${prevSleepAvg}h)
+Meditation: ${medMins} min this week
+Gratitude logged: ${gratDays}/7 days
+Focus sessions (Pomodoro): ${pomos} this week`;
+
+  fetch('/api/health-ai/agent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mode: 'chat',
+      messages: [{ role: 'user', content: 'Give me a weekly review based on my data. Be specific, highlight wins, flag concerns, and give 2-3 actionable suggestions for next week.' }],
+      context: context,
+    }),
+  })
+  .then(r => r.json())
+  .then(d => {
+    out.textContent = d.reply || d.summary || d.error || 'No response';
+    out.style.display = '';
+    btn.textContent = 'Refresh Review';
+    btn.disabled = false;
+  })
+  .catch(() => {
+    out.textContent = 'Could not reach AI — check ANTHROPIC_API_KEY.';
+    out.style.display = '';
+    btn.textContent = 'Get AI Weekly Review';
+    btn.disabled = false;
+  });
+});
+
+})();
+</script>
+</body>
+</html>

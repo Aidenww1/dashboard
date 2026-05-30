@@ -2181,8 +2181,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     <span class="bot-tab-icon">💳</span>
     <span class="bot-tab-label">Debt</span>
   </button>
-  <button class="bot-tab" data-tab="portfolio">
+  <button class="bot-tab" data-tab="vehicle">
+    <span class="bot-tab-icon">🚗</span>
+    <span class="bot-tab-label">Vehicle</span>
+  </button>
+  <button class="bot-tab" data-tab="compound">
     <span class="bot-tab-icon">📈</span>
+    <span class="bot-tab-label">Compound</span>
+  </button>
+  <button class="bot-tab" data-tab="portfolio">
+    <span class="bot-tab-icon">💹</span>
     <span class="bot-tab-label">Portfolio</span>
   </button>
   <button class="bot-tab" data-tab="transactions">
@@ -5582,6 +5590,76 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 </div>
 </div>
 
+<!-- ===== VEHICLE / COST-PER-KM ===== -->
+<div class="section" data-section="vehicle" hidden>
+<div class="shell">
+  <div class="section-eyebrow">VEHICLE &amp; COST PER KM</div>
+  <div id="vehicleSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
+  <div id="vehicleList" style="margin-bottom:14px"></div>
+  <div style="background:rgba(255,255,255,0.04);border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.06)">
+    <div style="font-size:13px;font-weight:700;color:#FAFAFA;margin-bottom:12px">Add / update vehicle</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Vehicle name</div>
+        <input type="text" id="vehName" placeholder="e.g. VW Golf 2021" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Purchase price (€)</div>
+        <input type="number" id="vehPurchase" step="100" min="0" placeholder="e.g. 18000" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Current odometer (km)</div>
+        <input type="number" id="vehKm" step="100" min="0" placeholder="e.g. 45000" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Km at purchase</div>
+        <input type="number" id="vehKmStart" step="100" min="0" placeholder="e.g. 12000" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Monthly costs (€/mo)</div>
+        <input type="number" id="vehMonthly" step="10" min="0" placeholder="insurance + maintenance" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Purchase date</div>
+        <input type="date" id="vehPurchaseDate" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+    </div>
+    <button id="vehSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save vehicle</button>
+  </div>
+</div>
+</div>
+
+<!-- ===== COMPOUNDING PROJECTION ===== -->
+<div class="section" data-section="compound" hidden>
+<div class="shell">
+  <div class="section-eyebrow">COMPOUND GROWTH PROJECTION</div>
+  <div style="background:rgba(255,255,255,0.04);border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.06);margin-bottom:14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Initial amount (€)</div>
+        <input type="number" id="cpInitial" step="100" min="0" placeholder="e.g. 5000" value="5000" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Monthly contribution (€)</div>
+        <input type="number" id="cpMonthly" step="50" min="0" placeholder="e.g. 500" value="500" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Annual return (%)</div>
+        <input type="number" id="cpRate" step="0.5" min="0" max="50" placeholder="e.g. 8" value="7" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Years</div>
+        <input type="number" id="cpYears" step="1" min="1" max="50" placeholder="e.g. 20" value="20" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+    </div>
+    <button id="cpCalcBtn" style="padding:10px 24px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Calculate</button>
+  </div>
+  <div id="cpSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
+  <div id="cpChart" style="background:rgba(255,255,255,0.04);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.06)">
+    <div style="font-size:12px;color:rgba(255,255,255,0.3);text-align:center;padding:20px 0">Enter values above and click Calculate.</div>
+  </div>
+</div>
+</div>
 
 <script>
 // ===== FINANCE CLOUD SYNC =====
@@ -6624,6 +6702,197 @@ window.addEventListener('lifeos:event', function(e) {
   var d = e.detail; if (!d || !d.updated) return;
   if (d.type === 'finance.expense' && window._financeRenderAll) window._financeRenderAll();
 });
+</script>
+<script>
+(function aiCommentary() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var DOMAIN = 'finance';
+  var since = new Date(Date.now() - 14*86400000).toISOString();
+  fetch(SUPA_URL + '/rest/v1/events?select=type,data,ts&type=in.(ai.insight,ai.flag)&order=ts.desc&limit=10&ts=gte=' + encodeURIComponent(since), {
+    headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(rows) {
+    var match = (rows||[]).find(function(r) {
+      var doms = (r.data && r.data.domains) ? r.data.domains : [];
+      return doms.includes(DOMAIN);
+    });
+    if (!match || !match.data || !match.data.text) return;
+    var isFlag = match.type === 'ai.flag';
+    var div = document.createElement('div');
+    div.style.cssText = 'background:' + (isFlag?'rgba(255,107,107,0.08)':'rgba(107,227,164,0.06)') + ';border:1px solid ' + (isFlag?'rgba(255,107,107,0.2)':'rgba(107,227,164,0.15)') + ';border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5';
+    div.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + (isFlag?'#FF9999':'#86EFAC') + ';margin-right:8px">' + (isFlag?'AI Flag':'AI Insight') + '</span>' + match.data.text;
+    var shell = document.querySelector('.shell');
+    if (shell) shell.insertBefore(div, shell.firstChild);
+  }).catch(function(){});
+})();
+</script>
+
+<script>
+// ===== VEHICLE / COST-PER-KM =====
+(function vehicleTCO() {
+  var VEH_KEY = 'finance:vehicles';
+  function load() { try { return JSON.parse(localStorage.getItem(VEH_KEY)||'[]'); } catch(e) { return []; } }
+  function save(v) { localStorage.setItem(VEH_KEY, JSON.stringify(v)); }
+  function fmt(n) { return '€' + Math.round(n).toLocaleString('en'); }
+  function fmtDec(n, d) { return '€' + n.toFixed(d).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  function renderVehicles() {
+    var vehicles = load();
+    var sumEl = document.getElementById('vehicleSummary');
+    var listEl = document.getElementById('vehicleList');
+    if (!sumEl || !listEl) return;
+
+    if (!vehicles.length) {
+      sumEl.innerHTML = '';
+      listEl.innerHTML = '<div style="font-size:13px;color:rgba(255,255,255,0.35);padding:8px 0 14px">No vehicles yet. Add one below.</div>';
+      return;
+    }
+
+    var html = '';
+    vehicles.forEach(function(v, i) {
+      var kmOwned = Math.max(0, (v.km || 0) - (v.kmStart || 0));
+      var monthsOwned = v.purchaseDate ? Math.max(1, Math.round((Date.now() - new Date(v.purchaseDate)) / (30.44*86400000))) : 12;
+      var runningCost = (v.monthly || 0) * monthsOwned;
+      var totalCost = (v.purchase || 0) + runningCost;
+      var costPerKm = kmOwned > 0 ? totalCost / kmOwned : null;
+
+      html += '<div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-bottom:12px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">'
+        + '<div style="font-size:15px;font-weight:700;color:#FAFAFA">' + (v.name || 'Vehicle') + '</div>'
+        + '<button data-vdel="' + i + '" style="background:none;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:16px">&times;</button>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'
+        + statTile('Cost/km', costPerKm !== null ? fmtDec(costPerKm, 2) : '—')
+        + statTile('Total cost', fmt(totalCost))
+        + statTile('Km owned', kmOwned > 0 ? Math.round(kmOwned).toLocaleString('en') + ' km' : '—')
+        + statTile('Running cost', fmt(runningCost))
+        + statTile('Monthly', fmt(v.monthly || 0) + '/mo')
+        + statTile('Owned', monthsOwned + ' mo')
+        + '</div>'
+        + '</div>';
+    });
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll('[data-vdel]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var vehs = load(); vehs.splice(parseInt(btn.dataset.vdel), 1); save(vehs); renderVehicles();
+      });
+    });
+
+    var totalCostPerKm = vehicles.reduce(function(sum, v) {
+      var km = Math.max(0, (v.km||0)-(v.kmStart||0));
+      var mo = v.purchaseDate ? Math.max(1, Math.round((Date.now()-new Date(v.purchaseDate))/(30.44*86400000))) : 12;
+      return km > 0 ? sum + ((v.purchase||0)+(v.monthly||0)*mo)/km : sum;
+    }, 0) / vehicles.length;
+
+    sumEl.innerHTML = statTile('Vehicles', vehicles.length)
+      + statTile('Avg cost/km', vehicles.length ? fmtDec(totalCostPerKm/vehicles.length, 2) : '—')
+      + statTile('Total fleet spend', fmt(vehicles.reduce(function(s,v){
+          var mo = v.purchaseDate ? Math.max(1,Math.round((Date.now()-new Date(v.purchaseDate))/(30.44*86400000))) : 12;
+          return s+(v.purchase||0)+(v.monthly||0)*mo;
+        }, 0)));
+  }
+
+  function statTile(lbl, val) {
+    return '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;text-align:center">'
+      + '<div style="font-size:16px;font-weight:800;color:#FAFAFA">' + val + '</div>'
+      + '<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;text-transform:uppercase;letter-spacing:.06em">' + lbl + '</div>'
+      + '</div>';
+  }
+
+  document.getElementById('vehSaveBtn')?.addEventListener('click', function() {
+    var name = (document.getElementById('vehName')?.value||'').trim();
+    if (!name) return;
+    var vehs = load();
+    vehs.push({
+      name: name,
+      purchase: parseFloat(document.getElementById('vehPurchase')?.value||0)||0,
+      km: parseFloat(document.getElementById('vehKm')?.value||0)||0,
+      kmStart: parseFloat(document.getElementById('vehKmStart')?.value||0)||0,
+      monthly: parseFloat(document.getElementById('vehMonthly')?.value||0)||0,
+      purchaseDate: document.getElementById('vehPurchaseDate')?.value||null,
+    });
+    save(vehs);
+    ['vehName','vehPurchase','vehKm','vehKmStart','vehMonthly'].forEach(function(id){
+      var el = document.getElementById(id); if (el) el.value='';
+    });
+    renderVehicles();
+  });
+
+  document.querySelector('[data-tab="vehicle"]')?.addEventListener('click', function(){ setTimeout(renderVehicles,0); });
+  renderVehicles();
+})();
+</script>
+
+<script>
+// ===== COMPOUNDING PROJECTION =====
+(function compoundCalc() {
+  function fmt(n) { return '€' + Math.round(n).toLocaleString('en'); }
+
+  function calculate() {
+    var initial  = parseFloat(document.getElementById('cpInitial')?.value)||0;
+    var monthly  = parseFloat(document.getElementById('cpMonthly')?.value)||0;
+    var rate     = parseFloat(document.getElementById('cpRate')?.value)||7;
+    var years    = parseInt(document.getElementById('cpYears')?.value)||20;
+    var r = rate / 100 / 12;
+    var n = years * 12;
+
+    var rows = [];
+    var balance = initial;
+    for (var mo = 1; mo <= n; mo++) {
+      balance = balance * (1 + r) + monthly;
+      if (mo % 12 === 0) {
+        var yr = mo / 12;
+        var totalContributions = initial + monthly * mo;
+        rows.push({ year: yr, balance: balance, contributions: totalContributions, gains: balance - totalContributions });
+      }
+    }
+
+    var final = rows[rows.length - 1];
+    var sumEl = document.getElementById('cpSummary');
+    if (sumEl) {
+      sumEl.innerHTML = [
+        { lbl: 'Final balance', val: fmt(final.balance) },
+        { lbl: 'Total contributions', val: fmt(final.contributions) },
+        { lbl: 'Total gains', val: fmt(final.gains) },
+      ].map(function(s) {
+        return '<div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.06);text-align:center">'
+          + '<div style="font-size:22px;font-weight:900;color:#FAFAFA">' + s.val + '</div>'
+          + '<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;text-transform:uppercase;letter-spacing:.06em">' + s.lbl + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    var chartEl = document.getElementById('cpChart');
+    if (!chartEl) return;
+    var maxVal = final.balance;
+    var barW = Math.floor(100 / rows.length);
+    chartEl.innerHTML = '<div style="display:flex;align-items:flex-end;gap:2px;height:120px;margin-bottom:6px">'
+      + rows.map(function(row) {
+          var bH = Math.round((row.balance / maxVal) * 100);
+          var cH = Math.round((row.contributions / maxVal) * 100);
+          return '<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center" title="Year ' + row.year + ': ' + fmt(row.balance) + '">'
+            + '<div style="width:100%;background:#6BE3A4;border-radius:2px 2px 0 0;height:' + bH + '%;position:relative">'
+            + '<div style="position:absolute;bottom:0;left:0;right:0;background:#E07658;height:' + Math.round(cH/bH*100) + '%;border-radius:2px 2px 0 0"></div>'
+            + '</div></div>';
+        }).join('')
+      + '</div>'
+      + '<div style="display:flex;gap:2px">'
+      + rows.map(function(row) {
+          return '<div style="flex:1;text-align:center;font-size:9px;color:rgba(255,255,255,0.3)">'
+            + (row.year % 5 === 0 ? row.year + 'y' : '') + '</div>';
+        }).join('')
+      + '</div>'
+      + '<div style="display:flex;gap:14px;margin-top:10px;font-size:11px;color:rgba(255,255,255,0.5)">'
+      + '<span><span style="display:inline-block;width:10px;height:10px;background:#6BE3A4;border-radius:2px;margin-right:4px"></span>Balance</span>'
+      + '<span><span style="display:inline-block;width:10px;height:10px;background:#E07658;border-radius:2px;margin-right:4px"></span>Contributions</span>'
+      + '</div>';
+  }
+
+  document.getElementById('cpCalcBtn')?.addEventListener('click', calculate);
+  document.querySelector('[data-tab="compound"]')?.addEventListener('click', function(){ setTimeout(calculate, 0); });
+  calculate();
+})();
 </script>
 
 </body>

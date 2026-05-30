@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Library · Daily Stack</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#050506;--bg-card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.06);--border-strong:rgba(255,255,255,0.12);--text-primary:#FAFAFA;--text-secondary:#B8B6B0;--text-tertiary:#76746E;--accent:#1D9E75;--font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;--font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text-secondary);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(60% 50% at 75% 10%,rgba(91,141,239,0.12) 0%,transparent 60%),radial-gradient(50% 40% at 20% 85%,rgba(242,192,99,0.07) 0%,transparent 60%);filter:blur(40px);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.014) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:1}
+main{position:relative;z-index:2;max-width:720px;margin:0 auto;padding:56px 20px 120px;padding-top:max(56px,env(safe-area-inset-top,56px))}
+.tab-bar{display:flex;gap:4px;margin-bottom:20px;background:rgba(255,255,255,0.03);border-radius:12px;padding:4px;overflow-x:auto;scrollbar-width:none}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{flex-shrink:0;padding:8px 14px;border-radius:9px;border:none;background:transparent;color:var(--text-tertiary);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s;white-space:nowrap}
+.tab-btn.active{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+.section-panel{display:none}
+.section-panel.active{display:block}
+.card{background:var(--bg-card);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:10px}
+.label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px}
+.inp{width:100%;background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none}
+.inp:focus{border-color:var(--border-strong)}
+.save-btn{width:100%;padding:12px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.book-card{background:var(--bg-card);border-radius:14px;padding:14px 16px;border:1px solid var(--border);margin-bottom:8px}
+.book-title{font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:2px}
+.book-author{font-size:12px;color:var(--text-tertiary);margin-bottom:8px}
+.progress-track{height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-bottom:6px}
+.progress-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.rating-row{display:flex;gap:4px;margin-bottom:4px}
+.star{font-size:16px;cursor:pointer;color:rgba(255,255,255,0.2);transition:color .1s}
+.star.lit{color:#F2C063}
+.course-card{background:var(--bg-card);border-radius:14px;padding:14px 16px;border:1px solid var(--border);margin-bottom:8px}
+.course-title{font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:2px}
+.empty{text-align:center;padding:40px 20px;color:var(--text-tertiary);font-size:14px}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.stat-card{background:var(--bg-card);border-radius:12px;padding:14px;border:1px solid var(--border);text-align:center}
+.stat-val{font-size:26px;font-weight:800;color:var(--text-primary);line-height:1}
+.stat-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);margin-top:3px}
+@media(min-width:900px){main{max-width:1280px!important;padding-left:32px!important;padding-right:32px!important}.stats-row{grid-template-columns:repeat(6,1fr)!important}}
+</style>
+</head>
+<body>
+<script src="topbar.js" defer></script>
+<script src="tabbar.js" defer></script>
+<script src="pwa.js" defer></script>
+<main>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="reading">📖 Reading</button>
+  <button class="tab-btn" data-tab="done">✅ Finished</button>
+  <button class="tab-btn" data-tab="want">🔖 Want to Read</button>
+  <button class="tab-btn" data-tab="learning">🎓 Learning</button>
+  <button class="tab-btn" data-tab="add">+ Add</button>
+</div>
+
+<!-- Stats always visible -->
+<div class="stats-row" id="statsRow"></div>
+
+<div class="section-panel active" id="panel-reading"><div id="readingList"></div></div>
+<div class="section-panel" id="panel-done"><div id="doneList"></div></div>
+<div class="section-panel" id="panel-want"><div id="wantList"></div></div>
+<div class="section-panel" id="panel-learning"><div id="learningList"></div></div>
+
+<div class="section-panel" id="panel-add">
+  <div class="card">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:14px">Add book</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="grid-column:span 2"><div class="label">Title</div><input type="text" id="bTitle" class="inp" placeholder="Book title"></div>
+      <div><div class="label">Author</div><input type="text" id="bAuthor" class="inp" placeholder="Author name"></div>
+      <div><div class="label">Status</div>
+        <select id="bStatus" class="inp">
+          <option value="reading">Currently reading</option>
+          <option value="want">Want to read</option>
+          <option value="done">Finished</option>
+        </select>
+      </div>
+      <div><div class="label">Total pages</div><input type="number" id="bPages" class="inp" placeholder="e.g. 320" min="1"></div>
+      <div><div class="label">Current page</div><input type="number" id="bCurrent" class="inp" placeholder="0" min="0"></div>
+      <div style="grid-column:span 2"><div class="label">Genre / notes</div><input type="text" id="bNotes" class="inp" placeholder="Non-fiction, sci-fi, notes…"></div>
+    </div>
+    <button class="save-btn" id="bSaveBtn" style="margin-bottom:16px">Add book</button>
+  </div>
+  <div class="card">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:14px">Add course / learning goal</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="grid-column:span 2"><div class="label">Course / Skill</div><input type="text" id="cTitle" class="inp" placeholder="e.g. Machine Learning Specialization"></div>
+      <div><div class="label">Platform</div><input type="text" id="cPlatform" class="inp" placeholder="Coursera, YouTube…"></div>
+      <div><div class="label">Target finish</div><input type="date" id="cDue" class="inp"></div>
+      <div><div class="label">Progress %</div><input type="number" id="cPct" class="inp" min="0" max="100" placeholder="0"></div>
+    </div>
+    <button class="save-btn" id="cSaveBtn">Add course</button>
+  </div>
+</div>
+</main>
+
+<script>
+(function(){
+'use strict';
+const BOOK_KEY='library:books:v1';
+const COURSE_KEY='library:courses:v1';
+function loadBooks(){return JSON.parse(localStorage.getItem(BOOK_KEY)||'[]')}
+function saveBooks(d){localStorage.setItem(BOOK_KEY,JSON.stringify(d))}
+function loadCourses(){return JSON.parse(localStorage.getItem(COURSE_KEY)||'[]')}
+function saveCourses(d){localStorage.setItem(COURSE_KEY,JSON.stringify(d))}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function today(){return new Date().toISOString().slice(0,10)}
+
+function renderStats(){
+  const books=loadBooks();
+  const done=books.filter(b=>b.status==='done').length;
+  const reading=books.filter(b=>b.status==='reading').length;
+  const courses=loadCourses();
+  const doneC=courses.filter(c=>c.pct>=100).length;
+  document.getElementById('statsRow').innerHTML=[
+    {val:done,label:'Books read'},
+    {val:reading,label:'Reading now'},
+    {val:doneC,label:'Courses done'},
+  ].map(s=>`<div class="stat-card"><div class="stat-val">${s.val}</div><div class="stat-label">${s.label}</div></div>`).join('');
+}
+
+function bookCard(b){
+  const pct=b.pages?Math.min(100,Math.round((b.current||0)/b.pages*100)):0;
+  const stars=[1,2,3,4,5].map(i=>`<span class="star${(b.rating||0)>=i?' lit':''}" data-book-id="${b.id}" data-star="${i}">★</span>`).join('');
+  return `<div class="book-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div class="book-title">${escHtml(b.title)}</div>
+        <div class="book-author">${b.author?escHtml(b.author):''}${b.notes?' · '+escHtml(b.notes):''}</div>
+      </div>
+      <button onclick="deleteBook('${b.id}')" style="background:transparent;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:16px;padding:0 0 0 8px">×</button>
+    </div>
+    ${b.status==='reading'&&b.pages?`
+    <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:12px;color:var(--text-tertiary)">${pct}% · p${b.current||0}/${b.pages}</div>
+      <div style="display:flex;gap:6px">
+        <input type="number" min="0" max="${b.pages}" value="${b.current||0}" style="width:60px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:4px 6px;color:var(--text-primary);font-size:12px;font-family:inherit;outline:none" data-page-book="${b.id}">
+        <button onclick="updatePage('${b.id}',this.previousElementSibling.value)" style="padding:4px 10px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit">Save</button>
+        <button onclick="markDone('${b.id}')" style="padding:4px 10px;border-radius:6px;background:rgba(29,158,117,.12);border:1px solid rgba(29,158,117,.2);color:#4BC9A0;font-size:12px;cursor:pointer;font-family:inherit">Finished</button>
+      </div>
+    </div>`:
+    b.status==='done'?`<div class="rating-row">${stars}</div>`:'' }
+    ${b.status==='want'?`<button onclick="startReading('${b.id}')" style="padding:6px 14px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:inherit">Start reading →</button>`:''}
+    ${b.finishedDate?`<div style="font-size:11px;color:var(--text-tertiary)">Finished ${b.finishedDate}</div>`:''}
+  </div>`;
+}
+
+function courseCard(c){
+  const pct=Math.min(100,c.pct||0);
+  const overdue=c.due&&c.due<today()&&pct<100;
+  return `<div class="course-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+      <div>
+        <div class="course-title">${escHtml(c.title)}</div>
+        <div style="font-size:12px;color:var(--text-tertiary)">${c.platform?escHtml(c.platform):''} ${c.due?`· due ${c.due}`:''}${overdue?' ⚠️':''}</div>
+      </div>
+      <button onclick="deleteCourse('${c.id}')" style="background:transparent;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:16px;padding:0 0 0 8px">×</button>
+    </div>
+    <div class="progress-track" style="margin-bottom:6px"><div class="progress-fill" style="width:${pct}%;${pct>=100?'background:#F2C063':''}"></div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:12px;color:var(--text-tertiary)">${pct}%${pct>=100?' · Complete ✓':''}</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="number" min="0" max="100" value="${pct}" style="width:55px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:4px 6px;color:var(--text-primary);font-size:12px;font-family:inherit;outline:none" data-pct-course="${c.id}">
+        <button onclick="updateCourse('${c.id}',this.previousElementSibling.value)" style="padding:4px 10px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit">%</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderBooks(status){
+  const books=loadBooks().filter(b=>b.status===status);
+  const id={reading:'readingList',done:'doneList',want:'wantList'}[status];
+  const el=document.getElementById(id);
+  if(!el)return;
+  if(!books.length){el.innerHTML=`<div class="empty">No books here yet</div>`;return;}
+  el.innerHTML=books.map(bookCard).join('');
+  // star rating delegation
+  el.querySelectorAll('.star').forEach(s=>s.addEventListener('click',()=>{
+    const id=s.dataset.bookId,rating=parseInt(s.dataset.star);
+    const books=loadBooks();const b=books.find(x=>x.id===id);if(b){b.rating=rating;saveBooks(books);renderBooks('done');}
+  }));
+}
+function renderCourses(){
+  const courses=loadCourses();
+  const el=document.getElementById('learningList');
+  if(!el)return;
+  if(!courses.length){el.innerHTML='<div class="empty">No courses added yet</div>';return;}
+  el.innerHTML=courses.map(courseCard).join('');
+}
+
+window.deleteBook=function(id){saveBooks(loadBooks().filter(b=>b.id!==id));renderAll();}
+window.markDone=function(id){const books=loadBooks();const b=books.find(x=>x.id===id);if(b){b.status='done';b.current=b.pages;b.finishedDate=today();saveBooks(books);renderAll();}};
+window.startReading=function(id){const books=loadBooks();const b=books.find(x=>x.id===id);if(b){b.status='reading';saveBooks(books);renderAll();}};
+window.updatePage=function(id,val){const books=loadBooks();const b=books.find(x=>x.id===id);if(b){b.current=Math.min(b.pages||9999,parseInt(val)||0);if(b.current>=b.pages){b.status='done';b.finishedDate=today();}saveBooks(books);renderAll();}};
+window.deleteCourse=function(id){saveCourses(loadCourses().filter(c=>c.id!==id));renderCourses();renderStats();}
+window.updateCourse=function(id,val){const cs=loadCourses();const c=cs.find(x=>x.id===id);if(c){c.pct=Math.min(100,parseInt(val)||0);saveCourses(cs);renderCourses();renderStats();}};
+
+document.getElementById('bSaveBtn').addEventListener('click',()=>{
+  const title=document.getElementById('bTitle').value.trim();if(!title)return;
+  const books=loadBooks();
+  books.push({id:Date.now().toString(36),title,author:document.getElementById('bAuthor').value.trim()||null,status:document.getElementById('bStatus').value,pages:parseInt(document.getElementById('bPages').value)||null,current:parseInt(document.getElementById('bCurrent').value)||0,notes:document.getElementById('bNotes').value.trim()||null,addedDate:today()});
+  saveBooks(books);
+  ['bTitle','bAuthor','bPages','bCurrent','bNotes'].forEach(id=>document.getElementById(id).value='');
+  setTab('reading');renderAll();
+});
+
+document.getElementById('cSaveBtn').addEventListener('click',()=>{
+  const title=document.getElementById('cTitle').value.trim();if(!title)return;
+  const cs=loadCourses();
+  cs.push({id:Date.now().toString(36),title,platform:document.getElementById('cPlatform').value.trim()||null,due:document.getElementById('cDue').value||null,pct:parseInt(document.getElementById('cPct').value)||0,addedDate:today()});
+  saveCourses(cs);
+  ['cTitle','cPlatform','cDue','cPct'].forEach(id=>document.getElementById(id).value='');
+  setTab('learning');renderCourses();renderStats();
+});
+
+function renderAll(){renderBooks('reading');renderBooks('done');renderBooks('want');renderStats();}
+function setTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.section-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
+  if(name==='learning')renderCourses();
+  else if(name!=='add')renderBooks(name);
+}
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+renderAll();
+window._libRenderAll = function() { renderAll(); renderCourses(); };
+})();
+
+</script>
+
+<script>
+(function libSync() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var APP_KEY  = 'library-app';
+  var SYNC_KEYS = ['library:books:v1', 'library:courses:v1'];
+
+  var pushTimer = null;
+  var suppressSync = false;
+  var lastSyncedJson = null;
+  var _origSet = localStorage.setItem.bind(localStorage);
+
+  localStorage.setItem = function(k, v) {
+    _origSet(k, v);
+    if (!suppressSync && SYNC_KEYS.indexOf(k) !== -1) { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 500); }
+  };
+
+  function collectState() {
+    var out = {};
+    SYNC_KEYS.forEach(function(k) { var v = localStorage.getItem(k); if (v != null) { try { out[k] = JSON.parse(v); } catch (_) { out[k] = v; } } });
+    return out;
+  }
+
+  function pushNow() {
+    var data = collectState(); var json = JSON.stringify(data);
+    if (json === lastSyncedJson) return;
+    fetch(SUPA_URL + '/rest/v1/app_state', { method: 'POST', headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }) }).then(function() { lastSyncedJson = json; }).catch(function() {});
+  }
+
+  function flushOnUnload() {
+    var data = collectState(); var json = JSON.stringify(data);
+    if (json === lastSyncedJson) return;
+    try { fetch(SUPA_URL + '/rest/v1/app_state', { method: 'POST', headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }), keepalive: true }).catch(function() {}); lastSyncedJson = json; } catch (_) {}
+  }
+
+  window.addEventListener('pagehide', flushOnUnload);
+  window.addEventListener('beforeunload', flushOnUnload);
+  document.addEventListener('visibilitychange', function() { if (document.hidden) flushOnUnload(); });
+
+  fetch(SUPA_URL + '/rest/v1/app_state?select=data&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1', { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } })
+  .then(function(r) { return r.json(); })
+  .then(function(rows) {
+    if (!rows || !rows[0] || !rows[0].data) return;
+    suppressSync = true;
+    var changed = false;
+    try { SYNC_KEYS.forEach(function(k) { if (!(k in rows[0].data)) return; var inc = JSON.stringify(rows[0].data[k]); if (localStorage.getItem(k) !== inc) { _origSet(k, inc); changed = true; } }); } finally { suppressSync = false; }
+    lastSyncedJson = JSON.stringify(collectState());
+    if (changed) { try { if (typeof window._libRenderAll === 'function') window._libRenderAll(); } catch (_) {} }
+  }).catch(function() {});
+})();
+</script>
+
+</body>
+</html>

@@ -337,11 +337,27 @@ export default async function handler(req, res) {
       if (auth !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Unauthorized' });
     }
     if (!ANTHROPIC_KEY || !SUPA_URL || !SUPA_KEY) return res.status(500).json({ error: 'Missing env vars' });
+    const isEvening = req.query?.briefing === 'evening' || new Date().getUTCHours() >= 15;
     req.method = 'POST';
-    req.body = {
-      event: 'daily_summary',
-      data: { trigger: 'cron', scheduled_time: new Date().toISOString(), note: "Morning review: summarize yesterday, surface patterns, set today's health focus." },
-    };
+    req.body = isEvening
+      ? {
+          event: 'daily_summary',
+          data: {
+            trigger: 'cron_evening',
+            scheduled_time: new Date().toISOString(),
+            briefing_type: 'evening',
+            note: "Evening wrap-up: 3-line summary of today (what got done, how body/mind felt, notable numbers). Then 2 concrete setup items for tomorrow. Keep it tight — no more than 5 sentences total.",
+          },
+        }
+      : {
+          event: 'daily_summary',
+          data: {
+            trigger: 'cron',
+            scheduled_time: new Date().toISOString(),
+            briefing_type: 'morning',
+            note: "Morning review: summarize yesterday, surface patterns, set today's health focus.",
+          },
+        };
   }
 
   if (req.method !== 'POST') return res.status(405).end();

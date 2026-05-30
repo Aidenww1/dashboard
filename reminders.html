@@ -74,6 +74,15 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
     </div>
   </div>
 
+  <!-- Supplement Impact on Bloodwork -->
+  <div class="card" id="suppBloodCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="section-title" style="margin-bottom:0">Supplement Impact</div>
+      <div style="font-size:11px;color:var(--text-tertiary)">Recent bloodwork markers</div>
+    </div>
+    <div id="suppBloodList"><div style="font-size:13px;color:var(--text-tertiary);padding:4px 0">Log supplements + bloodwork to see correlations.</div></div>
+  </div>
+
   <!-- Permission status -->
   <div class="card">
     <div class="section-title">Notification permission</div>
@@ -412,6 +421,88 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
 </script>
 
 <script>
+(function suppBloodLink() {
+  'use strict';
+
+  var SUPP_MARKER_MAP = {
+    'vitamin d': ['vitamin d', '25-oh-d', 'vitd', 'vit d'],
+    'omega 3': ['triglycerides', 'hdl', 'omega'],
+    'magnesium': ['magnesium', 'mg'],
+    'zinc': ['zinc', 'zn'],
+    'iron': ['iron', 'ferritin', 'hemoglobin', 'hematocrit'],
+    'vitamin b12': ['b12', 'vitamin b12', 'cobalamin'],
+    'vitamin c': ['vitamin c', 'ascorbic'],
+    'creatine': ['creatinine', 'creatine'],
+    'calcium': ['calcium', 'ca'],
+    'folate': ['folate', 'folic acid'],
+  };
+
+  function renderSuppBlood() {
+    var el = document.getElementById('suppBloodList');
+    if (!el) return;
+
+    var stack;
+    try { stack = JSON.parse(localStorage.getItem('supps:stack')||'[]'); } catch(e) { stack = []; }
+    var bloodLogs;
+    try { bloodLogs = JSON.parse(localStorage.getItem('blood:logs')||'[]'); } catch(e) { bloodLogs = []; }
+
+    if (!stack.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary)">Add supplements to your stack to see impact tracking.</div>'; return; }
+    if (!bloodLogs.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary)">No bloodwork logged yet. Add results in Health &gt; Bloodwork to see markers here.</div>'; return; }
+
+    var rows = [];
+    stack.forEach(function(s) {
+      var sName = (s.name||'').toLowerCase();
+      var keywords = null;
+      Object.keys(SUPP_MARKER_MAP).forEach(function(k) {
+        if (sName.includes(k)) keywords = SUPP_MARKER_MAP[k];
+      });
+      if (!keywords) return;
+
+      var matchedMarkers = [];
+      bloodLogs.forEach(function(panel) {
+        (panel.markers || []).forEach(function(m) {
+          var mName = (m.name||m.marker||'').toLowerCase();
+          if (keywords.some(function(kw){ return mName.includes(kw); })) {
+            matchedMarkers.push({ date: panel.date||panel.created_at||'', marker: m.name||m.marker, value: m.value, unit: m.unit||'', ref: m.ref||m.reference||'' });
+          }
+        });
+      });
+
+      if (matchedMarkers.length) {
+        matchedMarkers.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+        rows.push({ supp: s.name, markers: matchedMarkers.slice(0,3) });
+      } else {
+        rows.push({ supp: s.name, markers: [] });
+      }
+    });
+
+    if (!rows.length) { el.innerHTML = '<div style="font-size:13px;color:var(--text-tertiary)">No known markers tracked for your current stack.</div>'; return; }
+
+    el.innerHTML = rows.map(function(r) {
+      var markerHtml = r.markers.length
+        ? r.markers.map(function(m) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-radius:8px;background:rgba(255,255,255,0.03);margin-top:4px">'
+              + '<span style="font-size:12px;color:var(--text-secondary)">' + m.marker + '</span>'
+              + '<span style="font-size:12px;font-weight:700;color:#FAFAFA">' + m.value + ' ' + m.unit + '</span>'
+              + (m.date ? '<span style="font-size:10px;color:var(--text-tertiary)">' + m.date.slice(0,10) + '</span>' : '')
+              + '</div>';
+          }).join('')
+        : '<div style="font-size:11px;color:var(--text-quaternary);padding:4px 0">No matching markers in bloodwork yet.</div>';
+      return '<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
+        + '<div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px">💊 ' + r.supp + '</div>'
+        + markerHtml
+        + '</div>';
+    }).join('');
+  }
+
+  renderSuppBlood();
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'blood:logs' || e.key === 'supps:stack') renderSuppBlood();
+  });
+})();
+</script>
+
+<script>
 (function remindersSync() {
   var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
   var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
@@ -491,6 +582,29 @@ window.addEventListener('lifeos:event', function(e) {
   var d = e.detail; if (!d || !d.updated) return;
   if (d.type === 'supplements.taken' && window._suppRenderAll) window._suppRenderAll();
 });
+</script>
+<script>
+(function aiCommentary() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var DOMAIN = 'supplements';
+  var since = new Date(Date.now() - 14*86400000).toISOString();
+  fetch(SUPA_URL + '/rest/v1/events?select=type,data,ts&type=in.(ai.insight,ai.flag)&order=ts.desc&limit=10&ts=gte=' + encodeURIComponent(since), {
+    headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(rows) {
+    var match = (rows||[]).find(function(r) {
+      var doms = (r.data && r.data.domains) ? r.data.domains : [];
+      return doms.includes(DOMAIN) || doms.includes('bloodwork');
+    });
+    if (!match || !match.data || !match.data.text) return;
+    var isFlag = match.type === 'ai.flag';
+    var div = document.createElement('div');
+    div.style.cssText = 'background:' + (isFlag?'rgba(255,107,107,0.08)':'rgba(107,227,164,0.06)') + ';border:1px solid ' + (isFlag?'rgba(255,107,107,0.2)':'rgba(107,227,164,0.15)') + ';border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5';
+    div.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + (isFlag?'#FF9999':'#86EFAC') + ';margin-right:8px">' + (isFlag?'AI Flag':'AI Insight') + '</span>' + match.data.text;
+    var shell = document.querySelector('.shell');
+    if (shell) shell.insertBefore(div, shell.firstChild);
+  }).catch(function(){});
+})();
 </script>
 
 </body>

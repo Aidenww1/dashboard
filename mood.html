@@ -733,6 +733,30 @@ window.addEventListener('lifeos:event', function(e) {
   if (d.type === 'mood.rating' && window._moodRenderAll) window._moodRenderAll();
 });
 </script>
+<script>
+(function aiCommentary() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var DOMAIN = 'mood';
+  var since = new Date(Date.now() - 7*86400000).toISOString();
+  fetch(SUPA_URL + '/rest/v1/events?select=type,data,ts&type=in.(ai.insight,ai.flag)&order=ts.desc&limit=10&ts=gte=' + encodeURIComponent(since), {
+    headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(rows) {
+    var match = (rows||[]).find(function(r) {
+      var doms = (r.data && r.data.domains) ? r.data.domains : [];
+      return doms.includes(DOMAIN);
+    });
+    if (!match || !match.data || !match.data.text) return;
+    var isFlag = match.type === 'ai.flag';
+    var div = document.createElement('div');
+    div.style.cssText = 'background:' + (isFlag?'rgba(255,107,107,0.08)':'rgba(107,227,164,0.06)') + ';border:1px solid ' + (isFlag?'rgba(255,107,107,0.2)':'rgba(107,227,164,0.15)') + ';border-radius:12px;padding:10px 14px;margin:8px 0 12px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5';
+    div.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + (isFlag?'#FF9999':'#86EFAC') + ';margin-right:8px">' + (isFlag?'AI Flag':'AI Insight') + '</span>' + match.data.text;
+    var shell = document.querySelector('.shell,.main-shell,main,[class*="shell"]');
+    if (shell) shell.insertBefore(div, shell.firstChild);
+    else document.body.insertBefore(div, document.body.firstChild);
+  }).catch(function(){});
+})();
+</script>
 
 </body>
 </html>

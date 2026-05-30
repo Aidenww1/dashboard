@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Social · Daily Stack</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root {
+  --bg:#050506; --bg-card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.06);
+  --border-strong:rgba(255,255,255,0.12); --text-primary:#FAFAFA; --text-secondary:#B8B6B0;
+  --text-tertiary:#76746E; --accent:#1D9E75; --warning:#FF8A4D;
+  --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text-secondary);font-family:var(--font);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(60% 50% at 70% 10%,rgba(155,107,255,0.12) 0%,transparent 60%),radial-gradient(50% 40% at 20% 85%,rgba(75,201,160,0.07) 0%,transparent 60%);filter:blur(40px);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,0.014) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:1}
+main{position:relative;z-index:2;max-width:720px;margin:0 auto;padding:56px 20px 120px;padding-top:max(56px,env(safe-area-inset-top,56px))}
+
+.tab-bar{display:flex;gap:6px;margin-bottom:20px;background:rgba(255,255,255,0.03);border-radius:12px;padding:4px}
+.tab-btn{flex:1;padding:8px 12px;border-radius:9px;border:none;background:transparent;color:var(--text-tertiary);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s}
+.tab-btn.active{background:rgba(255,255,255,0.08);color:var(--text-primary)}
+
+.card{background:var(--bg-card);border-radius:14px;padding:16px;border:1px solid var(--border);margin-bottom:10px}
+.label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px}
+.inp{width:100%;background:rgba(0,0,0,.28);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:14px;font-family:var(--font);outline:none}
+.inp:focus{border-color:var(--border-strong)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.form-full{grid-column:span 2}
+.save-btn{width:100%;padding:12px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)}
+
+.contact-card{background:var(--bg-card);border-radius:14px;padding:14px 16px;border:1px solid var(--border);margin-bottom:8px;display:flex;align-items:center;gap:14px}
+.contact-avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff}
+.contact-name{font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:2px}
+.contact-meta{font-size:12px;color:var(--text-tertiary)}
+.contact-since{font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap}
+.contact-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+.bday-card{background:var(--bg-card);border-radius:14px;padding:14px 16px;border:1px solid var(--border);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.bday-name{font-size:14px;font-weight:700;color:var(--text-primary)}
+.bday-date{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+.bday-days{font-size:13px;font-weight:800;white-space:nowrap}
+
+.empty{text-align:center;padding:40px 20px;color:var(--text-tertiary);font-size:14px}
+
+.section-panel{display:none}
+.section-panel.active{display:block}
+
+@media(max-width:480px){.form-grid{grid-template-columns:1fr}.form-full{grid-column:span 1}}
+@media(min-width:900px){main{max-width:1280px!important;padding-left:32px!important;padding-right:32px!important}}
+</style>
+</head>
+<body>
+<script src="topbar.js" defer></script>
+<script src="tabbar.js" defer></script>
+<script src="pwa.js" defer></script>
+<main>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="contacts">👥 Contacts</button>
+  <button class="tab-btn" data-tab="birthdays">🎂 Birthdays</button>
+  <button class="tab-btn" data-tab="add">+ Add</button>
+</div>
+
+<div class="section-panel active" id="panel-contacts">
+  <div id="overdueList"></div>
+  <div id="contactList"></div>
+</div>
+
+<div class="section-panel" id="panel-birthdays">
+  <div id="birthdayList"></div>
+</div>
+
+<div class="section-panel" id="panel-add">
+  <div class="card">
+    <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:14px">Add contact</div>
+    <div class="form-grid">
+      <div class="form-full">
+        <div class="label">Name</div>
+        <input type="text" id="cName" class="inp" placeholder="Full name">
+      </div>
+      <div>
+        <div class="label">Relationship</div>
+        <select id="cRel" class="inp">
+          <option value="friend">Friend</option>
+          <option value="close_friend">Close friend</option>
+          <option value="family">Family</option>
+          <option value="colleague">Colleague</option>
+          <option value="mentor">Mentor</option>
+          <option value="acquaintance">Acquaintance</option>
+          <option value="romantic">Romantic</option>
+        </select>
+      </div>
+      <div>
+        <div class="label">Birthday (optional)</div>
+        <input type="date" id="cBday" class="inp">
+      </div>
+      <div class="form-full">
+        <div class="label">Notes</div>
+        <input type="text" id="cNotes" class="inp" placeholder="How you met, topics they love…">
+      </div>
+      <div>
+        <div class="label">Keep-in-touch every</div>
+        <select id="cFreq" class="inp">
+          <option value="7">1 week</option>
+          <option value="14" selected>2 weeks</option>
+          <option value="30">1 month</option>
+          <option value="60">2 months</option>
+          <option value="90">3 months</option>
+          <option value="180">6 months</option>
+          <option value="365">1 year</option>
+        </select>
+      </div>
+    </div>
+    <button class="save-btn" id="cSaveBtn">Add contact</button>
+  </div>
+</div>
+
+</main>
+<script>
+(function(){
+'use strict';
+const KEY='social:contacts:v1';
+const REL_LABELS={friend:'Friend',close_friend:'Close friend',family:'Family',colleague:'Colleague',mentor:'Mentor',acquaintance:'Acquaintance',romantic:'Romantic'};
+const REL_COLORS={friend:'#5B8DEF',close_friend:'#9B6BFF',family:'#E07658',colleague:'#F2C063',mentor:'#4BC9A0',acquaintance:'#76746E',romantic:'#FF8FAB'};
+function load(){return JSON.parse(localStorage.getItem(KEY)||'[]')}
+function save(d){localStorage.setItem(KEY,JSON.stringify(d))}
+function today(){return new Date().toISOString().slice(0,10)}
+function daysSince(dateStr){if(!dateStr)return 9999;return Math.floor((Date.now()-new Date(dateStr).getTime())/864e5)}
+function daysUntilBday(bdayStr){
+  if(!bdayStr)return null;
+  const now=new Date(),y=now.getFullYear();
+  const [,m,d]=bdayStr.split('-');
+  let next=new Date(y,m-1,d);
+  if(next<now)next=new Date(y+1,m-1,d);
+  return Math.ceil((next-now)/864e5);
+}
+function initials(name){return name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase()}
+
+function renderContacts(){
+  const contacts=load();
+  const overdueEl=document.getElementById('overdueList');
+  const listEl=document.getElementById('contactList');
+  if(!contacts.length){listEl.innerHTML='<div class="empty">No contacts yet — add some from the + tab</div>';overdueEl.innerHTML='';return;}
+  const now=today();
+  const overdue=contacts.filter(c=>{const d=daysSince(c.lastContact);return d>(c.freq||30);}).sort((a,b)=>daysSince(b.lastContact)-daysSince(a.lastContact));
+  const rest=contacts.filter(c=>{const d=daysSince(c.lastContact);return d<=(c.freq||30);}).sort((a,b)=>a.name.localeCompare(b.name));
+
+  overdueEl.innerHTML=overdue.length?`<div class="label" style="margin-bottom:8px;color:#FF8A4D">⚠ Overdue check-ins</div>`+overdue.map(c=>contactCard(c,true)).join(''):'';
+  listEl.innerHTML=rest.length?`<div class="label" style="margin-bottom:8px">ALL CONTACTS</div>`+rest.map(c=>contactCard(c,false)).join(''):'';
+}
+
+function contactCard(c,overdue){
+  const days=daysSince(c.lastContact);
+  const color=REL_COLORS[c.rel]||'#76746E';
+  const sinceColor=overdue?'#FF8A4D':'#4BC9A0';
+  const sinceLabel=c.lastContact?`${days}d ago`:'never';
+  return `<div class="contact-card">
+    <div class="contact-avatar" style="background:${color}">${initials(c.name)}</div>
+    <div style="flex:1;min-width:0">
+      <div class="contact-name">${escHtml(c.name)}</div>
+      <div class="contact-meta">${REL_LABELS[c.rel]||c.rel}${c.notes?` · ${escHtml(c.notes)}`:''}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <span class="contact-since" style="background:${sinceColor}22;color:${sinceColor};border:1px solid ${sinceColor}33">${sinceLabel}</span>
+      <div style="display:flex;gap:6px">
+        <button onclick="logContact('${c.id}')" style="padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit">✓ Saw them</button>
+        <button onclick="deleteContact('${c.id}')" style="background:transparent;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:13px;padding:2px">×</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.logContact=function(id){const c=load();const f=c.find(x=>x.id===id);if(f){f.lastContact=today();save(c);renderContacts();}};
+window.deleteContact=function(id){save(load().filter(x=>x.id!==id));renderContacts();renderBirthdays();};
+
+function renderBirthdays(){
+  const contacts=load().filter(c=>c.bday).sort((a,b)=>{const da=daysUntilBday(a.bday)||999,db=daysUntilBday(b.bday)||999;return da-db;});
+  const el=document.getElementById('birthdayList');
+  if(!contacts.length){el.innerHTML='<div class="empty">No birthdays logged yet</div>';return;}
+  el.innerHTML=`<div class="label" style="margin-bottom:8px">UPCOMING BIRTHDAYS</div>`+contacts.map(c=>{
+    const days=daysUntilBday(c.bday);
+    const color=days===0?'#F2C063':days<=7?'#FF8A4D':'#4BC9A0';
+    const label=days===0?'🎂 Today!':days===1?'Tomorrow':days<=7?`In ${days} days`:days<=30?`In ${days} days`:`In ${days} days`;
+    const [,m,d]=c.bday.split('-');
+    const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `<div class="bday-card">
+      <div>
+        <div class="bday-name">${escHtml(c.name)}</div>
+        <div class="bday-date">${months[m-1]} ${parseInt(d)} · ${REL_LABELS[c.rel]||c.rel}</div>
+      </div>
+      <div class="bday-days" style="color:${color}">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('cSaveBtn').addEventListener('click',()=>{
+  const name=document.getElementById('cName').value.trim();
+  if(!name)return;
+  const contacts=load();
+  contacts.push({id:Date.now().toString(36),name,rel:document.getElementById('cRel').value,bday:document.getElementById('cBday').value||null,notes:document.getElementById('cNotes').value.trim()||null,freq:parseInt(document.getElementById('cFreq').value)||30,lastContact:null,createdAt:today()});
+  save(contacts);
+  ['cName','cBday','cNotes'].forEach(id=>document.getElementById(id).value='');
+  setTab('contacts');renderContacts();
+});
+
+function setTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.section-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
+  if(name==='contacts')renderContacts();
+  if(name==='birthdays')renderBirthdays();
+}
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+window._socialRender = function() { renderContacts(); renderBirthdays(); };
+renderContacts();
+})();
+</script>
+
+<script>
+(function socialSync() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var APP_KEY  = 'social-app';
+  var SYNC_KEYS = ['social:contacts:v1'];
+  var _origSet = localStorage.setItem.bind(localStorage);
+  var pushTimer = null;
+  var lastJson = null;
+
+  localStorage.setItem = function(k, v) {
+    _origSet(k, v);
+    if (SYNC_KEYS.indexOf(k) !== -1) schedulePush();
+  };
+
+  function collect() {
+    var out = {};
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var v = localStorage.getItem(SYNC_KEYS[i]);
+      if (v != null) try { out[SYNC_KEYS[i]] = JSON.parse(v); } catch (_) {}
+    }
+    return out;
+  }
+
+  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 400); }
+
+  function pushNow() {
+    var data = collect();
+    var json = JSON.stringify(data);
+    if (json === lastJson) return;
+    lastJson = json;
+    try {
+      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }),
+        keepalive: true,
+      }).catch(function() {});
+    } catch (_) {}
+  }
+
+  function applyRemote(remote) {
+    if (!remote || typeof remote !== 'object') return;
+    var changed = false;
+    for (var i = 0; i < SYNC_KEYS.length; i++) {
+      var k = SYNC_KEYS[i];
+      if (k in remote) {
+        var incoming = JSON.stringify(remote[k]);
+        if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch (_) {} }
+      }
+    }
+    if (changed && window._socialRender) try { window._socialRender(); } catch (_) {}
+  }
+
+  (async function init() {
+    var url = SUPA_URL + '/rest/v1/app_state?select=data,updated_at&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1';
+    try {
+      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
+      if (r.ok) {
+        var rows = await r.json();
+        if (rows[0] && rows[0].data) {
+          lastJson = JSON.stringify(rows[0].data);
+          applyRemote(rows[0].data);
+        } else if (Object.keys(collect()).length > 0) {
+          schedulePush();
+        }
+      }
+    } catch (_) {}
+  })();
+
+  window.addEventListener('pagehide', pushNow);
+  window.addEventListener('beforeunload', pushNow);
+  document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
+})();
+</script>
+
+</body>
+</html>

@@ -2424,6 +2424,22 @@ img, video, canvas, svg { max-width: 100%; }
     <button id="cardioSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Log cardio session</button>
   </div>
 
+  <!-- AI COMMENTARY -->
+  <div id="aiCommentaryGym" style="display:none;background:rgba(91,141,239,0.08);border:1px solid rgba(91,141,239,0.2);border-radius:12px;padding:12px 14px;margin:12px 0;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5"></div>
+
+  <!-- FATIGUE / RECOVERY SIGNAL -->
+  <div class="gym-section-divider" style="margin-top:28px"><span>Fatigue &amp; Recovery</span></div>
+  <div id="fatigueCard" style="background:rgba(255,255,255,0.04);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div id="fatigueStatus" style="font-size:28px;font-weight:900;line-height:1">—</div>
+      <div style="flex:1;min-width:120px">
+        <div id="fatigueLabel" style="font-size:13px;font-weight:700;color:#FAFAFA;margin-bottom:2px">Computing…</div>
+        <div id="fatigueSub" style="font-size:11px;color:rgba(255,255,255,0.4)"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-width:240px" id="fatigueStats"></div>
+    </div>
+  </div>
+
   <!-- VOLUME OVER TIME PER EXERCISE -->
   <div class="gym-section-divider" style="margin-top:28px"><span>Volume Trend per Exercise</span></div>
   <div style="background:rgba(255,255,255,0.04);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px">
@@ -5347,6 +5363,107 @@ renderPRBoard();
 </script>
 
 <script>
+// ===== FATIGUE / RECOVERY SIGNAL =====
+(function fatigueSignal() {
+  function renderFatigue() {
+    var state;
+    try { state = JSON.parse(localStorage.getItem('po_coach_v1') || 'null'); } catch(e) {}
+    if (!state || !state.exercises || !state.logs) return;
+
+    // Build daily volume map: dateKey → total volume (weight × reps)
+    var dailyVol = {};
+    var trainDays = new Set();
+    state.exercises.forEach(function(ex) {
+      (state.logs[ex.id] || []).forEach(function(l) {
+        var dk = (l.date || '').slice(0, 10);
+        if (!dk) return;
+        dailyVol[dk] = (dailyVol[dk] || 0) + (l.weight || 0) * (l.reps || 0);
+        trainDays.add(dk);
+      });
+    });
+
+    // Acute load: sum of last 7 days
+    var now = new Date(); now.setHours(0, 0, 0, 0);
+    var acuteVol = 0, chronicVol = 0;
+    var acuteDays = 0, chronicDays = 0;
+    for (var i = 0; i < 35; i++) {
+      var d = new Date(now); d.setDate(now.getDate() - i);
+      var dk = d.toISOString().slice(0, 10);
+      var v = dailyVol[dk] || 0;
+      if (i < 7) { acuteVol += v; if (v > 0) acuteDays++; }
+      else { chronicVol += v; if (v > 0) chronicDays++; }
+    }
+    var chronicAvgWeekly = chronicDays > 0 ? (chronicVol / 4) : 0; // avg over 4 prior weeks
+
+    // Consecutive training days (accumulated fatigue)
+    var consecutive = 0;
+    for (var j = 0; j < 14; j++) {
+      var dd = new Date(now); dd.setDate(now.getDate() - j);
+      var ddKey = dd.toISOString().slice(0, 10);
+      if (trainDays.has(ddKey)) consecutive++;
+      else if (j > 0) break;
+    }
+
+    var statusEl = document.getElementById('fatigueStatus');
+    var labelEl  = document.getElementById('fatigueLabel');
+    var subEl    = document.getElementById('fatigueSub');
+    var statsEl  = document.getElementById('fatigueStats');
+    if (!statusEl) return;
+
+    var ratio = chronicAvgWeekly > 0 ? acuteVol / chronicAvgWeekly : null;
+    var status, color, label, sub;
+
+    if (acuteDays === 0) {
+      status = '—'; color = 'rgba(255,255,255,0.3)'; label = 'No sessions this week';
+      sub = 'Log sets to compute fatigue load.';
+    } else if (ratio === null || chronicDays === 0) {
+      status = '↺'; color = '#7DD3FC'; label = 'Building baseline';
+      sub = 'Need 4+ weeks of data for full signal.';
+    } else if (ratio < 0.8) {
+      status = 'FRESH'; color = '#6BE3A4'; label = 'Below average load — well recovered';
+      sub = 'Good week to push harder or add volume.';
+    } else if (ratio <= 1.3) {
+      status = 'OPTIMAL'; color = '#FBBF24'; label = 'Load in optimal zone';
+      sub = 'Acute:chronic ratio ' + ratio.toFixed(2) + ' — keep progressing.';
+    } else {
+      status = 'LOADED'; color = '#FF6B6B'; label = 'High acute load — monitor recovery';
+      sub = 'Ratio ' + ratio.toFixed(2) + '. Consider deload if performance drops.';
+    }
+
+    if (consecutive >= 4) {
+      sub += ' ' + consecutive + ' consecutive training days.';
+      if (consecutive >= 5 && ratio !== null && ratio > 1.0) color = '#FF6B6B';
+    }
+
+    statusEl.textContent = status;
+    statusEl.style.color = color;
+    labelEl.textContent = label;
+    subEl.textContent = sub;
+
+    var weekTotal = Object.entries(dailyVol).filter(function(e) {
+      var d = new Date(now); d.setDate(now.getDate() - 6);
+      return e[0] >= d.toISOString().slice(0, 10);
+    }).reduce(function(s, e) { return s + e[1]; }, 0);
+
+    statsEl.innerHTML = [
+      { lbl: '7d volume', val: weekTotal > 0 ? Math.round(weekTotal) + ' kg' : '—' },
+      { lbl: 'Train days', val: acuteDays + '/7' },
+      { lbl: 'Streak', val: consecutive > 0 ? consecutive + 'd' : '0d' },
+    ].map(function(s) {
+      return '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:10px;text-align:center">'
+        + '<div style="font-size:16px;font-weight:800;color:#FAFAFA">' + s.val + '</div>'
+        + '<div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">' + s.lbl + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  window._fatigueRender = renderFatigue;
+  renderFatigue();
+  window.addEventListener('storage', function(e) { if (e.key === 'po_coach_v1') renderFatigue(); });
+})();
+</script>
+
+<script>
 /* ===== SUPPLEMENT STACK ===== */
 (() => {
   'use strict';
@@ -5778,7 +5895,32 @@ window.addEventListener('lifeos:event', function(e) {
   var d = e.detail; if (!d || !d.updated) return;
   if (d.type === 'body.weight' && window._wtRerender) window._wtRerender();
   if (d.type === 'body.measurement' && window._measRender) window._measRender();
+  if ((d.type||'').startsWith('workout') || (d.type||'').startsWith('body')) window._fatigueRender && window._fatigueRender();
 });
+</script>
+<script>
+(function() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var el = document.getElementById('aiCommentaryGym');
+  if (!el) return;
+  var since = new Date(Date.now() - 7*86400000).toISOString();
+  fetch(SUPA_URL + '/rest/v1/events?select=type,data,ts&type=in.(ai.insight,ai.flag)&order=ts.desc&limit=5&ts=gte=' + encodeURIComponent(since), {
+    headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(rows) {
+    var match = (rows||[]).find(function(r) {
+      var doms = r.data && r.data.domains ? r.data.domains : [];
+      return doms.includes('training') || doms.includes('workout') || doms.includes('body');
+    }) || rows[0];
+    if (match && match.data && match.data.text) {
+      var isFlag = match.type === 'ai.flag';
+      el.style.display = '';
+      el.style.background = isFlag ? 'rgba(255,107,107,0.08)' : 'rgba(107,227,164,0.06)';
+      el.style.borderColor = isFlag ? 'rgba(255,107,107,0.2)' : 'rgba(107,227,164,0.15)';
+      el.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + (isFlag?'#FF9999':'#86EFAC') + ';margin-right:8px">' + (isFlag?'Flag':'Insight') + '</span>' + match.data.text;
+    }
+  }).catch(function(){});
+})();
 </script>
 
 </body>

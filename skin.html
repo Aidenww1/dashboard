@@ -197,6 +197,42 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
     <ul class="sk-routine-list" id="routineList"></ul>
   </div>
 
+  <!-- Stacking Warning Banner (shown dynamically) -->
+  <div id="stackingWarning" style="display:none;background:rgba(255,107,107,0.1);border:1px solid rgba(255,107,107,0.3);border-radius:12px;padding:12px 16px;margin:8px 0 12px;font-size:13px;color:#FF9999;line-height:1.5"></div>
+
+  <!-- Device Recovery Windows -->
+  <div class="s-head">Device Sessions &amp; Recovery</div>
+  <div class="sk-card" id="deviceCard">
+    <p style="font-size:12px;color:var(--text-tertiary);margin:0 0 12px">Log microneedling, LED, or chemical peel sessions. Recovery windows are tracked automatically.</p>
+    <div id="deviceRecoveryList"></div>
+    <button class="sk-btn-add" id="addDeviceBtn">+ Log device session</button>
+    <div class="sk-form" id="deviceForm">
+      <div class="sk-form-cols">
+        <div>
+          <div class="sk-label">Device / Treatment</div>
+          <select class="sk-select" id="devType">
+            <option value="microneedling">Microneedling</option>
+            <option value="led">LED therapy</option>
+            <option value="chemical_peel">Chemical peel</option>
+            <option value="dermaroller">Dermaroller</option>
+            <option value="rf">RF (radiofrequency)</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <div class="sk-label">Date</div>
+          <input class="sk-input" type="date" id="devDate">
+        </div>
+      </div>
+      <div class="sk-label">Notes (depth, settings, reaction…)</div>
+      <textarea class="sk-input" id="devNotes" placeholder="e.g. 0.5mm, light redness after" style="min-height:48px"></textarea>
+      <div class="sk-form-row">
+        <button class="sk-btn-ghost" id="devCancel">Cancel</button>
+        <button class="sk-btn-primary" id="devSave">Log session</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Product Library -->
   <div class="s-head">Product Library</div>
   <div class="sk-card">
@@ -536,6 +572,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
         rl[today] = arr;
         save(ROUTINE_KEY, rl);
         renderRoutine();
+        checkStackingWarning();
       });
     });
   }
@@ -544,13 +581,13 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
     _rtTab = 'am';
     document.getElementById('rtabAm').classList.add('active');
     document.getElementById('rtabPm').classList.remove('active');
-    renderRoutine();
+    renderRoutine(); checkStackingWarning();
   });
   document.getElementById('rtabPm').addEventListener('click', () => {
     _rtTab = 'pm';
     document.getElementById('rtabPm').classList.add('active');
     document.getElementById('rtabAm').classList.remove('active');
-    renderRoutine();
+    renderRoutine(); checkStackingWarning();
   });
 
   // ── Product Library ────────────────────────────────────────────────────────
@@ -1005,10 +1042,100 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
     el.innerHTML = html;
   }
 
+  // ── Stacking Warning ──────────────────────────────────────────────────────
+
+  const RETINOID_TYPES = new Set(['retinol']);
+  const ACID_TYPES = new Set(['exfoliant']);
+  const VITAMIN_C_KEYWORDS = ['vitamin c', 'ascorbic', 'l-ascorbic'];
+
+  function checkStackingWarning() {
+    const warn = document.getElementById('stackingWarning');
+    if (!warn) return;
+    if (_rtTab !== 'pm') { warn.style.display = 'none'; return; }
+    const prods = load(PRODS_KEY) || [];
+    const routineLogs = load(ROUTINE_KEY) || {};
+    const donePids = new Set(routineLogs[today] || []);
+    const doneProds = prods.filter(p => donePids.has(String(p.id)) && (p.time === 'pm' || p.time === 'both'));
+    const hasRetinoid = doneProds.some(p => RETINOID_TYPES.has(p.type));
+    const hasAcid = doneProds.some(p => ACID_TYPES.has(p.type));
+    const hasVitC = doneProds.some(p =>
+      VITAMIN_C_KEYWORDS.some(kw => (p.name || '').toLowerCase().includes(kw) || (p.notes || '').toLowerCase().includes(kw))
+    );
+    const conflicts = [];
+    if (hasRetinoid && hasAcid) conflicts.push('Retinoid + AHA/BHA on same night — may cause irritation. Use on alternating nights.');
+    if (hasRetinoid && hasVitC) conflicts.push('Retinoid + Vitamin C on same night — pH conflict reduces efficacy. Use Vitamin C in the morning.');
+    if (conflicts.length) {
+      warn.style.display = '';
+      warn.innerHTML = conflicts.map(c => '<div>⚠ ' + c + '</div>').join('');
+    } else {
+      warn.style.display = 'none';
+    }
+  }
+
+  // ── Device Recovery Windows ────────────────────────────────────────────────
+
+  const DEV_KEY = 'skin:device_sessions';
+  const DEV_RECOVERY_DAYS = { microneedling: 5, led: 0, chemical_peel: 7, dermaroller: 4, rf: 3, other: 2 };
+  const DEV_LABELS = { microneedling: 'Microneedling', led: 'LED Therapy', chemical_peel: 'Chemical Peel', dermaroller: 'Dermaroller', rf: 'RF', other: 'Device Session' };
+
+  function renderDeviceRecovery() {
+    const sessions = (load(DEV_KEY) || []).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20);
+    const el = document.getElementById('deviceRecoveryList');
+    if (!el) return;
+    if (!sessions.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text-quaternary);padding:4px 0 10px">No sessions logged yet.</div>'; return; }
+    const todayD = new Date(today + 'T12:00:00');
+    el.innerHTML = sessions.slice(0, 8).map(s => {
+      const sessD = new Date(s.date + 'T12:00:00');
+      const daysSince = Math.round((todayD - sessD) / 86400000);
+      const recoveryDays = DEV_RECOVERY_DAYS[s.type] ?? 2;
+      const remaining = recoveryDays - daysSince;
+      const isRecovering = remaining > 0;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600;color:var(--text-primary)">${DEV_LABELS[s.type] || s.type}</div>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:1px">${s.date}${s.notes ? ' · ' + s.notes.slice(0, 40) : ''}</div>
+        </div>
+        ${isRecovering
+          ? `<div style="padding:4px 10px;border-radius:8px;background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.3);font-size:11px;font-weight:700;color:#FF9999;white-space:nowrap">${remaining}d recovery</div>`
+          : `<div style="padding:4px 10px;border-radius:8px;background:rgba(107,227,164,0.08);border:1px solid rgba(107,227,164,0.2);font-size:11px;font-weight:700;color:#86EFAC;white-space:nowrap">Healed</div>`
+        }
+        <button class="sk-del-btn" data-dsess="${s.id}">✕</button>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-dsess]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        save(DEV_KEY, (load(DEV_KEY) || []).filter(s => String(s.id) !== btn.dataset.dsess));
+        renderDeviceRecovery();
+      });
+    });
+  }
+
+  document.getElementById('addDeviceBtn').addEventListener('click', () => {
+    document.getElementById('devDate').value = today;
+    document.getElementById('devNotes').value = '';
+    document.getElementById('devType').value = 'microneedling';
+    document.getElementById('deviceForm').classList.add('open');
+  });
+  document.getElementById('devCancel').addEventListener('click', () => {
+    document.getElementById('deviceForm').classList.remove('open');
+  });
+  document.getElementById('devSave').addEventListener('click', () => {
+    const type  = document.getElementById('devType').value;
+    const date  = document.getElementById('devDate').value || today;
+    const notes = document.getElementById('devNotes').value.trim();
+    const sessions = load(DEV_KEY) || [];
+    sessions.push({ id: String(Date.now()), type, date, notes });
+    save(DEV_KEY, sessions);
+    document.getElementById('deviceForm').classList.remove('open');
+    renderDeviceRecovery();
+    if (window.addEvent) window.addEvent('skin.device', ['skin'], { type, date, notes }).catch(() => {});
+  });
+
   window._skinRenderAll = function() {
     renderOverview(); renderRoutine(); renderProducts();
     renderHistory(); renderTrend(); renderBreakouts();
     renderIngredients(); renderSkinGoals(); renderCorrelation();
+    checkStackingWarning(); renderDeviceRecovery();
   };
 
   renderOverview();
@@ -1020,6 +1147,8 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
   renderIngredients();
   renderSkinGoals();
   renderCorrelation();
+  checkStackingWarning();
+  renderDeviceRecovery();
 
 })();
 </script>
@@ -1029,7 +1158,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
   var SUPA_URL  = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
   var SUPA_KEY  = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
   var APP_KEY   = 'skin-app';
-  var SYNC_KEYS = ['skin:logs','skin:products','skin:routine:v1','skin:breakouts','skin:ingredients','skin:goals'];
+  var SYNC_KEYS = ['skin:logs','skin:products','skin:routine:v1','skin:breakouts','skin:ingredients','skin:goals','skin:device_sessions'];
   var _origSet  = localStorage.setItem.bind(localStorage);
   var pushTimer = null, lastJson = null;
 
@@ -1105,6 +1234,29 @@ window.addEventListener('lifeos:event', function(e) {
   var d = e.detail; if (!d || !d.updated) return;
   if (d.type === 'skin.routine' && window._skinRenderAll) window._skinRenderAll();
 });
+</script>
+<script>
+(function aiCommentary() {
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var DOMAIN = 'skin';
+  var since = new Date(Date.now() - 14*86400000).toISOString();
+  fetch(SUPA_URL + '/rest/v1/events?select=type,data,ts&type=in.(ai.insight,ai.flag)&order=ts.desc&limit=10&ts=gte=' + encodeURIComponent(since), {
+    headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(rows) {
+    var match = (rows||[]).find(function(r) {
+      var doms = (r.data && r.data.domains) ? r.data.domains : [];
+      return doms.includes(DOMAIN);
+    });
+    if (!match || !match.data || !match.data.text) return;
+    var isFlag = match.type === 'ai.flag';
+    var div = document.createElement('div');
+    div.style.cssText = 'background:' + (isFlag?'rgba(255,107,107,0.08)':'rgba(107,227,164,0.06)') + ';border:1px solid ' + (isFlag?'rgba(255,107,107,0.2)':'rgba(107,227,164,0.15)') + ';border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.5';
+    div.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + (isFlag?'#FF9999':'#86EFAC') + ';margin-right:8px">' + (isFlag?'AI Flag':'AI Insight') + '</span>' + match.data.text;
+    var shell = document.querySelector('main');
+    if (shell) shell.insertBefore(div, shell.firstChild);
+  }).catch(function(){});
+})();
 </script>
 
 </body>

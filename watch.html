@@ -138,6 +138,10 @@
       font-size: 12px; font-weight: 700; flex-shrink: 0;
     }
     .apk-note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+    @media (min-width: 900px) {
+      .page { max-width: 1280px !important; padding-left: 32px; padding-right: 32px; }
+      .two-col { grid-template-columns: repeat(4, 1fr); }
+    }
   </style>
 </head>
 <body>
@@ -166,7 +170,7 @@
 
   <!-- Heart Rate -->
   <div class="card">
-    <div class="card-title">Heart Rate</div>
+    <div class="card-title">Resting Heart Rate</div>
     <div id="hrContent"><div class="no-data">--</div></div>
   </div>
 
@@ -176,22 +180,22 @@
     <div id="sleepContent"><div class="no-data">--</div></div>
   </div>
 
-  <!-- Calories + Weight -->
+  <!-- Calories + Distance -->
   <div class="two-col">
     <div class="card">
       <div class="card-title">Calories</div>
       <div id="calContent"><div class="no-data">--</div></div>
     </div>
     <div class="card">
-      <div class="card-title">Weight</div>
-      <div id="weightContent"><div class="no-data">--</div></div>
+      <div class="card-title">Distance</div>
+      <div id="distContent"><div class="no-data">--</div></div>
     </div>
   </div>
 
-  <!-- SpO2 -->
+  <!-- Floors -->
   <div class="card">
-    <div class="card-title">Blood Oxygen (SpO2)</div>
-    <div id="spo2Content"><div class="no-data">--</div></div>
+    <div class="card-title">Floors Climbed</div>
+    <div id="floorsContent"><div class="no-data">--</div></div>
   </div>
 
   <!-- Exercises -->
@@ -204,17 +208,16 @@
   <div class="card">
     <div class="card-title">Setup Guide</div>
     <ol class="setup-steps">
-      <li>Install Tasker and the TaskerHealthConnect plugin (APK from GitHub)</li>
-      <li>In Samsung Health: Settings &rarr; Connected services &rarr; Health Connect &rarr; enable all data types</li>
-      <li>In Tasker: create a task using TaskerHealthConnect actions to read steps, heart rate, sleep, calories, weight, SpO2</li>
-      <li>Add an HTTP Request action: POST to <strong>https://dashboard-pi-green-48.vercel.app/api/health-sync</strong> with JSON body (see format below)</li>
-      <li>Schedule the task to run daily or on demand</li>
+      <li>Install Tasker + TaskerHealthConnect plugin (RafhaanShah on GitHub)</li>
+      <li>Samsung Health &rarr; Settings &rarr; Connected services &rarr; Health Connect &rarr; enable all data types</li>
+      <li>In Tasker: JavaScriptlet sets <code>%start_ts</code> / <code>%end_ts</code> (today midnight to now)</li>
+      <li>Read Aggregated Data: StepsRecord / COUNT_TOTAL &rarr; immediately POST <code>%healthconnectresult</code> to <strong>/api/health/steps</strong></li>
+      <li>Repeat for each metric: TotalCaloriesBurnedRecord/ENERGY_TOTAL &rarr; <strong>/api/health/totalcalories</strong>, SleepSessionRecord/SLEEP_DURATION_TOTAL &rarr; <strong>/api/health/sleep</strong></li>
+      <li>Schedule task daily or trigger manually</li>
     </ol>
     <div class="apk-note" style="display:block;margin-top:12px">
-      POST body format:<br>
-      { "date": "%DATE", "steps": %steps, "heart_rate_bpm": %hr, "sleep_hours": %sleep_h,
-      "sleep_start_ms": %sleep_start, "sleep_end_ms": %sleep_end,
-      "calories_kcal": %cals, "weight_kg": %weight, "spo2_pct": %spo2 }
+      POST URL: <code>https://dashboard-pi-green-48.vercel.app/api/health/{type}</code><br>
+      POST body: paste <code>%healthconnectresult</code> directly. Content-Type: application/json
     </div>
   </div>
 </div>
@@ -225,8 +228,7 @@
 (() => {
   'use strict';
 
-  const API = '/api/health-sync';
-  const KEY = 'watch:data';
+  const KEY = 'watch:data:v3';
 
   function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
@@ -237,6 +239,29 @@
   function fmtWeekday(dateStr) {
     return new Date(dateStr + 'T12:00').toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
   }
+
+  async function fetchMetric(type) {
+    try {
+      const r = await fetch(`/api/health/read/${type}?limit=100&days=7`, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) return [];
+      const j = await r.json();
+      return j.rows || [];
+    } catch { return []; }
+  }
+
+  function latestByDate(rows, extractFn) {
+    const byDate = {};
+    for (const row of rows) {
+      const date = row.created_at.slice(0, 10);
+      if (!byDate[date] || row.created_at > byDate[date].created_at) {
+        byDate[date] = { date, created_at: row.created_at, ...extractFn(row) };
+      }
+    }
+    return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  const lv = row => row.data?.longValues || {};
+  const dv = row => row.data?.doubleValues || {};
 
   async function checkConnection() {
     const dot = document.getElementById('connDot');
@@ -258,13 +283,39 @@
     const dot = document.getElementById('connDot');
     const txt = document.getElementById('connText');
     try {
-      const r = await fetch(API, { signal: AbortSignal.timeout(15000) });
-      if (!r.ok) throw new Error('Server returned ' + r.status);
-      const data = await r.json();
-      if (!data.syncTime) throw new Error('No data synced yet — run Tasker task first');
+      const [stepsRows, calRows, sleepRows, hrRows, distRows, floorsRows] = await Promise.all([
+        fetchMetric('steps'),
+        fetchMetric('totalcalories'),
+        fetchMetric('sleep'),
+        fetchMetric('restingheartrate'),
+        fetchMetric('distance'),
+        fetchMetric('floorsclimbed'),
+      ]);
+
+      const steps = latestByDate(stepsRows, r => ({ steps: lv(r).Steps_count_total || 0 }));
+      const calories = latestByDate(calRows, r => ({
+        kcal: Math.round((dv(r).TotalCaloriesBurned_energy_total || 0) / 1000),
+      }));
+      const sleep = latestByDate(sleepRows, r => {
+        const ms = lv(r).SleepSession_sleep_duration_total || 0;
+        return { hours: +(ms / 3600000).toFixed(2), start: new Date(r.created_at).getTime() - ms };
+      });
+      const heartRate = hrRows
+        .map(r => ({ time: new Date(r.created_at).getTime(), bpm: Math.round(dv(r).RestingHeartRate_bpm_avg || 0) }))
+        .filter(r => r.bpm > 0);
+      const distance = latestByDate(distRows, r => ({
+        km: +((dv(r).Distance_distance_total || 0) / 1000).toFixed(2),
+      }));
+      const floors = latestByDate(floorsRows, r => ({
+        count: Math.round(dv(r).FloorsClimbed_floors_total || lv(r).FloorsClimbed_floors_total || 0),
+      }));
+
+      const now = Date.now();
+      const data = { steps, calories, sleep, heartRate, distance, floors, exercises: [], syncTime: now };
       save(data);
       dot.className = 'conn-dot online';
       txt.textContent = 'Loaded from cloud';
+      document.getElementById('lastSync').textContent = 'Last synced: ' + new Date(now).toLocaleString();
       renderAll(data);
     } catch (e) {
       dot.className = 'conn-dot offline';
@@ -286,8 +337,8 @@
     renderHR(data.heartRate || []);
     renderSleep(data.sleep || []);
     renderCalories(data.calories || []);
-    renderWeight(data.weight || []);
-    renderSpo2(data.oxygenSat || []);
+    renderDistance(data.distance || []);
+    renderFloors(data.floors || []);
     renderExercises(data.exercises || []);
   }
 
@@ -359,42 +410,36 @@
       <div class="stat-label">kcal today</div>`;
   }
 
-  function renderWeight(weights) {
-    const el = document.getElementById('weightContent');
-    if (!weights.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
-    const latest = weights[weights.length - 1];
+  function renderDistance(days) {
+    const el = document.getElementById('distContent');
+    if (!days.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const today = days[days.length - 1];
+    const avg = (days.reduce((s, d) => s + d.km, 0) / days.length).toFixed(1);
     el.innerHTML = `
-      <div class="stat-big" style="font-size:28px">${latest.kg.toFixed(1)}</div>
-      <div class="stat-label">kg latest</div>`;
+      <div class="stat-big" style="font-size:28px">${today.km}</div>
+      <div class="stat-label">km today &bull; avg ${avg}</div>`;
   }
 
-  function renderSpo2(readings) {
-    const el = document.getElementById('spo2Content');
-    if (!readings.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
-    const latest = readings[readings.length - 1];
-    const avg = (readings.reduce((s, r) => s + r.pct, 0) / readings.length).toFixed(1);
+  function renderFloors(days) {
+    const el = document.getElementById('floorsContent');
+    if (!days.length) { el.innerHTML = '<div class="no-data">--</div>'; return; }
+    const today = days[days.length - 1];
+    const avg = Math.round(days.reduce((s, d) => s + d.count, 0) / days.length);
     el.innerHTML = `
-      <div class="stat-big">${latest.pct.toFixed(1)}<span style="font-size:20px">%</span></div>
-      <div class="stat-label">latest &bull; avg ${avg}%</div>`;
+      <div class="stat-big" style="font-size:38px">${today.count}</div>
+      <div class="stat-label">floors today &bull; avg ${avg}/day</div>`;
   }
-
-  const EX_NAMES = {
-    1: 'Walking', 2: 'Running', 3: 'Biking', 4: 'Cycling',
-    5: 'Elliptical', 56: 'Strength Training', 79: 'Yoga',
-    80: 'HIIT', 97: 'Sport'
-  };
 
   function renderExercises(exs) {
     const el = document.getElementById('exContent');
     if (!exs.length) { el.innerHTML = '<div class="empty">No exercises synced</div>'; return; }
     el.innerHTML = exs.slice(-5).reverse().map(e => {
-      const name = e.title || EX_NAMES[e.type] || 'Exercise';
       const dur = e.durationMin >= 60
         ? `${Math.floor(e.durationMin / 60)}h ${e.durationMin % 60}m`
         : `${e.durationMin}m`;
       return `<div class="ex-item">
         <div>
-          <div class="ex-name">${name}</div>
+          <div class="ex-name">${e.title || 'Exercise'}</div>
           <div class="ex-date">${fmtDate(e.start)}</div>
         </div>
         <div class="ex-dur">${dur}</div>
@@ -402,10 +447,10 @@
     }).join('');
   }
 
-  // Init: render cached data immediately, then check live connection
   renderAll(load());
   checkConnection();
 })();
 </script>
+
 </body>
 </html>

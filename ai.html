@@ -173,10 +173,14 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
     el.innerHTML = all.map(function(e, i) {
       var daysLeft = e.endDate ? Math.ceil((new Date(e.endDate) - Date.now()) / 86400000) : null;
       var meta = [e.startDate, e.endDate ? '→ ' + e.endDate : null, daysLeft != null && daysLeft >= 0 ? daysLeft + 'd left' : null].filter(Boolean).join(' ');
+      var dp = e.dataPoints || 0;
       var btns = e.status === 'active'
         ? '<button class="exp-btn" onclick="completeExp(\'' + e.id + '\')">Complete</button> <button class="exp-btn" style="color:rgba(255,107,107,.6)" onclick="abandonExp(\'' + e.id + '\')">Abandon</button>'
         : '<span style="font-size:12px;color:var(--text-tertiary)">' + (e.outcome || '') + '</span>';
-      return '<div class="exp-card"><div class="exp-name">' + e.name + '</div><div class="exp-hyp">' + e.hypothesis + '</div>'
+      var dpBadge = e.status === 'active' && dp > 0
+        ? '<span style="font-size:10px;background:rgba(107,227,164,0.1);border:1px solid rgba(107,227,164,0.2);color:#86EFAC;padding:2px 8px;border-radius:8px;margin-left:4px">' + dp + ' data pts</span>'
+        : '';
+      return '<div class="exp-card"><div class="exp-name">' + e.name + dpBadge + '</div><div class="exp-hyp">' + e.hypothesis + '</div>'
         + '<div class="exp-meta"><span class="exp-status ' + e.status + '">' + e.status + '</span><span style="font-size:11px;color:var(--text-tertiary)">' + meta + '</span>' + btns + '</div></div>';
     }).join('');
   }
@@ -186,7 +190,7 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
     var hyp  = (document.getElementById('expHyp').value || '').trim();
     var end  = document.getElementById('expEnd').value || null;
     if (!name) return;
-    var exp = { id: Date.now().toString(36), name, hypothesis: hyp, startDate: new Date().toISOString().slice(0,10), endDate: end, status: 'active', outcome: null };
+    var exp = { id: Date.now().toString(36), name, hypothesis: hyp, startDate: new Date().toISOString().slice(0,10), endDate: end, status: 'active', outcome: null, dataPoints: 0, trackedDomains: inferDomains(name + ' ' + hyp) };
     var exps = loadExps();
     exps.unshift(exp);
     saveExps(exps);
@@ -196,6 +200,14 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
     document.getElementById('expEnd').value = '';
     renderExps();
   };
+
+  function inferDomains(text) {
+    var t = (text||'').toLowerCase();
+    var map = { sleep: ['sleep','bed','wake','insomnia'], nutrition: ['calori','protein','eat','food','diet','carb','fat'], mood: ['mood','energy','stress','anxiety','depression'], training: ['workout','gym','strength','lift','cardio','run'], supplements: ['supplement','vitamin','mineral','magnesium','zinc'], skin: ['skin','acne','breakout','retinol'], bloodwork: ['bloodwork','marker','testosterone','estradiol','vitamin d'] };
+    var found = [];
+    Object.keys(map).forEach(function(domain) { if (map[domain].some(function(kw){ return t.includes(kw); })) found.push(domain); });
+    return found.length ? found : ['general'];
+  }
 
   window.completeExp = function(id) {
     var outcome = prompt('Outcome / what did you find?');
@@ -262,11 +274,51 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
 
   document.getElementById('chatInput').addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.chatSend(); } });
 
+  window._renderExpsInternal = renderExps;
+
   // Init
   loadBriefing();
   loadFlags();
   renderExps();
 })();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="realtime.js" defer></script>
+<script src="events-bridge.js" defer></script>
+<script>
+window.addEventListener('lifeos:event', function(e) {
+  var d = e.detail;
+  if (!d) return;
+  var EXP_KEY = 'experiments:v1';
+  var exps;
+  try { exps = JSON.parse(localStorage.getItem(EXP_KEY)||'[]'); } catch(_) { return; }
+  var active = exps.filter(function(ex){ return ex.status === 'active'; });
+  if (!active.length) return;
+  var eventDomains = (d.domains || []);
+  if (d.type) {
+    var prefix = d.type.split('.')[0];
+    var domainMap = { workout:'training', sleep:'sleep', mood:'mood', nutrition:'nutrition', supplements:'supplements', skin:'skin', bloodwork:'bloodwork', body:'training', finance:'finance', ai:'ai' };
+    if (domainMap[prefix]) eventDomains = eventDomains.concat([domainMap[prefix]]);
+  }
+  var updated = false;
+  active.forEach(function(ex) {
+    var tracked = ex.trackedDomains || ['general'];
+    var matches = tracked.includes('general') || tracked.some(function(t){ return eventDomains.includes(t); });
+    if (matches) { ex.dataPoints = (ex.dataPoints||0) + 1; updated = true; }
+  });
+  if (updated) {
+    localStorage.setItem(EXP_KEY, JSON.stringify(exps));
+    var el = document.getElementById('expList');
+    if (el) {
+      var all2 = exps.filter(function(e){ return e.status === 'active'; }).concat(exps.filter(function(e){ return e.status !== 'active'; }).slice(0,5));
+      // re-render via existing renderExps pattern — trigger storage event
+      window.dispatchEvent(new Event('_reRenderExps'));
+    }
+  }
+});
+window.addEventListener('_reRenderExps', function() {
+  if (window._renderExpsInternal) window._renderExpsInternal();
+});
 </script>
 </body>
 </html>
