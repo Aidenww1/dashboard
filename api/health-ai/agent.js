@@ -162,8 +162,19 @@ const TOOLS = [
       },
       required: ['text', 'severity'],
     },
+    // Prompt caching: breakpoint on the last tool caches the whole TOOLS array
+    // (tools render first in the prompt prefix).
+    cache_control: { type: 'ephemeral' },
   },
 ];
+
+// Build a system param with the stable prompt cached and volatile context
+// (date, page context) in a separate uncached block after the breakpoint.
+function cachedSystem(stableText, dynamicText) {
+  const blocks = [{ type: 'text', text: stableText, cache_control: { type: 'ephemeral' } }];
+  if (dynamicText) blocks.push({ type: 'text', text: dynamicText });
+  return blocks;
+}
 
 async function sbRead(metric, days = 7, limit = 20) {
   const table = TABLE_MAP[metric.toLowerCase()] || metric.toLowerCase();
@@ -322,7 +333,7 @@ When you receive a health event or daily_summary trigger you MUST:
 
 Be specific — not "you slept well" but "7.2h sleep — your avg is 6.8h. High readiness day, good for a hard session."
 
-Today is ${new Date().toISOString().slice(0, 10)}. Act now, don't ask for confirmation.`;
+Act now, don't ask for confirmation.`;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -374,12 +385,13 @@ export default async function handler(req, res) {
     if (!Array.isArray(chatMsgs) || !chatMsgs.length) {
       return res.status(400).json({ error: 'messages required' });
     }
-    const chatSystem = `You are Claude, embedded in the user's personal health and life dashboard. You have tools to read their actual data. Available via read_health_data: nutrition, hydration, steps, sleep, exercise, totalcalories, weight, heartrate, distance, floorsclimbed, bloodwork, mood, insights, hrv, oxygensaturation, skintemperature, respiratoryrate, mindfulness, sleepstage, bodyfat, height, basalmetabolicrate, calories, calendar. Use read_finance_data for any money/finance question (accounts, transactions, subscriptions, net worth, income, savings goals, wishlist). Use the right tool and give specific data-driven answers.
+    const chatSystemStable = `You are Claude, embedded in the user's personal health and life dashboard. You have tools to read their actual data. Available via read_health_data: nutrition, hydration, steps, sleep, exercise, totalcalories, weight, heartrate, distance, floorsclimbed, bloodwork, mood, insights, hrv, oxygensaturation, skintemperature, respiratoryrate, mindfulness, sleepstage, bodyfat, height, basalmetabolicrate, calories, calendar. Use read_finance_data for any money/finance question (accounts, transactions, subscriptions, net worth, income, savings goals, wishlist). Use the right tool and give specific data-driven answers.
 
-Be concise — this is a mobile chat. If you look something up, summarize what you found rather than dumping raw data. If you write anything, briefly mention it.
-
-${pageCtx ? pageCtx : ''}
-Today: ${new Date().toISOString().slice(0, 10)}`;
+Be concise — this is a mobile chat. If you look something up, summarize what you found rather than dumping raw data. If you write anything, briefly mention it.`;
+    const chatSystem = cachedSystem(
+      chatSystemStable,
+      `${pageCtx ? pageCtx + '\n' : ''}Today: ${new Date().toISOString().slice(0, 10)}`,
+    );
 
     const msgs = chatMsgs.slice(-12);
     let totalIn = 0, totalOut = 0, iterations = 0, finalReply = '';
@@ -446,7 +458,13 @@ Today: ${new Date().toISOString().slice(0, 10)}`;
           'anthropic-version': '2023-06-01',
           'content-type': 'application/json',
         },
-        body: JSON.stringify({ model, max_tokens: 1024, system: SYSTEM, tools: TOOLS, messages }),
+        body: JSON.stringify({
+          model,
+          max_tokens: 1024,
+          system: cachedSystem(SYSTEM, `Today is ${new Date().toISOString().slice(0, 10)}.`),
+          tools: TOOLS,
+          messages,
+        }),
       });
 
       if (!r.ok) {

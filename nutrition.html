@@ -344,6 +344,16 @@ body::before {
   /* TDEE cards */
   .nt-tdee-grid { grid-template-columns: repeat(4, 1fr) !important; }
 }
+@media (min-width: 1024px) {
+  /* Today tab: hero/macros card left, micros + water stacked right -
+     no more full-width stacking of medium and small widgets */
+  .nt-section[data-section="today"] .nt-wrap {
+    display: grid; grid-template-columns: 7fr 5fr; gap: 16px; align-items: start;
+  }
+  .nt-section[data-section="today"] .nt-wrap > .nt-section-title { grid-column: 1 / -1; }
+  .nt-section[data-section="today"] .nt-wrap > .card:first-of-type { grid-row: span 2; }
+  .nt-section[data-section="today"] .nt-wrap > .card { margin-bottom: 0; }
+}
 
 </style>
   <script src="tabbar.js" defer></script>

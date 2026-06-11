@@ -1,0 +1,201 @@
+/* ============================================================
+   Life OS design system
+   Loaded on every page via tabbar.js (after page inline styles,
+   so the :root tokens below win and unify the app).
+   Base unit 8px. Type scale 11/13/15/18/24/32. Radius 12px.
+   Accent: existing teal/green #34D399.
+   ============================================================ */
+
+:root {
+  /* color */
+  --bg: #0A0A0B;
+  --bg-card: #141416;
+  --bg-card-hover: #1A1A1D;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --accent: #34D399;
+  --accent-dim: rgba(52, 211, 153, 0.12);
+  --accent-border: rgba(52, 211, 153, 0.28);
+  --danger: #FF6B6B;
+  --danger-dim: rgba(255, 107, 107, 0.10);
+  --warn: #FBBF24;
+  --info: #5B8DEF;
+
+  /* spacing (8px base) */
+  --sp-1: 8px;
+  --sp-2: 16px;
+  --sp-3: 24px;
+  --sp-4: 32px;
+  --sp-6: 48px;
+
+  /* type scale */
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --fs-xxl: 32px;
+
+  --radius: 12px;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+}
+
+/* ── 12-column grid ──────────────────────────────────────────
+   Mobile-first: every cell is full width by default; columns
+   activate at tablet (2-up) and desktop (true 12-col) widths. */
+.dg {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--sp-2);
+  align-items: stretch;
+  margin-bottom: var(--sp-2);
+}
+.dg > * { grid-column: span 12; min-width: 0; }
+
+@media (min-width: 768px) {
+  .dg > .c3, .dg > .c4, .dg > .c5, .dg > .c6 { grid-column: span 6; }
+}
+@media (min-width: 1024px) {
+  .dg > .c3  { grid-column: span 3; }
+  .dg > .c4  { grid-column: span 4; }
+  .dg > .c5  { grid-column: span 5; }
+  .dg > .c6  { grid-column: span 6; }
+  .dg > .c7  { grid-column: span 7; }
+  .dg > .c8  { grid-column: span 8; }
+  .dg > .c9  { grid-column: span 9; }
+  .dg > .c10 { grid-column: span 10; }
+  .dg > .c12 { grid-column: span 12; }
+}
+
+/* widen page containers on desktop so the grid has room */
+@media (min-width: 1024px) {
+  .shell, .po-shell, .nt-wrap, .page, .page-inner, main {
+    max-width: 1280px !important;
+    padding-left: var(--sp-4) !important;
+    padding-right: var(--sp-4) !important;
+  }
+}
+
+/* ── cards ── */
+.ds-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-2);
+  transition: border-color 0.15s;
+}
+.ds-card:hover { border-color: var(--border-strong); }
+@media (max-width: 767px) {
+  .ds-card { padding: 12px; }
+}
+
+.ds-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: var(--sp-1);
+}
+.ds-value {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.ds-value-lg { font-size: var(--fs-xxl); }
+.ds-sub { font-size: var(--fs-sm); color: var(--text-tertiary); }
+
+/* ── buttons: exactly three variants ── */
+.btn-primary, .btn-ghost, .btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  min-height: 44px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #0A0A0B;
+  border: 1px solid var(--accent);
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+.btn-ghost:hover { border-color: var(--accent-border); color: var(--text-primary); }
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+}
+.btn-danger:hover { background: var(--danger-dim); }
+
+/* ── empty states ── */
+.ds-empty {
+  text-align: center;
+  padding: var(--sp-4) var(--sp-3);
+  color: var(--text-tertiary);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+.ds-empty strong {
+  display: block;
+  color: var(--text-secondary);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* ── skeleton loaders ── */
+.ds-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  min-height: 14px;
+}
+.ds-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: ds-shimmer 1.4s infinite;
+}
+@keyframes ds-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* ── global mobile rules ── */
+@media (max-width: 767px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select, textarea { font-size: 16px !important; }
+}
+a, button, label, select, input, textarea, [role="button"] {
+  touch-action: manipulation;
+}
+/* tap-target floor for the common button classes (icon-only controls
+   like modal close buttons keep their own sizing) */
+.btn, .btn-primary, .btn-ghost, .btn-danger,
+.quick-add-btn, .ord-add-btn, .biz-add-btn,
+.inc-add-btn, .wish-add-btn, .sub-add-btn {
+  min-height: 44px;
+}

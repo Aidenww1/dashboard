@@ -1,9 +1,10 @@
-const CACHE = 'dashboard-v7';
+const CACHE = 'dashboard-v8';
 const PRECACHE = [
   '/', '/index.html', '/health.html', '/water.html', '/gym.html',
   '/finance.html', '/nutrition.html', '/calendar.html',
   '/habits.html', '/tasks.html', '/export.html', '/reminders.html',
   '/skin.html', '/watch.html', '/usage.html', '/tabbar.js', '/topbar.js', '/bus.js', '/pwa.js',
+  '/design.css', '/claude.js', '/body.html', '/mood.html', '/review.html',
 ];
 
 self.addEventListener('install', e => {

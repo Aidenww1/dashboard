@@ -25,7 +25,8 @@ main{position:relative;z-index:2;max-width:680px;margin:0 auto;padding:56px 16px
 h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
 .sub{font-size:13px;color:var(--text-tertiary);margin-bottom:24px}
 
-.hero-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.hero-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:16px}
+@media(min-width:768px){.hero-grid{grid-template-columns:repeat(4,1fr)}}
 .hero-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px}
 .hero-card.blue{border-color:rgba(91,141,239,0.22)}
 .hero-card.green{border-color:rgba(29,158,117,0.22)}
@@ -48,6 +49,7 @@ h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
 
 .meas-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 @media(max-width:400px){.meas-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.meas-grid{grid-template-columns:repeat(8,1fr);gap:16px}}
 .meas-tile{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
 .meas-label{font-size:10px;color:var(--text-tertiary);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:3px}
 .meas-val{font-size:17px;font-weight:800;color:var(--text-primary);line-height:1.1}
@@ -56,12 +58,14 @@ h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
 .meas-delta.pos{color:#4BC9A0}
 .meas-delta.neg{color:#FF6B6B}
 
-.log-links{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}
+.log-links{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(min-width:1024px){.log-links{grid-template-columns:1fr}}
 .log-link{display:block;padding:14px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;text-decoration:none;color:var(--text-secondary);font-size:13px;font-weight:600;text-align:center;transition:border-color 0.15s}
 .log-link:hover{border-color:var(--border-strong)}
 .log-link span{display:block;font-size:11px;color:var(--text-tertiary);font-weight:400;margin-top:2px}
 
-.empty-note{text-align:center;padding:32px 20px;color:var(--text-tertiary);font-size:14px;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;grid-column:span 2}
+.empty-note{text-align:center;padding:32px 20px;color:var(--text-tertiary);font-size:14px;line-height:1.5;background:var(--bg-card);border:1px dashed var(--border-strong);border-radius:12px;grid-column:1/-1}
+.empty-note strong{display:block;color:var(--text-secondary);font-size:15px;margin-bottom:4px}
 
 .pacing-card{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:20px}
 .pacing-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -82,47 +86,52 @@ h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
 
   <div class="hero-grid" id="heroGrid"></div>
 
-  <div id="pacingSection" style="display:none">
-    <div class="section-title">Goal pacing</div>
-    <div class="pacing-card">
-      <div class="pacing-row">
-        <div>
-          <div class="pacing-verdict" id="pacingVerdict">—</div>
-          <div class="pacing-meta" id="pacingMeta"></div>
+  <div class="dg">
+    <div class="c8" id="pacingSection" style="display:none">
+      <div class="section-title">Goal pacing</div>
+      <div class="pacing-card">
+        <div class="pacing-row">
+          <div>
+            <div class="pacing-verdict" id="pacingVerdict">—</div>
+            <div class="pacing-meta" id="pacingMeta"></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:20px;font-weight:800;color:var(--text-primary)" id="pacingGoal"></div>
+            <div style="font-size:11px;color:var(--text-tertiary)" id="pacingGoalLabel">goal</div>
+          </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:20px;font-weight:800;color:var(--text-primary)" id="pacingGoal"></div>
-          <div style="font-size:11px;color:var(--text-tertiary)" id="pacingGoalLabel">goal</div>
-        </div>
+        <div class="pacing-track"><div class="pacing-fill" id="pacingFill" style="width:0%;background:#5B8DEF"></div></div>
       </div>
-      <div class="pacing-track"><div class="pacing-fill" id="pacingFill" style="width:0%;background:#5B8DEF"></div></div>
+    </div>
+    <div class="c4">
+      <div class="section-title">Quick log</div>
+      <div class="log-links">
+        <a class="log-link" href="gym.html">Log Weight<span>&amp; measurements</span></a>
+        <a class="log-link" href="health.html">Log Body Fat<span>% &amp; waist</span></a>
+      </div>
     </div>
   </div>
 
-  <div class="section" id="weightSection">
-    <div class="section-title">Weight trend</div>
-    <div class="chart-card">
-      <div class="chart-row" id="weightChart"></div>
-      <div class="chart-foot"><span class="chart-foot-label" id="weightOldest"></span><span class="chart-foot-label" id="weightNewest"></span></div>
+  <div class="dg">
+    <div class="c6" id="weightSection">
+      <div class="section-title">Weight trend</div>
+      <div class="chart-card">
+        <div class="chart-row" id="weightChart"></div>
+        <div class="chart-foot"><span class="chart-foot-label" id="weightOldest"></span><span class="chart-foot-label" id="weightNewest"></span></div>
+      </div>
     </div>
-  </div>
-
-  <div class="section" id="bfSection">
-    <div class="section-title">Body fat % trend</div>
-    <div class="chart-card">
-      <div class="chart-row" id="bfChart"></div>
-      <div class="chart-foot"><span class="chart-foot-label" id="bfOldest"></span><span class="chart-foot-label" id="bfNewest"></span></div>
+    <div class="c6" id="bfSection">
+      <div class="section-title">Body fat % trend</div>
+      <div class="chart-card">
+        <div class="chart-row" id="bfChart"></div>
+        <div class="chart-foot"><span class="chart-foot-label" id="bfOldest"></span><span class="chart-foot-label" id="bfNewest"></span></div>
+      </div>
     </div>
   </div>
 
   <div class="section" id="measSection">
     <div class="section-title">Measurements</div>
     <div class="meas-grid" id="measGrid"></div>
-  </div>
-
-  <div class="log-links">
-    <a class="log-link" href="gym.html">Log Weight<span>&amp; measurements</span></a>
-    <a class="log-link" href="health.html">Log Body Fat<span>% &amp; waist</span></a>
   </div>
 </main>
 <script src="tabbar.js"></script>
@@ -199,7 +208,7 @@ if (latestW && latestBF) {
 }
 
 if (!items.length) {
-  items.push('<div class="empty-note">No data yet. Log weight in Gym and body fat % in Health.</div>');
+  items.push('<div class="empty-note"><strong>No body data yet</strong>Log your weight in Gym and body fat % in Health to start tracking trends here.</div>');
 }
 heroGrid.innerHTML = items.join('');
 

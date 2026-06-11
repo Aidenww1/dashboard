@@ -19,6 +19,14 @@
 
   const page = (window.location.pathname.split('/').pop() || 'index.html').split('?')[0];
 
+  // ---- Design system (shared tokens, grid, buttons, states) ----
+  if (!document.querySelector('link[href="design.css"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'design.css';
+    document.head.appendChild(link);
+  }
+
   // ---- CSS ----
   const style = document.createElement('style');
   style.textContent = `
@@ -49,51 +57,15 @@
   white-space: nowrap; background: transparent; border: none;
 }
 .tab:hover  { color: #B8B6B0; }
-.tab.active { color: #E07658; }
+.tab.active { color: var(--accent, #34D399); }
 .tab-icon   { width: 22px; height: 22px; flex-shrink: 0; }
 .tab-icon svg { width: 100%; height: 100%; display: block; }
 
-/* ---- Global mobile fixes injected alongside tabbar ---- */
-/* Prevent iOS from zooming into inputs */
-@media (max-width: 768px) {
-  input:not([type=range]), select, textarea {
-    font-size: 16px !important;
-  }
-}
-/* Remove 300 ms tap delay everywhere */
-a, button, label, select, input, textarea, [role="button"] {
-  touch-action: manipulation;
-}
-/* Minimum tap target */
-button, .btn, .quick-add-btn, .ord-add-btn, .biz-add-btn,
-.inc-add-btn, .wish-add-btn, .sub-add-btn {
-  min-height: 44px;
-}
-
-/* ---- Desktop (≥ 900px): wider containers + grid utilities ---- */
+/* Grid utilities, mobile fixes, and container widening live in design.css */
 @media (min-width: 900px) {
   .tabbar { padding-left: 16px; padding-right: 16px; }
   .tabbar-inner { max-width: 1100px; }
   .tab { min-width: 58px; }
-
-  /* Widen all page containers */
-  .shell, .po-shell, .nt-wrap, .page, main, .page-inner {
-    max-width: 1280px !important;
-    padding-left: 32px !important;
-    padding-right: 32px !important;
-  }
-
-  /* 12-column grid utility — add class="dg" to a row container, class="cN" to cells */
-  .dg { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; align-items: start; }
-  .c3  { grid-column: span 3; }
-  .c4  { grid-column: span 4; }
-  .c5  { grid-column: span 5; }
-  .c6  { grid-column: span 6; }
-  .c7  { grid-column: span 7; }
-  .c8  { grid-column: span 8; }
-  .c9  { grid-column: span 9; }
-  .c10 { grid-column: span 10; }
-  .c12 { grid-column: span 12; }
 }
 `;
   document.head.appendChild(style);

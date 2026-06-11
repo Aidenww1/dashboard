@@ -1006,15 +1006,13 @@ main {
 @media (min-width: 900px) {
   main { max-width: 1280px !important; padding-left: 32px !important; padding-right: 32px !important; }
   /* Panels: put adjacent stack-cards in a 2-col auto grid */
-  [data-panel] { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; align-items: start; }
+  [data-panel] { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; align-items: start; }
   [data-panel] > * { grid-column: span 12; }
   /* Weight + body-fat entry side by side */
   [data-panel="blood"] > .bld-card { grid-column: span 12; }
   /* Metrics 4-stat row: override inline style column count */
   [data-panel="metrics"] > div:nth-child(2) { grid-template-columns: repeat(4, 1fr) !important; grid-column: span 12; }
-  /* Sleep + energy side by side when both visible */
-  [data-panel="sleep"] > :first-child { grid-column: span 7; }
-  [data-panel="sleep"] > :nth-child(2) { grid-column: span 5; }
+  /* Energy panel: stack card + history side by side */
   [data-panel="energy"] > .nrg-card { grid-column: span 7; }
   [data-panel="energy"] > :nth-child(2) { grid-column: span 5; }
 }
@@ -1033,6 +1031,8 @@ main {
 <body>
 
 <main>
+  <div class="dg">
+  <div class="c7">
   <div class="h-section-label" style="border-top:none;padding-top:0">Sleep</div>
   <div data-panel="sleep">
   <div class="sleep-card">
@@ -1118,8 +1118,10 @@ main {
     </div>
   </div>
   </div><!-- /panel:sleep -->
+  </div>
 
-  <div class="h-section-label">Body &amp; Blood Work</div>
+  <div class="c5">
+  <div class="h-section-label" style="border-top:none;padding-top:0">Body &amp; Blood Work</div>
   <div data-panel="blood">
   <div class="bld-card">
     <div class="bld-eyebrow">BLOODWORK</div>
@@ -1148,6 +1150,8 @@ main {
     <div id="bloodHistory"></div>
   </div>
   </div><!-- /panel:blood -->
+  </div>
+  </div><!-- /dg sleep+blood -->
 
   <div class="h-section-label">Metrics</div>
   <!-- METRICS PANEL: HRV, RHR, SpO2, Steps, Readiness -->

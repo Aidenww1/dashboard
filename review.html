@@ -106,6 +106,7 @@ h1 { font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px;
     <div class="ai-output" id="aiOutput"></div>
   </div>
 </main>
+<script src="claude.js"></script>
 <script src="tabbar.js"></script>
 <script src="topbar.js"></script>
 <script>
@@ -378,18 +379,14 @@ Meditation: ${medMins} min this week
 Gratitude logged: ${gratDays}/7 days
 Focus sessions (Pomodoro): ${pomos} this week`;
 
-  fetch('/api/health-ai/agent', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      mode: 'chat',
-      messages: [{ role: 'user', content: 'Give me a weekly review based on my data. Be specific, highlight wins, flag concerns, and give 2-3 actionable suggestions for next week.' }],
-      context: context,
-    }),
+  LifeOS.ai.chat({
+    prompt: 'Give me a weekly review based on my data. Be specific, highlight wins, flag concerns, and give 2-3 actionable suggestions for next week.',
+    context: context,
+    cacheKey: 'weekly_review_' + DAYS[0],
+    ttlMs: LifeOS.ai.TTL.weekly,
   })
-  .then(r => r.json())
   .then(d => {
-    out.textContent = d.reply || d.summary || d.error || 'No response';
+    out.textContent = d.reply || 'No response';
     out.style.display = '';
     btn.textContent = 'Refresh Review';
     btn.disabled = false;

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Aiden's Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="claude.js"></script>
 <script src="realtime.js" defer></script>
 <script src="events-bridge.js" defer></script>
 <script src="topbar.js" defer></script>
@@ -649,8 +650,8 @@ body { padding-bottom: 90px; }
 .home-grid {
   display: grid;
   grid-template-columns: 200px 1fr;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 16px;
+  margin-bottom: 16px;
   align-items: start;
 }
 @media (max-width: 680px) {
@@ -722,8 +723,8 @@ body { padding-bottom: 90px; }
 .home-bottom-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 @media (max-width: 540px) {
   .home-bottom-grid { grid-template-columns: 1fr; }
@@ -771,10 +772,10 @@ body { padding-bottom: 90px; }
 
 @media (min-width: 900px) {
   .page-inner { max-width: 1280px !important; padding-left: 32px !important; padding-right: 32px !important; }
-  .home-grid { grid-template-columns: 260px 1fr; gap: 18px; }
+  .home-grid { grid-template-columns: 260px 1fr; gap: 16px; }
   .section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .section-title { grid-column: 1 / -1; }
-  .home-bottom-grid { gap: 18px; }
+  .home-bottom-grid { gap: 16px; }
 }
 
 </style>
@@ -1298,15 +1299,9 @@ function makeAddHandlers(inputId, addBtnId, polishBtnId, key, statusId, reload) 
     const text = input.value.trim(); if (!text) return;
     polishBtn.disabled = true; polishBtn.textContent = '…';
     try {
-      const res = await fetch('/api/health-ai/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'chat',
-          messages: [{ role: 'user', content: `Clean up this goal into a clear, concise, actionable task. Return ONLY a one-element JSON array of strings with the improved goal, no preamble, no code fences.\n\nGoal: ${text}` }],
-        }),
+      const data = await LifeOS.ai.chat({
+        prompt: `Clean up this goal into a clear, concise, actionable task. Return ONLY a one-element JSON array of strings with the improved goal, no preamble, no code fences.\n\nGoal: ${text}`,
       });
-      const data = await res.json();
       const parsed = JSON.parse(data.reply || '');
       if (Array.isArray(parsed) && parsed[0]) addGoal(parsed[0]);
       else throw new Error('bad response');
@@ -1529,12 +1524,14 @@ var _lcFetch = fetch('/api/life-context', { signal: AbortSignal.timeout(7000) })
     if (!btn || !result) return;
     btn.disabled = true;
     btn.textContent = 'Thinking…';
-    fetch('/api/health-ai/agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event, model: 'smart', data: { trigger: 'manual', note: 'User requested this from the dashboard.' } })
+    var isWeekly = event === 'weekly_review';
+    LifeOS.ai.agent({
+      event: event,
+      complexity: 'high',
+      data: { trigger: 'manual', note: 'User requested this from the dashboard.' },
+      cacheKey: event + '_' + getActiveDateString(),
+      ttlMs: isWeekly ? LifeOS.ai.TTL.weekly : LifeOS.ai.TTL.daily,
     })
-    .then(function(r) { return r.json(); })
     .then(function(d) {
       result.textContent = d.summary || 'Done — insights saved.';
       result.style.display = '';
@@ -1639,20 +1636,14 @@ setInterval(refreshStatChips, 60000);
     var hDone = habits.filter(function(h) { return todayArr.indexOf(h.id) !== -1; }).length;
     var ctx = 'Today: ' + today + '\nGoals done: ' + goals.filter(function(g){return g.done;}).length + '/' + goals.length
       + '\nWater: ' + wDone + ' cups\nHabits: ' + hDone + '/' + habits.length;
-    fetch('/api/health-ai/agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'chat', messages: [{ role: 'user', content: q }], context: ctx }),
-    })
-    .then(function(r) { return r.json(); })
+    LifeOS.ai.chat({ prompt: q, context: ctx })
     .then(function(d) {
-      result.textContent = d.reply || d.summary || d.error || 'No response';
+      result.textContent = d.reply || 'No response';
       result.style.display = '';
       btn.disabled = false; btn.textContent = 'Ask';
-      if (d.usage && window._trackAiTokens) window._trackAiTokens(d.usage.input_tokens || 0, d.usage.output_tokens || 0);
     })
-    .catch(function() {
-      result.textContent = 'Could not reach AI.';
+    .catch(function(e) {
+      result.textContent = 'Could not reach AI: ' + e.message;
       result.style.display = '';
       btn.disabled = false; btn.textContent = 'Ask';
     });
@@ -1666,131 +1657,62 @@ setInterval(refreshStatChips, 60000);
   var refreshBtn = document.getElementById('aiSummaryRefresh');
   if (!textEl || !refreshBtn) return;
 
-  function fire() {
-    refreshBtn.disabled = true; refreshBtn.textContent = 'Loading…';
-    textEl.textContent = 'Generating your briefing…';
-    if (catsEl) catsEl.innerHTML = '';
+  var BRIEFING_PROMPT = 'Give me a concise daily briefing in 2-3 sentences. Then list 2-3 specific action items I should do today. Be direct and practical.';
+
+  function briefingContext() {
     var today = getActiveDateString();
     var goals = storeGet('goals:' + today) || [];
     var ws = storeGet('po_water_v1') || {};
-    var wDone = (ws.logs || {})[today] || 0;
     var habits = storeGet('habits:v1') || [];
     var habitLogs = storeGet('habits:logs:v1') || {};
     var todayArr = habitLogs[today] || [];
     var hDone = habits.filter(function(h) { return todayArr.indexOf(h.id) !== -1; }).length;
     var gDone = goals.filter(function(g) { return g.done; }).length;
-    var ctx = 'Date: ' + today + '\nGoals: ' + gDone + '/' + goals.length + ' done'
-      + '\nWater: ' + wDone + ' cups\nHabits: ' + hDone + '/' + habits.length + ' done today'
+    return 'Date: ' + today + '\nGoals: ' + gDone + '/' + goals.length + ' done'
+      + '\nWater: ' + ((ws.logs || {})[today] || 0) + ' cups\nHabits: ' + hDone + '/' + habits.length + ' done today'
       + '\nPending goals: ' + goals.filter(function(g){return !g.done;}).map(function(g){return g.text;}).join(', ');
-    fetch('/api/health-ai/agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'chat',
-        messages: [{ role: 'user', content: 'Give me a concise daily briefing in 2-3 sentences. Then list 2-3 specific action items I should do today. Be direct and practical.' }],
-        context: ctx,
-      }),
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      var text = d.reply || d.summary || '';
-      if (!text) { textEl.textContent = 'Could not generate briefing.'; return; }
-      // Split into summary + bullets if present
-      var lines = text.split('\n').filter(function(l) { return l.trim(); });
-      var summary = [], bullets = [];
-      lines.forEach(function(l) {
-        if (/^[\-\*\d]/.test(l.trim())) bullets.push(l.replace(/^[\-\*\d\.\s]+/, '').trim());
-        else summary.push(l);
-      });
-      textEl.textContent = summary.join('\n') || text;
-      if (bullets.length && catsEl) {
-        catsEl.innerHTML = bullets.map(function(b) {
-          return '<div class="ai-summary-cat"><div class="ai-summary-cat-body">' + b + '</div></div>';
-        }).join('');
-      }
-      refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing';
-    })
-    .catch(function() {
-      textEl.textContent = 'Could not reach AI — check ANTHROPIC_API_KEY.';
-      refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing';
+  }
+
+  function render(text) {
+    var lines = text.split('\n').filter(function(l) { return l.trim(); });
+    var summary = [], bullets = [];
+    lines.forEach(function(l) {
+      if (/^[\-\*\d]/.test(l.trim())) bullets.push(l.replace(/^[\-\*\d\.\s]+/, '').trim());
+      else summary.push(l);
     });
-  }
-
-  function saveCache(text, bullets) {
-    try { localStorage.setItem('_aiSummaryCache', JSON.stringify({ date: getActiveDateString(), text: text, bullets: bullets })); } catch (_) {}
-  }
-  function loadCache() {
-    try { var c = JSON.parse(localStorage.getItem('_aiSummaryCache')); return (c && c.date === getActiveDateString()) ? c : null; } catch (_) { return null; }
-  }
-
-  var _origFire = fire;
-  fire = function() {
-    refreshBtn.disabled = true; refreshBtn.textContent = 'Loading…';
-    textEl.textContent = 'Generating your briefing…';
-    if (catsEl) catsEl.innerHTML = '';
-    var today = getActiveDateString();
-    var goals = storeGet('goals:' + today) || [];
-    var ws = storeGet('po_water_v1') || {};
-    var wDone = (ws.logs || {})[today] || 0;
-    var habits = storeGet('habits:v1') || [];
-    var habitLogs = storeGet('habits:logs:v1') || {};
-    var todayArr = habitLogs[today] || [];
-    var hDone = habits.filter(function(h) { return todayArr.indexOf(h.id) !== -1; }).length;
-    var gDone = goals.filter(function(g) { return g.done; }).length;
-    var ctx = 'Date: ' + today + '\nGoals: ' + gDone + '/' + goals.length + ' done'
-      + '\nWater: ' + wDone + ' cups\nHabits: ' + hDone + '/' + habits.length + ' done today'
-      + '\nPending goals: ' + goals.filter(function(g){return !g.done;}).map(function(g){return g.text;}).join(', ');
-    fetch('/api/health-ai/agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mode: 'chat',
-        messages: [{ role: 'user', content: 'Give me a concise daily briefing in 2-3 sentences. Then list 2-3 specific action items I should do today. Be direct and practical.' }],
-        context: ctx,
-      }),
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      var text = d.reply || d.summary || '';
-      if (!text) { textEl.textContent = 'Could not generate briefing.'; refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing'; return; }
-      var lines = text.split('\n').filter(function(l) { return l.trim(); });
-      var summary = [], bullets = [];
-      lines.forEach(function(l) {
-        if (/^[\-\*\d]/.test(l.trim())) bullets.push(l.replace(/^[\-\*\d\.\s]+/, '').trim());
-        else summary.push(l);
-      });
-      var summaryText = summary.join('\n') || text;
-      textEl.textContent = summaryText;
-      if (bullets.length && catsEl) {
-        catsEl.innerHTML = bullets.map(function(b) {
-          return '<div class="ai-summary-cat"><div class="ai-summary-cat-body">' + b + '</div></div>';
-        }).join('');
-      }
-      saveCache(summaryText, bullets);
-      if (d.usage && window._trackAiTokens) window._trackAiTokens(d.usage.input_tokens || 0, d.usage.output_tokens || 0);
-      refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing';
-    })
-    .catch(function() {
-      textEl.textContent = 'Could not reach AI — check ANTHROPIC_API_KEY.';
-      refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing';
-    });
-  };
-
-  refreshBtn.addEventListener('click', function() { saveCache('', []); fire(); });
-
-  // Restore from cache if available, otherwise auto-load once per day
-  var cached = loadCache();
-  if (cached && cached.text) {
-    textEl.textContent = cached.text;
-    if (cached.bullets && cached.bullets.length && catsEl) {
-      catsEl.innerHTML = cached.bullets.map(function(b) {
+    textEl.textContent = summary.join('\n') || text;
+    if (catsEl) {
+      catsEl.innerHTML = bullets.map(function(b) {
         return '<div class="ai-summary-cat"><div class="ai-summary-cat-body">' + b + '</div></div>';
       }).join('');
     }
-    refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing';
-  } else {
-    fire();
   }
+
+  function fire(force) {
+    var cacheKey = 'briefing_' + getActiveDateString();
+    if (force) LifeOS.ai.cacheSet(cacheKey, null, 1); // expire immediately
+    refreshBtn.disabled = true; refreshBtn.textContent = 'Loading…';
+    textEl.textContent = 'Generating your briefing…';
+    if (catsEl) catsEl.innerHTML = '';
+    LifeOS.ai.chat({
+      prompt: BRIEFING_PROMPT,
+      context: briefingContext(),
+      cacheKey: cacheKey,
+      ttlMs: LifeOS.ai.TTL.daily,
+    })
+    .then(function(d) {
+      if (!d.reply) { textEl.textContent = 'Could not generate briefing.'; }
+      else render(d.reply);
+      refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing';
+    })
+    .catch(function() {
+      textEl.textContent = 'Could not reach AI — check ANTHROPIC_API_KEY.';
+      refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh briefing';
+    });
+  }
+
+  refreshBtn.addEventListener('click', function() { fire(true); });
+  fire(false);
 })();
 
 // ── Supabase cloud sync ───────────────────────────────────────────────────────

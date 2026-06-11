@@ -275,6 +275,7 @@ main { position: relative; z-index: 2; max-width: 720px; margin: 0 auto; padding
   <div class="detail-sheet" id="detailSheet"></div>
 </div>
 
+<script src="claude.js"></script>
 <script src="topbar.js" defer></script>
 <script src="tabbar.js" defer></script>
 <script>
@@ -673,16 +674,13 @@ window._habitsRenderAll = function() { habits = load(STORE_KEY) || []; logs = lo
       return { name: h.name, freq: h.freq, completed_last_30d: completed, possible: 30 };
     });
 
-    fetch('/api/health-ai/agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event: 'habit_pattern_analysis',
-        model: 'smart',
-        data: { habits_summary: summary, days_analysed: 30 }
-      })
+    LifeOS.ai.agent({
+      event: 'habit_pattern_analysis',
+      complexity: 'high',
+      data: { habits_summary: summary, days_analysed: 30 },
+      cacheKey: 'habit_analysis_' + new Date().toISOString().slice(0, 10),
+      ttlMs: LifeOS.ai.TTL.weekly,
     })
-    .then(function(r) { return r.json(); })
     .then(function(d) {
       result.textContent = d.summary || 'Analysis complete — insights saved.';
       result.style.display = '';
