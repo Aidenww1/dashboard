@@ -1,21 +1,29 @@
 /* ============================================================
-   Life OS design system
-   Loaded on every page via tabbar.js (after page inline styles,
-   so the :root tokens below win and unify the app).
-   Base unit 8px. Type scale 11/13/15/18/24/32. Radius 12px.
-   Accent: existing teal/green #34D399.
+   Life OS design system v2
+   Loaded on every page via tabbar.js, after page inline styles,
+   so the rules below win and unify the app.
+
+   Visual language: flat true-dark (Linear / Vercel reference).
+   - background #0A0A0B, no gradient blobs, no glass blur
+   - one card surface: #141416, 1px 8% border, 12px radius
+   - Inter, weights 400/500/600 only
+   - single accent: teal #34D399
+   Base unit 8px. Type scale 11/13/15/18/24/32.
    ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
   /* color */
   --bg: #0A0A0B;
   --bg-card: #141416;
   --bg-card-hover: #1A1A1D;
+  --bg-inset: #0F0F11;
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.15);
-  --text-primary: #FAFAFA;
-  --text-secondary: #B8B6B0;
-  --text-tertiary: #76746E;
+  --text-primary: #F7F8F8;
+  --text-secondary: #B4B4B8;
+  --text-tertiary: #6E6E76;
   --accent: #34D399;
   --accent-dim: rgba(52, 211, 153, 0.12);
   --accent-border: rgba(52, 211, 153, 0.28);
@@ -40,12 +48,32 @@
   --fs-xxl: 32px;
 
   --radius: 12px;
-  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+/* ── base surface: flat true dark, kill decorative gradient blobs ── */
+html, body {
+  background: var(--bg) !important;
+  font-family: var(--font) !important;
+  font-variant-numeric: tabular-nums;
+}
+body::before { display: none !important; }
+
+::selection { background: rgba(52, 211, 153, 0.25); color: var(--text-primary); }
+
+/* thin dark scrollbars (desktop) */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); border-radius: 5px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
+}
+
+:focus-visible { outline: 2px solid var(--accent-border); outline-offset: 1px; }
+
 /* ── 12-column grid ──────────────────────────────────────────
-   Mobile-first: every cell is full width by default; columns
-   activate at tablet (2-up) and desktop (true 12-col) widths. */
+   Mobile-first: every cell full width; columns activate at
+   tablet (2-up) and desktop (true 12-col) widths. */
 .dg {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -79,36 +107,80 @@
   }
 }
 
-/* ── cards ── */
-.ds-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: var(--sp-2);
+/* ── one card language across every page ─────────────────────
+   Every per-page card class gets the same flat surface: same
+   background, same hairline border, same radius, no glass blur,
+   no heavy drop shadows. Padding is left to each page. */
+.card, .ds-card,
+.gm-card, .ai-summary-card, .ai-ask-card, .quick-notes-card,
+.day-ring-wrap, .score-card, .uib-panel, .mtile,
+.stack-card, .sleep-card, .bld-card, .nrg-card,
+.hero-card, .chart-card, .meas-tile, .pacing-card,
+.nw-subcard, .nw-chart-wrap, .nw-donut-wrap,
+.ord-add-card, .ord-card, .ord-empty-card, .inc-card, .goal-card,
+.fire-card, .wish-add-card, .wish-empty-card,
+.sum-card, .habit-card, .stat-card, .heatmap-wrap,
+.sk-card, .setup-card, .connect-card, .nl-card, .confirm-card,
+.pomo-card, .task-card, .add-form-card, .habit-day-card,
+.po-rx-card, .wt-card, .wt-photo-card, .nt-multi-card,
+.book-card, .course-card, .exp-card, .gl-add-card, .rate-card,
+.section-panel, .day-view-wrap, .log-link, .empty-note {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   transition: border-color 0.15s;
 }
-.ds-card:hover { border-color: var(--border-strong); }
-@media (max-width: 767px) {
-  .ds-card { padding: 12px; }
+.empty-note, .ds-empty { border-style: dashed !important; }
+
+.card:hover, .gm-card:hover, .stack-card:hover, .mtile:hover,
+.hero-card:hover, .chart-card:hover, .meas-tile:hover,
+.nw-subcard:hover, .ord-card:hover, .inc-card:hover, .goal-card:hover,
+.sum-card:hover, .habit-card:hover, .stat-card:hover, .sk-card:hover,
+.task-card:hover, .book-card:hover, .course-card:hover, .log-link:hover,
+.ds-card:hover {
+  border-color: var(--border-strong) !important;
 }
 
-.ds-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-  margin-bottom: var(--sp-1);
+/* ── typography normalization ── */
+/* section labels: one style everywhere */
+.section-title, .h-section-label, .nt-section-title,
+.card-eyebrow, .ds-label, .gm-eyebrow, .bld-eyebrow, .sf-eyebrow {
+  font-family: var(--font) !important;
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: var(--text-tertiary) !important;
 }
-.ds-value {
-  font-size: var(--fs-xl);
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+/* big numbers: 600, tighter — kill the 800-weight shouting */
+.hero-value, .meas-val, .mtile-val, .gm-progress-num,
+.day-ring-pct, .nw-stat-val, .nw-donut-num, .stat-chip-val,
+.sleep-dur, .goal-card-stat-val {
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
 }
-.ds-value-lg { font-size: var(--fs-xxl); }
-.ds-sub { font-size: var(--fs-sm); color: var(--text-tertiary); }
+
+/* ── inputs: one quiet style ── */
+input[type="text"], input[type="number"], input[type="date"],
+input[type="time"], input[type="search"], input[type="email"],
+select, textarea {
+  background: var(--bg-inset) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font) !important;
+  transition: border-color 0.15s;
+}
+input[type="text"]:focus, input[type="number"]:focus, input[type="date"]:focus,
+input[type="time"]:focus, input[type="search"]:focus, input[type="email"]:focus,
+select:focus, textarea:focus {
+  border-color: var(--accent-border) !important;
+  outline: none;
+}
+::placeholder { color: var(--text-tertiary) !important; }
 
 /* ── buttons: exactly three variants ── */
 .btn-primary, .btn-ghost, .btn-danger {

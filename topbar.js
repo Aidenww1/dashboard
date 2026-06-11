@@ -1,9 +1,9 @@
-(function () {
+﻿(function () {
   'use strict';
 
   // -------- CSS --------
   const css = `
-/* ── Claude Chat Bar ── */
+/* -- Claude Chat Bar -- */
 .claudebar-pill {
   position: fixed;
   bottom: calc(62px + max(14px, env(safe-area-inset-bottom)));
@@ -19,7 +19,7 @@
   backdrop-filter: blur(8px);
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, transform 0.1s;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 .claudebar-pill:hover { background: rgba(52,211,153,0.18); }
 .claudebar-pill:active { transform: translateX(-50%) scale(0.95); }
@@ -34,13 +34,13 @@
 .claudebar-sheet {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
   height: 72vh; max-height: 680px;
-  background: #111113;
+  background: #141416;
   border-top: 1px solid rgba(255,255,255,0.1);
   border-radius: 20px 20px 0 0;
   display: flex; flex-direction: column;
   transform: translateY(100%);
   transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 .claudebar-sheet.open { transform: translateY(0); }
 .claudebar-handle {
@@ -114,25 +114,25 @@
 
 .topbar {
   position: sticky; top: 0; z-index: 40;
-  display: flex; gap: 6px;
-  padding: max(10px, env(safe-area-inset-top)) 14px 10px;
-  background: #0a0a0b;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  display: flex; gap: 8px;
+  padding: max(10px, env(safe-area-inset-top)) 16px 10px;
+  background: #0A0A0B;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 .topbar-pill {
   flex: 1 1 0; min-width: 0;
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 11px;
+  background: #141416;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
   text-decoration: none;
-  color: #FAFAFA;
+  color: #F7F8F8;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s, border-color 0.15s;
+  transition: border-color 0.15s;
 }
-.topbar-pill:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.10); }
+.topbar-pill:hover { border-color: rgba(255, 255, 255, 0.15); }
 .topbar-pill-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: #6ee7b7; flex-shrink: 0;
@@ -168,36 +168,32 @@
   flex: 1; min-width: 0;
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 12px;
-  background: rgba(125, 211, 252, 0.07);
-  border: 1px solid rgba(125, 211, 252, 0.14);
+  background: #141416;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-right: none;
-  border-radius: 11px 0 0 11px;
+  border-radius: 8px 0 0 8px;
   text-decoration: none;
-  color: #FAFAFA;
+  color: #F7F8F8;
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s;
+  transition: border-color 0.15s;
 }
-.topbar-water-pill:hover { background: rgba(125, 211, 252, 0.12); }
+.topbar-water-pill:hover { border-color: rgba(255, 255, 255, 0.15); }
 .topbar-water-pill .topbar-pill-dot { background: #7DD3FC; }
 .topbar-water-add {
   flex: 0 0 auto;
   width: 38px;
-  border: 1px solid rgba(125, 211, 252, 0.14);
-  background: linear-gradient(180deg, rgba(125, 211, 252, 0.22), rgba(110, 231, 183, 0.22));
-  color: #FFFFFF;
-  font-family: inherit; font-size: 17px; font-weight: 700;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  background: rgba(52, 211, 153, 0.12);
+  color: #34D399;
+  font-family: inherit; font-size: 17px; font-weight: 600;
   cursor: pointer;
-  border-radius: 0 11px 11px 0;
+  border-radius: 0 8px 8px 0;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, transform 0.10s;
 }
-.topbar-water-add:hover {
-  background: linear-gradient(180deg, rgba(125, 211, 252, 0.34), rgba(110, 231, 183, 0.34));
-}
+.topbar-water-add:hover { background: rgba(52, 211, 153, 0.20); }
 .topbar-water-add:active { transform: scale(0.94); }
-.topbar-water-add.flash {
-  background: linear-gradient(180deg, rgba(125, 211, 252, 0.65), rgba(110, 231, 183, 0.65));
-}
+.topbar-water-add.flash { background: rgba(52, 211, 153, 0.45); }
 
 @media (max-width: 480px) {
   .topbar { padding-left: 10px; padding-right: 10px; gap: 4px; }
@@ -295,7 +291,7 @@ body.topbar-modal-open {
       String(d.getDate()).padStart(2, '0');
   }
 
-  // ── Token tracking ──────────────────────────────────────────────────────────
+  // -- Token tracking ----------------------------------------------------------
 
   const _TOK_KEY = 'ai:tokens:v1';
 
@@ -341,14 +337,14 @@ body.topbar-modal-open {
     if (!countEl) return;
     const tok = getTodayTokens();
     countEl.textContent = fmtTokens(tok.total);
-    const title = '↑' + fmtTokens(tok.input) + ' in  ↓' + fmtTokens(tok.output) + ' out  ' + tok.calls + ' calls today';
+    const title = 'in ' + fmtTokens(tok.input) + '  out ' + fmtTokens(tok.output) + '  ' + tok.calls + ' calls today';
     document.getElementById('topbarTokens').title = title;
     if (dotEl) {
       dotEl.style.background = tok.total > 100000 ? '#FF6B6B' : tok.total > 20000 ? '#FBBF24' : '#7DD3FC';
     }
   }
 
-  // ── Water progress ────────────────────────────────────────────────────────
+  // -- Water progress ----------------------------------------------------------
 
   function getWaterProgress() {
     let state = null;
@@ -535,7 +531,7 @@ body.topbar-modal-open {
       return (window.location.pathname.split('/').pop() || 'index.html').replace('.html', '');
     }
 
-    // Cached life context — refreshed at most once per 5 min per page session
+    // Cached life context - refreshed at most once per 5 min per page session
     let _lifeCtxCache = null;
     let _lifeCtxFetchedAt = 0;
     async function getLifeContext() {

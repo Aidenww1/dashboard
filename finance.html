@@ -1049,7 +1049,7 @@ html, body { scrollbar-width: none; -ms-overflow-style: none; }
 }
 .fire-badge {
   margin-left: auto;
-  background: rgba(224,118,88,0.18); color: #E07658;
+  background: rgba(52,211,153,0.15); color: #34D399;
   font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
   padding: 3px 10px; border-radius: 999px;
 }
@@ -1074,7 +1074,7 @@ html, body { scrollbar-width: none; -ms-overflow-style: none; }
 }
 .fire-progress-fill {
   height: 100%; border-radius: 999px;
-  background: linear-gradient(90deg, #E07658, #F2C063);
+  background: linear-gradient(90deg, #34D399, #6EE7B7);
   transition: width 0.5s ease;
 }
 .fire-footer {
@@ -2572,7 +2572,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           <input type="number" id="efMonths" min="1" max="24" placeholder="e.g. 6" value="6" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
         </div>
       </div>
-      <button id="efSaveBtn" style="width:100%;padding:10px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Update emergency fund</button>
+      <button id="efSaveBtn" style="width:100%;padding:10px;border-radius:10px;background:#34D399;border:none;color:#0A0A0B;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Update emergency fund</button>
     </div>
   </div>
 </div>
@@ -5414,7 +5414,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     if (!recent.length) { el.innerHTML = ''; return; }
     var total = recent.reduce(function(s, o) { return s + (Number(o.entered_amount) || 0); }, 0);
     var ccy = (recent[0] && recent[0].entered_currency) || 'CHF';
-    el.innerHTML = '<div style="display:inline-block;margin:8px 0;font-size:12px;padding:5px 14px;border-radius:20px;background:rgba(224,118,88,0.12);color:#E07658;border:1px solid rgba(224,118,88,0.25);font-family:inherit">'
+    el.innerHTML = '<div style="display:inline-block;margin:8px 0;font-size:12px;padding:5px 14px;border-radius:20px;background:rgba(52,211,153,0.12);color:#34D399;border:1px solid rgba(52,211,153,0.25);font-family:inherit">'
       + ccy + ' ' + total.toFixed(2) + ' across ' + recent.length + ' order' + (recent.length !== 1 ? 's' : '') + ' · last 30 days</div>';
   }
 
@@ -5459,7 +5459,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         <input type="text" id="acctBank" placeholder="e.g. ING, Degiro" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
       </div>
     </div>
-    <button id="acctSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save account</button>
+    <button id="acctSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#34D399;border:none;color:#0A0A0B;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save account</button>
   </div>
 </div>
 </div>
@@ -5539,7 +5539,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         </select>
       </div>
     </div>
-    <button id="invSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save invoice</button>
+    <button id="invSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#34D399;border:none;color:#0A0A0B;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save invoice</button>
   </div>
 </div>
 </div>
@@ -5550,7 +5550,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <div class="section-eyebrow">DEBT PAYOFF PLANNER</div>
   <!-- Strategy selector -->
   <div style="display:flex;gap:8px;margin-bottom:16px">
-    <button id="debtSnowball" class="debt-strat-btn active" style="flex:1;padding:10px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">❄️ Snowball</button>
+    <button id="debtSnowball" class="debt-strat-btn active" style="flex:1;padding:10px;border-radius:10px;background:#34D399;border:none;color:#0A0A0B;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">❄️ Snowball</button>
     <button id="debtAvalanche" class="debt-strat-btn" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🏔️ Avalanche</button>
   </div>
   <div id="debtStratDesc" style="font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:14px;line-height:1.5">Snowball: pay off smallest balances first for psychological wins. Extra payment goes to the smallest debt each month.</div>
@@ -5585,7 +5585,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         <input type="number" id="debtMinPay" step="0.01" min="0" placeholder="e.g. 150" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
       </div>
     </div>
-    <button id="debtSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Add debt</button>
+    <button id="debtSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#34D399;border:none;color:#0A0A0B;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Add debt</button>
   </div>
 </div>
 </div>
@@ -5624,7 +5624,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         <input type="date" id="vehPurchaseDate" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
       </div>
     </div>
-    <button id="vehSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save vehicle</button>
+    <button id="vehSaveBtn" style="width:100%;padding:12px;border-radius:10px;background:#34D399;border:none;color:#0A0A0B;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Save vehicle</button>
   </div>
 </div>
 </div>
@@ -5652,7 +5652,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         <input type="number" id="cpYears" step="1" min="1" max="50" placeholder="e.g. 20" value="20" style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
       </div>
     </div>
-    <button id="cpCalcBtn" style="padding:10px 24px;border-radius:10px;background:#E07658;border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Calculate</button>
+    <button id="cpCalcBtn" style="padding:10px 24px;border-radius:10px;background:#34D399;border:none;color:#0A0A0B;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Calculate</button>
   </div>
   <div id="cpSummary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
   <div id="cpChart" style="background:rgba(255,255,255,0.04);border-radius:14px;padding:16px;border:1px solid rgba(255,255,255,0.06)">
@@ -6338,11 +6338,11 @@ renderAccounts();
   function setStrategy(s) {
     strategy = s;
     localStorage.setItem(STRAT_KEY, s);
-    sbBtn.style.background = s==='snowball' ? '#E07658' : 'rgba(255,255,255,0.06)';
-    sbBtn.style.color      = s==='snowball' ? '#fff' : 'rgba(255,255,255,0.6)';
+    sbBtn.style.background = s==='snowball' ? '#34D399' : 'rgba(255,255,255,0.06)';
+    sbBtn.style.color      = s==='snowball' ? '#0A0A0B' : 'rgba(255,255,255,0.6)';
     sbBtn.style.border     = s==='snowball' ? 'none' : '1px solid rgba(255,255,255,0.08)';
-    avBtn.style.background = s==='avalanche' ? '#E07658' : 'rgba(255,255,255,0.06)';
-    avBtn.style.color      = s==='avalanche' ? '#fff' : 'rgba(255,255,255,0.6)';
+    avBtn.style.background = s==='avalanche' ? '#34D399' : 'rgba(255,255,255,0.06)';
+    avBtn.style.color      = s==='avalanche' ? '#0A0A0B' : 'rgba(255,255,255,0.6)';
     avBtn.style.border     = s==='avalanche' ? 'none' : '1px solid rgba(255,255,255,0.08)';
     if (descEl) descEl.textContent = DESCS[s];
     renderDebts();

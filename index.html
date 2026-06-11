@@ -753,12 +753,12 @@ body { padding-bottom: 90px; }
 .ai-ask-input:focus { border-color: rgba(255,255,255,0.25); }
 .ai-ask-input::placeholder { color: var(--text-tertiary); }
 .ai-ask-btn {
-  background: rgba(224,118,88,0.15); border: 1px solid rgba(224,118,88,0.3);
-  border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700;
-  color: #E07658; cursor: pointer; font-family: inherit; white-space: nowrap;
+  background: var(--accent-dim, rgba(52,211,153,0.12)); border: 1px solid var(--accent-border, rgba(52,211,153,0.28));
+  border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 600;
+  color: var(--accent, #34D399); cursor: pointer; font-family: inherit; white-space: nowrap;
   transition: background 0.15s;
 }
-.ai-ask-btn:hover { background: rgba(224,118,88,0.25); }
+.ai-ask-btn:hover { background: rgba(52,211,153,0.22); }
 .ai-ask-result { margin-top: 10px; font-size: 12px; color: var(--text-secondary); line-height: 1.6; display: none; white-space: pre-wrap; }
 
 .quick-notes-textarea {
@@ -2060,10 +2060,10 @@ setInterval(refreshStatChips, 60000);
 .uib { position: fixed; bottom: 68px; right: 14px; z-index: 190; display: flex; flex-direction: column; align-items: flex-end; }
 .uib-toggle {
   width: 46px; height: 46px; border-radius: 50%;
-  background: #E07658; border: none; cursor: pointer;
-  color: #fff; font-size: 24px; line-height: 1;
+  background: var(--accent, #34D399); border: none; cursor: pointer;
+  color: #0A0A0B; font-size: 24px; line-height: 1;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 4px 16px rgba(224,118,88,0.35);
+  box-shadow: 0 4px 16px rgba(52,211,153,0.30);
   transition: transform 0.15s;
 }
 .uib-toggle:hover { transform: scale(1.08); }
@@ -2082,11 +2082,11 @@ setInterval(refreshStatChips, 60000);
   border-radius: 8px; color: #FAFAFA; padding: 8px 10px; font-size: 14px;
   width: 100%; outline: none;
 }
-.uib-panel select:focus, .uib-panel input[type=text]:focus { border-color: rgba(224,118,88,0.5); }
+.uib-panel select:focus, .uib-panel input[type=text]:focus { border-color: rgba(52,211,153,0.5); }
 .uib-panel select option { background: #1a1a1c; }
 .uib-submit {
-  background: #E07658; color: #fff; border: none; border-radius: 8px;
-  padding: 10px 14px; font-weight: 700; font-size: 13px; cursor: pointer;
+  background: var(--accent, #34D399); color: #0A0A0B; border: none; border-radius: 8px;
+  padding: 10px 14px; font-weight: 600; font-size: 13px; cursor: pointer;
   letter-spacing: 0.04em; margin-top: 2px;
 }
 .uib-submit:disabled { opacity: 0.5; }
