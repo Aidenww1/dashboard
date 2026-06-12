@@ -121,6 +121,12 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
       <button class="add-btn" id="customAddBtn">+ Add</button>
     </div>
   </div>
+
+  <div class="card" id="suggestCard" style="display:none">
+    <div class="section-title">Suggested check-ins</div>
+    <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px;line-height:1.5">Based on what your data quality says is stale. Adding one creates a normal custom reminder — nothing fires without your tap.</div>
+    <div id="suggestList"></div>
+  </div>
 </div>
 
 <style>
@@ -604,6 +610,67 @@ window.addEventListener('lifeos:event', function(e) {
     var shell = document.querySelector('.shell');
     if (shell) shell.insertBefore(div, shell.firstChild);
   }).catch(function(){});
+})();
+</script>
+
+<script>
+// ===== SUGGESTED CHECK-INS (Phase 9) =====
+// Deterministic: maps LifeOS data-quality stale entries to one-tap
+// reminder suggestions. Adding writes a normal custom reminder.
+(function suggestCheckins() {
+  'use strict';
+  var KEY = 'reminders:v1';
+  var MAP = {
+    weight:       { icon: '⚖️', label: 'Log your weight',                time: '08:00', days: [1,2,3,4,5,6,0] },
+    sleep:        { icon: '🌙', label: 'Log last night’s sleep',     time: '09:00', days: [1,2,3,4,5,6,0] },
+    nutrition:    { icon: '🍽', label: 'Log your meals',                  time: '20:00', days: [1,2,3,4,5,6,0] },
+    training:     { icon: '🏋', label: 'Train or plan your next session', time: '17:00', days: [1,3,5] },
+    mood:         { icon: '😊', label: 'Evening mood check-in',           time: '21:00', days: [1,2,3,4,5,6,0] },
+    bloodwork:    { icon: '🩸', label: 'Book a bloodwork retest',         time: '10:00', days: [6] },
+    measurements: { icon: '📏', label: 'Take body measurements',          time: '09:00', days: [0] },
+    finance:      { icon: '💶', label: 'Import bank CSV + money review',  time: '19:00', days: [0] },
+    photos:       { icon: '📸', label: 'Weekly body progress photo',      time: '09:30', days: [0] },
+    skin:         { icon: '🧴', label: 'Skin check + photo',              time: '21:30', days: [0] },
+  };
+
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+
+  function render() {
+    var card = document.getElementById('suggestCard');
+    var list = document.getElementById('suggestList');
+    if (!card || !list || !window.LifeOS || !LifeOS.quality) return;
+    var q;
+    try { q = LifeOS.quality(); } catch (e) { return; }
+    var existing = jget(KEY, {}) || {};
+    var customIds = (existing.custom || []).map(function (c) { return c.id; });
+    var items = (q.stale || []).map(function (s) { return { key: s.key, daysAgo: s.daysAgo, t: MAP[s.key] }; })
+      .filter(function (x) { return x.t && customIds.indexOf('sg_' + x.key) < 0; })
+      .slice(0, 5);
+    if (!items.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = items.map(function (x) {
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
+        + '<div style="font-size:18px">' + x.t.icon + '</div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text-primary)">' + x.t.label + '</div>'
+        + '<div style="font-size:11px;color:var(--text-tertiary)">' + (x.daysAgo != null ? 'Stale ' + x.daysAgo + 'd' : 'Never logged') + ' · ' + x.t.time + (x.t.days.length === 7 ? ' daily' : x.t.days.length === 1 ? ' weekly' : '') + '</div></div>'
+        + '<button class="add-btn" data-sg="' + x.key + '" style="flex-shrink:0">+ Add</button>'
+        + '</div>';
+    }).join('');
+    list.querySelectorAll('[data-sg]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var t = MAP[b.dataset.sg];
+        if (!t) return;
+        var data = jget(KEY, {}) || {};
+        data.custom = data.custom || [];
+        if (data.custom.some(function (c) { return c.id === 'sg_' + b.dataset.sg; })) return;
+        data.custom.push({ id: 'sg_' + b.dataset.sg, label: t.label, time: t.time, days: t.days, enabled: true, sub: 'Suggested by Life OS data quality' });
+        localStorage.setItem(KEY, JSON.stringify(data));
+        location.reload(); // re-run the page's scheduler with the new reminder
+      });
+    });
+  }
+  if (window.LifeOS) render();
+  else window.addEventListener('lifeos:ready', render);
 })();
 </script>
 

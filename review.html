@@ -107,6 +107,15 @@ h1 { font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px;
     <div class="ai-output" id="correlSummary" style="display:none;margin-top:10px"></div>
   </div>
 
+  <div class="section" id="ritualSection">
+    <div class="section-title">Weekly ritual</div>
+    <div class="stat-card" id="ritualIntro">
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px" id="ritualIntroText">Ten questions, pre-filled with your real week. Best done Sunday evening.</div>
+      <button class="ai-btn" id="ritualStartBtn" style="width:auto;padding:9px 18px">Start weekly ritual</button>
+    </div>
+    <div id="ritualBody" style="display:none"></div>
+  </div>
+
   <div class="ai-section">
     <button class="ai-btn" id="aiBtn">Get AI Weekly Review</button>
     <div class="ai-output" id="aiOutput"></div>
@@ -385,10 +394,21 @@ Meditation: ${medMins} min this week
 Gratitude logged: ${gratDays}/7 days
 Focus sessions (Pomodoro): ${pomos} this week`;
 
+  // Deep work + ritual answers (Phase 9)
+  let extra = '';
+  const focusLogs = tryParse('focus:logs:v1', []);
+  const focusMin = focusLogs.filter(l => DAYS.includes(l.date)).reduce((s,l)=>s+Math.round((l.sec||0)/60),0);
+  if (focusMin) extra += `\nDeep work: ${(focusMin/60).toFixed(1)}h this week`;
+  const ritual = tryParse('review:ritual:v1', {})[DAYS[0]];
+  if (ritual && ritual.answers) {
+    extra += '\nUser weekly ritual answers: ' + ritual.answers.map((a,i)=>a?`Q${i+1}: ${a}`:'').filter(Boolean).join(' | ');
+  }
+  const fullContext = context + extra;
+
   LifeOS.ai.chat({
     prompt: 'Give me a weekly review based on my data. Be specific, highlight wins, flag concerns, and give 2-3 actionable suggestions for next week.',
-    context: context,
-    cacheKey: 'weekly_review_' + DAYS[0],
+    context: fullContext,
+    cacheKey: 'weekly_review_' + DAYS[0] + (ritual ? '_r' : ''),
     ttlMs: LifeOS.ai.TTL.weekly,
   })
   .then(d => {
@@ -522,6 +542,142 @@ function run() {
 if (window.LifeOS && window.LifeOS.ai) run();
 else window.addEventListener('lifeos:ready', run);
 if (document.readyState !== 'loading') setTimeout(run, 400); else document.addEventListener('DOMContentLoaded', () => setTimeout(run, 400));
+})();
+</script>
+
+<script>
+// ===== WEEKLY RITUAL (Phase 9) =====
+// Stored per ISO-week Monday in review:ritual:v1.
+// Ten guided questions, each pre-filled with the actual week's data.
+// Answers stored per week and fed into the AI weekly review.
+(function weeklyRitual() {
+  'use strict';
+  var KEY = 'review:ritual:v1';
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function ds(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function weekDays(offset) {
+    var t = new Date();
+    var monday = new Date(t);
+    monday.setDate(t.getDate() - ((t.getDay() + 6) % 7) - (offset || 0) * 7);
+    monday.setHours(0, 0, 0, 0);
+    var out = [];
+    for (var i = 0; i < 7; i++) { var d = new Date(monday); d.setDate(monday.getDate() + i); out.push(ds(d)); }
+    return out;
+  }
+
+  function prefills() {
+    var DAYS = weekDays(0), PREV = weekDays(1);
+    var inWeek = function (d) { return DAYS.indexOf(d) >= 0; };
+
+    // Training: distinct days with logged sets or workout-done marks
+    var trainDays = {};
+    try {
+      var po = jget('po_coach_v1', {}) || {};
+      Object.values(po.logs || {}).forEach(function (arr) {
+        (arr || []).forEach(function (s) { var d = String(s.date || '').slice(0, 10); if (inWeek(d)) trainDays[d] = 1; });
+      });
+    } catch (e) {}
+    Object.keys(jget('po_coach_workout_done', {}) || {}).forEach(function (d) { if (inWeek(d)) trainDays[d] = 1; });
+
+    // Protein: days hitting >=90% of target
+    var targets = jget('nt:targets', {}) || {};
+    var protByDay = {};
+    (jget('nt:logs', []) || []).forEach(function (l) {
+      var d = l.dateKey || (l.loggedAt ? String(l.loggedAt).slice(0, 10) : null);
+      if (d && inWeek(d)) protByDay[d] = (protByDay[d] || 0) + (l.protein || 0);
+    });
+    var protHits = targets.protein ? Object.values(protByDay).filter(function (p) { return p >= targets.protein * 0.9; }).length : null;
+
+    var sleep = (jget('sleep:logs', []) || []).filter(function (e) { return inWeek(e.date); });
+    var sleepAvg = sleep.length ? (sleep.reduce(function (s, e) { return s + (e.duration || 0); }, 0) / sleep.length / 60).toFixed(1) : null;
+
+    var fin = (window.LifeOS && LifeOS.context) ? LifeOS.context('finance') : {};
+
+    var weekOut = 0, hasTx = false;
+    (jget('ing:tx', []) || []).forEach(function (t) {
+      if (inWeek(String(t.date || '').slice(0, 10))) { hasTx = true; if (t.amount < 0) weekOut += Math.abs(t.amount); }
+    });
+
+    var focusMin = (jget('focus:logs:v1', []) || []).filter(function (l) { return inWeek(l.date); })
+      .reduce(function (s, l) { return s + Math.round((l.sec || 0) / 60); }, 0);
+
+    var habits = jget('habits:v1', []) || [];
+    var hlogs = jget('habits:logs:v1', {}) || {};
+    var today = ds(new Date());
+    var missed = 0;
+    habits.forEach(function (h) {
+      DAYS.forEach(function (d) {
+        if (d > today) return;
+        var due = h.freq === 'weekdays' ? (new Date(d).getDay() >= 1 && new Date(d).getDay() <= 5) : h.freq === 'weekly' ? new Date(d).getDay() === 1 : true;
+        if (due && !(Array.isArray(hlogs[d]) && hlogs[d].indexOf(h.id) >= 0)) missed++;
+      });
+    });
+
+    function moodAvg(days) {
+      var m = (jget('mind:mood:v1', []) || []).filter(function (e) { return days.indexOf(e.date) >= 0; });
+      return m.length ? (m.reduce(function (s, e) { return s + (e.mood || e.score || 0); }, 0) / m.length).toFixed(1) : null;
+    }
+    var moodNow = moodAvg(DAYS), moodPrev = moodAvg(PREV);
+
+    return [
+      ['How did training go?', Object.keys(trainDays).length + ' sessions this week'],
+      ['Did you eat like someone with a goal?', protHits != null ? 'Protein target hit ' + protHits + '/7 days' : 'No protein target set'],
+      ['How was sleep?', sleepAvg ? 'Averaged ' + sleepAvg + 'h per night' : 'No sleep logged this week'],
+      ['Are you saving like planned?', fin && fin.savings_rate_last_month_actual_pct != null ? 'Last full month savings rate: ' + fin.savings_rate_last_month_actual_pct + '%' : 'No bank import yet'],
+      ['Any spending you regret?', hasTx ? 'Spent €' + Math.round(weekOut) + ' this week (bank data)' : 'No bank data for this week'],
+      ['Did you do real deep work?', focusMin ? (focusMin / 60).toFixed(1) + 'h of tracked focus' : 'No focus sessions tracked'],
+      ['Which habits slipped?', missed + ' habit check-ins missed so far'],
+      ['How was your headspace?', moodNow ? 'Mood avg ' + moodNow + '/5' + (moodPrev ? ' (prev week ' + moodPrev + ')' : '') : 'No mood logs this week'],
+      ['Biggest win of the week?', null],
+      ['Biggest problem to fix next week?', null],
+    ];
+  }
+
+  function render() {
+    var body = document.getElementById('ritualBody');
+    var intro = document.getElementById('ritualIntro');
+    if (!body) return;
+    var weekKey = weekDays(0)[0];
+    var saved = (jget(KEY, {}) || {})[weekKey];
+    var introText = document.getElementById('ritualIntroText');
+    if (saved && introText) introText.textContent = 'Done for this week (' + String(saved.savedAt || '').slice(0, 10) + '). Reopen to edit.';
+    var startBtn = document.getElementById('ritualStartBtn');
+    if (startBtn) startBtn.textContent = saved ? 'Reopen ritual' : 'Start weekly ritual';
+
+    var qs = prefills();
+    body.innerHTML = qs.map(function (q, i) {
+      return '<div class="stat-card" style="margin-bottom:8px">'
+        + '<div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:3px">' + (i + 1) + '. ' + q[0] + '</div>'
+        + (q[1] ? '<div style="font-size:11px;color:#6BE3A4;margin-bottom:6px">' + esc(q[1]) + '</div>' : '')
+        + '<textarea data-rq="' + i + '" rows="2" placeholder="Your honest answer…" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box">' + esc(saved && saved.answers ? saved.answers[i] || '' : '') + '</textarea>'
+        + '</div>';
+    }).join('')
+      + '<button class="ai-btn" id="ritualSaveBtn" style="margin-top:4px">Save ritual</button>'
+      + '<div id="ritualSavedMsg" style="font-size:12px;color:var(--text-tertiary);margin-top:8px"></div>';
+
+    document.getElementById('ritualSaveBtn').addEventListener('click', function () {
+      var answers = Array.prototype.map.call(body.querySelectorAll('[data-rq]'), function (t) { return t.value.trim(); });
+      var store = jget(KEY, {}) || {};
+      store[weekKey] = { answers: answers, savedAt: new Date().toISOString() };
+      var keys = Object.keys(store).sort();
+      while (keys.length > 26) { delete store[keys.shift()]; }
+      jset(KEY, store);
+      document.getElementById('ritualSavedMsg').textContent = 'Saved. Your answers now feed the AI weekly review above.';
+      if (introText) introText.textContent = 'Done for this week. Reopen to edit.';
+      if (startBtn) startBtn.textContent = 'Reopen ritual';
+    });
+  }
+
+  var startBtn = document.getElementById('ritualStartBtn');
+  if (startBtn) startBtn.addEventListener('click', function () {
+    var body = document.getElementById('ritualBody');
+    var open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    if (!open) render();
+  });
 })();
 </script>
 </body>

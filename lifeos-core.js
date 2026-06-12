@@ -140,6 +140,11 @@
     var bMl = ws.bottleMl || 500;
     return { count: count, target: Math.max(1, Math.ceil(wKg * 35 / bMl)) };
   }
+  function focusMinToday() {
+    var s = 0;
+    (get('focus:logs:v1', []) || []).forEach(function (l) { if (l && l.date === todayStr()) s += l.sec || 0; });
+    return Math.round(s / 60);
+  }
   function financeSnapshot() {
     var thisMonth = todayStr().slice(0, 7);
     var income = finIncome();
@@ -234,16 +239,19 @@
     if (hb.total) add('habits', 'Habits', hb.done / hb.total * 10, 10, hb.done + '/' + hb.total + ' done');
     else add('habits', 'Habits', 5, 10, 'No habits set');
 
-    // Productivity (15): today's goals + tasks done today
+    // Productivity (15): today's goals + tasks done today + deep work
     var goals = goalsFor(todayStr());
     var goalsDone = goals.filter(function (g) { return g && g.done; }).length;
     var tasksDoneToday = tasksAll().filter(function (t) {
       return t && t.done && String(t.completedAt || t.createdAt || '').slice(0, 10) === todayStr();
     }).length;
+    var fmins = focusMinToday();
+    var fpts = fmins >= 90 ? 3 : fmins >= 45 ? 2 : fmins > 0 ? 1 : 0;
+    var fdetail = fmins ? ' · ' + fmins + 'm focus' : '';
     if (goals.length) {
-      var pp = goalsDone / goals.length * 12 + Math.min(3, tasksDoneToday);
-      add('productivity', 'Productivity', pp, 15, goalsDone + '/' + goals.length + ' goals' + (tasksDoneToday ? ' · ' + tasksDoneToday + ' tasks' : ''));
-    } else add('productivity', 'Productivity', 7, 15, 'No goals today');
+      var pp = Math.min(15, goalsDone / goals.length * 9 + Math.min(3, tasksDoneToday) + fpts);
+      add('productivity', 'Productivity', pp, 15, goalsDone + '/' + goals.length + ' goals' + (tasksDoneToday ? ' · ' + tasksDoneToday + ' tasks' : '') + fdetail);
+    } else add('productivity', 'Productivity', 6 + fpts, 15, (fmins ? fmins + 'm focus, no goals set' : 'No goals today'));
 
     // Finance (15): savings rate
     var fin = financeSnapshot();
@@ -463,6 +471,7 @@
       tasks_open: tasks.filter(function (t) { return !t.done; }).map(function (t) { return { title: t.title, due: t.due, priority: t.priority }; }).slice(0, 15),
       tasks_overdue: tasks.filter(function (t) { return !t.done && t.due && t.due < todayStr(); }).length,
       habits: habitsToday(),
+      focus_min_today: focusMinToday(),
     };
   }
 

@@ -311,6 +311,25 @@ body::after {
   </div>
   <div class="nl-status" id="nlStatus"></div>
 
+  <!-- Day planner: messy text -> Claude time blocks -> preview -> confirm -> GCal -->
+  <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px;margin-bottom:14px" id="plannerCard">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:8px">Plan my day</div>
+    <textarea id="plnInput" rows="3" placeholder="Dump your day… e.g. 'client work on the dashboard, gym, groceries, finish invoice, call mom, 1h reading'" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px;color:#FAFAFA;font-size:13px;font-family:inherit;outline:none;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+      <button id="plnBtn" style="padding:8px 16px;border-radius:10px;border:1px solid rgba(107,227,164,0.3);background:rgba(107,227,164,0.12);color:#6BE3A4;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Structure my day</button>
+      <span id="plnStatus" style="font-size:12px;color:rgba(255,255,255,0.4)"></span>
+    </div>
+    <div id="plnPeaks" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:6px"></div>
+    <div id="plnPreview" style="display:none;margin-top:12px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:8px">Proposed blocks — adjust, then confirm</div>
+      <div id="plnBlocks"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="plnConfirm" style="flex:1;padding:10px;border-radius:10px;border:none;background:#34D399;color:#0A0A0B;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Add to Google Calendar</button>
+        <button id="plnCancel" style="padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.5);font-size:13px;cursor:pointer;font-family:inherit">Discard</button>
+      </div>
+    </div>
+  </div>
+
   <div class="confirm-card" id="confirmCard" hidden>
     <div class="confirm-label">Parsed event — review before adding</div>
     <div class="confirm-grid">
@@ -1272,6 +1291,186 @@ renderAll();
     tasksBtn.classList.add('active'); calBtn.classList.remove('active');
     calSec.style.display = 'none'; tasksSec.style.display = '';
   });
+})();
+</script>
+
+<script>
+// ===== CLAUDE DAY PLANNER (Phase 9) =====
+// Messy text -> Claude proposes time blocks -> user adjusts -> confirm ->
+// events written to Google Calendar. Life OS stores its own copy in
+// planner:blocks:v1 (source of truth for app-created blocks).
+(function dayPlanner() {
+  'use strict';
+  var PLAN_KEY = 'planner:blocks:v1';
+  var ENERGY_KEY = 'energy:logs:v1';
+  var proposed = [];
+
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+
+  // Peak energy windows: needs >=15 logs spanning >=21 days
+  function energyPeaks() {
+    var logs = jget(ENERGY_KEY, []) || [];
+    if (logs.length < 15) return null;
+    var spanDays = (logs[logs.length - 1].ts - logs[0].ts) / 86400000;
+    if (spanDays < 21) return null;
+    var byHour = {};
+    logs.forEach(function (l) {
+      var h = new Date(l.ts).getHours();
+      (byHour[h] = byHour[h] || []).push(l.level);
+    });
+    var avgAll = logs.reduce(function (s, l) { return s + l.level; }, 0) / logs.length;
+    var good = [];
+    Object.keys(byHour).forEach(function (h) {
+      var arr = byHour[h];
+      if (arr.length < 2) return;
+      var avg = arr.reduce(function (s, v) { return s + v; }, 0) / arr.length;
+      if (avg >= avgAll + 0.3) good.push(Number(h));
+    });
+    if (!good.length) return null;
+    good.sort(function (a, b) { return a - b; });
+    var windows = [];
+    var start = good[0], prev = good[0];
+    for (var i = 1; i <= good.length; i++) {
+      if (i < good.length && good[i] === prev + 1) { prev = good[i]; continue; }
+      windows.push(String(start).padStart(2, '0') + ':00-' + String(prev + 1).padStart(2, '0') + ':00');
+      if (i < good.length) { start = good[i]; prev = good[i]; }
+    }
+    return windows;
+  }
+
+  function planDateKey() {
+    // currentDate is the calendar page's selected day (global)
+    try { return dateKey(currentDate); } catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+
+  function renderPeaksLine() {
+    var el = document.getElementById('plnPeaks');
+    if (!el) return;
+    var peaks = energyPeaks();
+    el.textContent = peaks
+      ? 'Your peak energy windows: ' + peaks.join(', ') + ' — hard work gets planned there.'
+      : 'Log energy on the dashboard (1-5 chips) for 3+ weeks to unlock energy-matched planning.';
+  }
+
+  function renderPreview() {
+    var wrap = document.getElementById('plnBlocks');
+    var prev = document.getElementById('plnPreview');
+    if (!wrap || !prev) return;
+    if (!proposed.length) { prev.style.display = 'none'; return; }
+    prev.style.display = 'block';
+    wrap.innerHTML = proposed.map(function (b, i) {
+      return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px" data-pi="' + i + '">'
+        + '<input type="time" value="' + b.start + '" data-pf="start" style="background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px;color:#FAFAFA;font-family:inherit;font-size:12px">'
+        + '<input type="time" value="' + b.end + '" data-pf="end" style="background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px;color:#FAFAFA;font-family:inherit;font-size:12px">'
+        + '<input type="text" value="' + esc(b.title).replace(/"/g, '&quot;') + '" data-pf="title" style="flex:1;min-width:0;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px 10px;color:#FAFAFA;font-family:inherit;font-size:12px">'
+        + '<button data-pf="del" style="background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:rgba(255,255,255,0.4);padding:5px 9px;cursor:pointer;font-family:inherit">×</button>'
+        + '</div>';
+    }).join('');
+    wrap.querySelectorAll('[data-pi]').forEach(function (row) {
+      var i = Number(row.dataset.pi);
+      row.querySelectorAll('input').forEach(function (inp) {
+        inp.addEventListener('change', function () { proposed[i][inp.dataset.pf] = inp.value; });
+      });
+      row.querySelector('[data-pf="del"]').addEventListener('click', function () {
+        proposed.splice(i, 1); renderPreview();
+      });
+    });
+  }
+
+  function structureDay() {
+    var input = document.getElementById('plnInput');
+    var status = document.getElementById('plnStatus');
+    var text = (input.value || '').trim();
+    if (!text) { status.textContent = 'Type what your day should contain first.'; return; }
+    if (!window.LifeOS || !LifeOS.ai) { status.textContent = 'AI service not loaded.'; return; }
+    status.textContent = 'Structuring…';
+
+    var dk = planDateKey();
+    var peaks = energyPeaks();
+    var tasks = (jget('tasks:v1', []) || []).filter(function (t) { return !t.done; }).slice(0, 5).map(function (t) { return t.title; });
+
+    // Existing events for the day (only when connected; planner works without)
+    var evPromise = (typeof accessToken !== 'undefined' && accessToken && typeof fetchEvents === 'function')
+      ? fetchEvents(currentDate).then(function (d) {
+          return ((d && d.items) || []).filter(function (e) { return e.start && e.start.dateTime; }).map(function (e) {
+            return e.summary + ' ' + e.start.dateTime.slice(11, 16) + '-' + (e.end && e.end.dateTime ? e.end.dateTime.slice(11, 16) : '?');
+          });
+        }).catch(function () { return []; })
+      : Promise.resolve([]);
+
+    evPromise.then(function (existing) {
+      return LifeOS.ai.chat({
+        prompt: 'Turn this messy plan into a realistic schedule of time blocks for ' + dk + '.\n'
+          + 'Plan: ' + text + '\n'
+          + (existing.length ? 'Already on the calendar (do NOT overlap): ' + existing.join('; ') + '\n' : '')
+          + (tasks.length ? 'Open tasks that may deserve a block: ' + tasks.join('; ') + '\n' : '')
+          + (peaks ? 'User peak energy windows: ' + peaks.join(', ') + '. Put the most demanding work inside these windows and admin/errands outside them.\n' : '')
+          + 'Rules: blocks between 07:00 and 23:00, realistic durations, short breaks between long work blocks, do not invent activities the user did not mention (open tasks may be included only if they fit).\n'
+          + 'Reply ONLY JSON: {"blocks":[{"title":"...","start":"HH:MM","end":"HH:MM"}]}',
+        timeoutMs: 30000,
+      });
+    }).then(function (res) {
+      var m = String(res.reply || '').match(/\{[\s\S]*\}/);
+      if (!m) throw new Error('Could not parse plan');
+      var blocks = (JSON.parse(m[0]).blocks || []).filter(function (b) {
+        return b && b.title && /^\d{2}:\d{2}$/.test(b.start || '') && /^\d{2}:\d{2}$/.test(b.end || '');
+      });
+      if (!blocks.length) throw new Error('No usable blocks returned');
+      proposed = blocks;
+      status.textContent = blocks.length + ' blocks proposed for ' + dk + '. Nothing is saved yet.';
+      renderPreview();
+    }).catch(function (e) {
+      status.textContent = 'Planning failed: ' + (e.message || e);
+    });
+  }
+
+  function confirmPlan() {
+    var status = document.getElementById('plnStatus');
+    if (!proposed.length) return;
+    if (typeof accessToken === 'undefined' || !accessToken) { alert('Connect Google Calendar first.'); return; }
+    var dk = planDateKey();
+    status.textContent = 'Writing ' + proposed.length + ' blocks to Google Calendar…';
+    var saved = [];
+    function next(i) {
+      if (i >= proposed.length) return Promise.resolve();
+      var b = proposed[i];
+      var s = new Date(dk + 'T' + b.start), e = new Date(dk + 'T' + b.end);
+      if (e <= s) e = new Date(s.getTime() + 30 * 60000);
+      return createEvent({
+        summary: b.title,
+        description: 'Planned by Life OS day planner',
+        start: { dateTime: toLocalISO(s) },
+        end: { dateTime: toLocalISO(e) },
+      }).then(function (ev) {
+        saved.push({ title: b.title, start: b.start, end: b.end, eventId: ev && ev.id });
+        return next(i + 1);
+      });
+    }
+    next(0).then(function () {
+      var store = jget(PLAN_KEY, {}) || {};
+      store[dk] = saved;
+      var keys = Object.keys(store).sort();
+      while (keys.length > 30) { delete store[keys.shift()]; }
+      jset(PLAN_KEY, store);
+      proposed = [];
+      renderPreview();
+      document.getElementById('plnInput').value = '';
+      status.textContent = saved.length + ' blocks added to Google Calendar.';
+      try { loadDay(currentDate); } catch (e) {}
+    }).catch(function (e) {
+      status.textContent = 'Write failed after ' + saved.length + ' blocks: ' + (e.message || e);
+    });
+  }
+
+  document.getElementById('plnBtn') && document.getElementById('plnBtn').addEventListener('click', structureDay);
+  document.getElementById('plnConfirm') && document.getElementById('plnConfirm').addEventListener('click', confirmPlan);
+  document.getElementById('plnCancel') && document.getElementById('plnCancel').addEventListener('click', function () {
+    proposed = []; renderPreview();
+    document.getElementById('plnStatus').textContent = 'Discarded.';
+  });
+  renderPeaksLine();
+  window.__plannerPropose = function (blocks) { proposed = blocks; renderPreview(); }; // verification hook
 })();
 </script>
 

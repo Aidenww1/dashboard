@@ -851,6 +851,25 @@ body { padding-bottom: 90px; }
         <div class="ls-quality" id="rdDebt"></div>
       </div>
 
+      <div class="ai-summary-card" id="focusCard">
+        <div class="card-eyebrow">Deep Work</div>
+        <div class="ls-row">
+          <div class="ls-num" id="fcTimer" style="font-variant-numeric:tabular-nums">0:00</div>
+          <div class="ls-meta">
+            <div class="ls-drag" id="fcTotal">0 min today</div>
+            <div class="ls-action" id="fcHint">Start a focus session</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button id="fcBtn" style="flex:1;padding:9px;border-radius:10px;border:1px solid rgba(107,227,164,0.3);background:rgba(107,227,164,0.12);color:#6BE3A4;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Start focus</button>
+        </div>
+        <div style="margin-top:10px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:6px">Energy right now</div>
+          <div style="display:flex;gap:6px" id="fcEnergy"></div>
+          <div id="fcEnergyNote" style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:5px"></div>
+        </div>
+      </div>
+
       <div class="ai-summary-card">
         <div class="card-eyebrow">AI Summary</div>
         <div class="ai-summary-text" id="aiSummaryText">Tap refresh to get your daily briefing.</div>
@@ -2280,6 +2299,104 @@ window.addEventListener('lifeos:event', function(e) {
     var b = document.getElementById('lsBars');
     b.style.display = b.style.display === 'none' ? 'block' : 'none';
   });
+})();
+</script>
+
+<script>
+// ===== DEEP WORK FOCUS TRACKER + ENERGY LOG (Phase 9) =====
+(function focusTracker() {
+  var LOGS_KEY = 'focus:logs:v1';     // [{date,startTs,sec}]
+  var ACTIVE_KEY = 'focus:active:v1'; // {startTs} while running
+  var ENERGY_KEY = 'energy:logs:v1';  // [{ts,level 1-5}]
+  var tick = null;
+
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function $(id) { return document.getElementById(id); }
+
+  function totalToday() {
+    var s = 0;
+    (jget(LOGS_KEY, []) || []).forEach(function (l) { if (l.date === today()) s += l.sec || 0; });
+    return Math.round(s / 60);
+  }
+  function fmt(sec) {
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m >= 60 ? Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') + ':' : m + ':') + String(s).padStart(2, '0');
+  }
+  function render() {
+    var active = jget(ACTIVE_KEY, null);
+    var t = $('fcTimer'), btn = $('fcBtn'), tot = $('fcTotal'), hint = $('fcHint');
+    if (!t) return;
+    tot.textContent = totalToday() + ' min today';
+    if (active && active.startTs) {
+      var sec = Math.max(0, Math.floor((Date.now() - active.startTs) / 1000));
+      t.textContent = fmt(sec);
+      t.style.color = '#6BE3A4';
+      btn.textContent = 'Stop & log';
+      btn.style.background = 'rgba(255,107,107,0.12)';
+      btn.style.borderColor = 'rgba(255,107,107,0.3)';
+      btn.style.color = '#FF6B6B';
+      hint.textContent = 'Deep work running';
+      if (!tick) tick = setInterval(render, 1000);
+    } else {
+      t.textContent = '0:00';
+      t.style.color = '';
+      btn.textContent = 'Start focus';
+      btn.style.background = 'rgba(107,227,164,0.12)';
+      btn.style.borderColor = 'rgba(107,227,164,0.3)';
+      btn.style.color = '#6BE3A4';
+      hint.textContent = totalToday() > 0 ? 'Feeds your life score' : 'Start a focus session';
+      if (tick) { clearInterval(tick); tick = null; }
+    }
+  }
+  $('fcBtn') && $('fcBtn').addEventListener('click', function () {
+    var active = jget(ACTIVE_KEY, null);
+    if (active && active.startTs) {
+      var sec = Math.max(0, Math.floor((Date.now() - active.startTs) / 1000));
+      localStorage.removeItem(ACTIVE_KEY);
+      if (sec >= 60) {
+        var logs = jget(LOGS_KEY, []) || [];
+        logs.push({ date: today(), startTs: active.startTs, sec: sec });
+        jset(LOGS_KEY, logs.slice(-500));
+        window.dispatchEvent(new CustomEvent('lifeos:logged'));
+      }
+    } else {
+      jset(ACTIVE_KEY, { startTs: Date.now() });
+    }
+    render();
+  });
+
+  // Energy chips 1-5, timestamped — fuels energy-matched scheduling
+  function renderEnergy() {
+    var wrap = $('fcEnergy');
+    if (!wrap) return;
+    var logs = jget(ENERGY_KEY, []) || [];
+    var last = logs[logs.length - 1];
+    var recent = last && (Date.now() - last.ts) < 2 * 3600000 ? last.level : null;
+    wrap.innerHTML = [1, 2, 3, 4, 5].map(function (n) {
+      var on = recent === n;
+      return '<button data-en="' + n + '" style="flex:1;padding:7px 0;border-radius:8px;border:1px solid ' + (on ? 'rgba(107,227,164,0.5)' : 'rgba(255,255,255,0.08)') + ';background:' + (on ? 'rgba(107,227,164,0.18)' : 'rgba(255,255,255,0.04)') + ';color:' + (on ? '#6BE3A4' : 'rgba(255,255,255,0.55)') + ';font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">' + n + '</button>';
+    }).join('');
+    var note = $('fcEnergyNote');
+    if (note) {
+      var spanDays = logs.length ? Math.round((Date.now() - logs[0].ts) / 86400000) : 0;
+      note.textContent = logs.length
+        ? logs.length + ' logs over ' + spanDays + 'd' + (logs.length >= 15 && spanDays >= 21 ? ' · powering the day planner' : ' · ' + Math.max(0, 15 - logs.length) + ' more to unlock energy-matched planning')
+        : 'Tap 1 (drained) to 5 (peak). Unlocks energy-matched planning.';
+    }
+    wrap.querySelectorAll('[data-en]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var logs2 = jget(ENERGY_KEY, []) || [];
+        logs2.push({ ts: Date.now(), level: Number(b.dataset.en) });
+        jset(ENERGY_KEY, logs2.slice(-500));
+        renderEnergy();
+      });
+    });
+  }
+  render();
+  renderEnergy();
+  window.addEventListener('lifeos:logged', render);
 })();
 </script>
 
