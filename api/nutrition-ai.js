@@ -6,12 +6,13 @@ export default async function handler(req, res) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) { res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' }); return; }
 
-  const { image, mimeType, description, weight } = req.body || {};
+  const { image, mimeType, description, weight, restaurant } = req.body || {};
   if (!image && !description) { res.status(400).json({ error: 'Provide an image or description' }); return; }
 
   const promptText = [
     'Analyze this food and return nutritional data as a JSON array.',
     weight ? `The total portion weighs ${weight}g. Return values FOR THIS ENTIRE PORTION (not per 100g).` : 'Estimate a typical single serving size in grams for each item.',
+    restaurant ? 'This is a RESTAURANT meal: portions are usually larger and cooked with more oil, butter and sugar than home cooking. Estimate on the generous side (typically +20-30% calories and fat vs a home-cooked equivalent).' : '',
     description ? `User describes it as: "${description}"` : '',
     'If multiple distinct foods are present, include one object per food. If only one food, still return an array with one element.',
     'Return ONLY a JSON array — no markdown fences, no extra text:',

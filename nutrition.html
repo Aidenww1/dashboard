@@ -388,6 +388,18 @@ body::before {
     <div class="nt-divider"></div>
     <div id="todayMacros"></div>
   </div>
+  <div class="card" id="ntProteinConsistCard">
+    <div class="nt-micro-hd">Protein consistency</div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div id="ntProteinConsistPct" style="font-size:28px;font-weight:600;font-variant-numeric:tabular-nums">&mdash;</div>
+      <div style="flex:1">
+        <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;margin-bottom:5px">
+          <div id="ntProteinConsistFill" style="height:100%;background:#34D399;border-radius:3px;transition:width .3s;width:0%"></div>
+        </div>
+        <div id="ntProteinConsistSub" style="font-size:12px;color:var(--text-tertiary)">Last 7 days hitting your protein target</div>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <div class="nt-micro-hd">Micronutrients</div>
     <div id="todayMicros"></div>
@@ -442,6 +454,10 @@ body::before {
         <div class="nt-field"><div class="nt-field-lbl">Fat g</div><input type="number" class="nt-input" id="qFat" placeholder="0" min="0"></div>
         <div class="nt-field"><div class="nt-field-lbl">Alcohol g 🍺</div><input type="number" class="nt-input" id="qAlc" placeholder="0" min="0" step="0.5"></div>
       </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-tertiary);cursor:pointer">
+        <input type="checkbox" id="qRestaurant" style="width:16px;height:16px;accent-color:#34D399">
+        Restaurant meal (estimate, wider margins)
+      </label>
       <button class="nt-btn" id="doQuickAdd">+ Log Quick Entry</button>
     </div>
   </div>
@@ -578,6 +594,23 @@ body::before {
     </div>
   </div>
   <div id="mealTplList"></div>
+
+  <!-- Grocery list (generated from 14d meal history) -->
+  <div class="card" id="groceryCard">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary)">Grocery list</div>
+      <div style="display:flex;gap:6px">
+        <button class="nt-btn-sm" id="groceryGenBtn">Generate from history</button>
+        <button class="nt-btn-sm" id="groceryShareBtn" style="display:none">Share</button>
+      </div>
+    </div>
+    <div id="groceryStatus" style="font-size:12px;color:var(--text-tertiary);margin-bottom:8px">Built from your last 14 days of logged meals.</div>
+    <div id="groceryListEl"></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <input type="text" class="nt-input" id="groceryAddInput" placeholder="Add item…" style="flex:1">
+      <button class="nt-btn-sm" id="groceryAddBtn">+ Add</button>
+    </div>
+  </div>
 </div>
 </div>
 
@@ -695,6 +728,10 @@ body::before {
       <input type="number" class="nt-input" id="aiWeightInput" placeholder="Weight in g (optional)" min="1" step="1">
       <button class="nt-btn" id="aiAnalyzeBtn" style="white-space:nowrap">Identify →</button>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-tertiary);cursor:pointer;padding:2px 0">
+      <input type="checkbox" id="aiRestaurantChk" style="width:16px;height:16px;accent-color:#34D399">
+      Restaurant meal — wider margins, day flagged as estimated
+    </label>
   </div>
   <div class="nt-merr" id="aiPhotoErr"></div>
   <div class="nt-mspin-wrap" id="aiPhotoSpin">
@@ -987,7 +1024,10 @@ function renderLog() {
     const hh = String(t.getHours()).padStart(2,'0'), mm = String(t.getMinutes()).padStart(2,'0');
     return '<div class="nt-entry" data-id="'+esc(l.id)+'">'
       + '<div class="nt-entry-main">'
-      +   '<div class="nt-entry-name">'+esc(l.name)+'</div>'
+      +   '<div class="nt-entry-name">'+esc(l.name)
+      +     (l.restaurant ? ' <span style="font-size:10px;font-weight:600;color:#FBBF24;background:rgba(251,191,36,0.12);border-radius:4px;padding:1px 5px;vertical-align:middle">restaurant ~</span>'
+         : l.estimated ? ' <span style="font-size:10px;font-weight:600;color:var(--text-tertiary);background:rgba(255,255,255,0.06);border-radius:4px;padding:1px 5px;vertical-align:middle">est ~</span>' : '')
+      +   '</div>'
       +   '<div class="nt-entry-sub">'+l.calories+' kcal · '+l.protein+'g P · '+l.carbs+'g C · '+l.fat+'g F</div>'
       +   '<div class="nt-entry-amt-row">'
       +     '<input type="number" class="nt-amt-input" value="'+esc(String(l.amount||0))+'" min="0.1" step="1" data-lid="'+esc(l.id)+'">'
@@ -1211,8 +1251,12 @@ document.getElementById('doQuickAdd')?.addEventListener('click', () => {
     fat:fmtN(nn(document.getElementById('qFat').value),1),
     alcohol_g: alcG,
     micros:{sodium:0,saturatedFat:0,sugar:0,fiber:0,potassium:0,calcium:0,iron:0,vitaminC:0},
-    source:'quick_add', loggedAt:Date.now() });
+    source:'quick_add',
+    estimated: !!document.getElementById('qRestaurant')?.checked,
+    restaurant: !!document.getElementById('qRestaurant')?.checked,
+    loggedAt:Date.now() });
   ['qName','qCal','qProt','qCarb','qFat','qAlc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const qr = document.getElementById('qRestaurant'); if (qr) qr.checked = false;
   document.getElementById('quickForm').classList.remove('open');
   renderLog(); renderToday();
 });
@@ -1319,19 +1363,23 @@ function logResult(prefix) {
   const carb = fmtN(nn(document.getElementById(prefix + 'ResCarb').value), 1);
   const fat = fmtN(nn(document.getElementById(prefix + 'ResFat').value), 1);
   const fiber = fmtN(nn(document.getElementById(prefix + 'ResFiber').value), 1);
+  const rest = prefix === 'ai' && !!document.getElementById('aiRestaurantChk')?.checked;
   saveLog({ id: genId(), dateKey: getAppDateKey(), name, amount: serving, unit: 'g', servingSize: serving,
     calories: Math.round(cal), protein: prot, carbs: carb, fat,
     micros: { sodium: 0, saturatedFat: 0, sugar: 0, fiber, potassium: 0, calcium: 0, iron: 0, vitaminC: 0 },
-    _c: cal, _p: prot, _k: carb, _f: fat, source: prefix === 'ai' ? 'ai_scan' : 'barcode', loggedAt: Date.now() });
+    _c: cal, _p: prot, _k: carb, _f: fat, source: prefix === 'ai' ? 'ai_scan' : 'barcode',
+    estimated: prefix === 'ai', restaurant: rest, loggedAt: Date.now() });
   if (typeof window.__ntRenderToday === 'function') window.__ntRenderToday();
   if (typeof window.__ntSetTab === 'function') window.__ntSetTab('log');
 }
 function logMultiItem(item) {
   const serving = item.servingSize || 100;
+  const rest = !!document.getElementById('aiRestaurantChk')?.checked;
   saveLog({ id: genId(), dateKey: getAppDateKey(), name: item.name || 'Food', amount: serving, unit: 'g', servingSize: serving,
     calories: Math.round(item.calories || 0), protein: fmtN(item.protein || 0, 1), carbs: fmtN(item.carbs || 0, 1), fat: fmtN(item.fat || 0, 1),
     micros: { sodium: item.sodium || 0, saturatedFat: 0, sugar: 0, fiber: item.fiber || 0, potassium: 0, calcium: 0, iron: 0, vitaminC: 0 },
-    _c: item.calories || 0, _p: item.protein || 0, _k: item.carbs || 0, _f: item.fat || 0, source: 'ai_scan', loggedAt: Date.now() });
+    _c: item.calories || 0, _p: item.protein || 0, _k: item.carbs || 0, _f: item.fat || 0, source: 'ai_scan',
+    estimated: true, restaurant: rest, loggedAt: Date.now() });
   if (typeof window.__ntRenderToday === 'function') window.__ntRenderToday();
 }
 function fillMultiResult(items) {
@@ -1420,12 +1468,45 @@ async function handleAiFile(file) {
   document.getElementById(id).addEventListener('change', function() { handleAiFile(this.files[0]); });
 });
 
+// Result cache: identical photo/description re-submissions skip the API (7-day TTL).
+const PHOTO_CACHE_KEY = 'nt:photoCache:v1';
+function photoCacheHash(body) {
+  const src = (body.image || '') + '|' + (body.description || '') + '|' + (body.weight || '') + '|' + (body.restaurant ? 'r' : '');
+  let h = 5381;
+  for (let i = 0; i < src.length; i++) h = ((h << 5) + h + src.charCodeAt(i)) >>> 0;
+  return 'p' + h.toString(36) + '_' + src.length;
+}
+function photoCacheGet(key) {
+  try {
+    const c = JSON.parse(localStorage.getItem(PHOTO_CACHE_KEY)) || {};
+    const e = c[key];
+    if (e && e.exp > Date.now()) return e.items;
+  } catch {}
+  return null;
+}
+function photoCacheSet(key, items) {
+  try {
+    const c = JSON.parse(localStorage.getItem(PHOTO_CACHE_KEY)) || {};
+    const now = Date.now();
+    Object.keys(c).forEach(k => { if (c[k].exp < now) delete c[k]; });
+    c[key] = { exp: now + 7 * 86400000, items };
+    localStorage.setItem(PHOTO_CACHE_KEY, JSON.stringify(c));
+  } catch {}
+}
+
 async function runAiAnalysis(body) {
   showErr('aiPhotoErr', ''); setSpin('aiPhotoSpin', true);
   document.getElementById('aiResult').classList.remove('show');
   document.getElementById('aiMultiResult').style.display = 'none';
   const btn = document.getElementById('aiAnalyzeBtn');
   if (btn) btn.disabled = true;
+  const cacheKey = photoCacheHash(body);
+  const cached = photoCacheGet(cacheKey);
+  if (cached) {
+    setSpin('aiPhotoSpin', false); if (btn) btn.disabled = false;
+    if (cached.length === 1) fillResult('ai', cached[0]); else fillMultiResult(cached);
+    return;
+  }
   try {
     const res = await fetch('/api/nutrition-ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json();
@@ -1436,6 +1517,7 @@ async function runAiAnalysis(body) {
     }
     if (!res.ok) { showErr('aiPhotoErr', data.error || 'AI error'); return; }
     const items = data.items || [data];
+    photoCacheSet(cacheKey, items);
     if (items.length === 1) {
       fillResult('ai', items[0]);
     } else {
@@ -1453,6 +1535,7 @@ document.getElementById('aiAnalyzeBtn').onclick = async () => {
   if (aiImgData) { body.image = aiImgData.b64; body.mimeType = aiImgData.mime; }
   if (desc) body.description = desc;
   if (wgt > 0) body.weight = wgt;
+  if (document.getElementById('aiRestaurantChk')?.checked) body.restaurant = true;
   await runAiAnalysis(body);
 };
 document.getElementById('aiLogBtn').onclick = () => { logResult('ai'); closeAiModal(); };
@@ -2452,6 +2535,151 @@ window.addEventListener('lifeos:event', function(e) {
     if (shell) shell.insertBefore(div, shell.firstChild);
     else document.body.insertBefore(div, document.body.firstChild);
   }).catch(function(){});
+})();
+</script>
+
+<script>
+// ── Protein consistency (7d) + grocery list generator ──
+(function () {
+'use strict';
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function dkOffset(i) {
+  const d = new Date();
+  if (d.getHours() < 6) d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate() - i);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function escH(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// ---- Protein consistency: % of last 7 days hitting protein target ----
+function renderProteinConsist() {
+  const pctEl = document.getElementById('ntProteinConsistPct');
+  if (!pctEl) return;
+  const tgt = (lsGet('nt:targets') || {}).protein || 150;
+  const logs = lsGet('nt:logs') || [];
+  let hit = 0, logged = 0;
+  for (let i = 0; i < 7; i++) {
+    const dk = dkOffset(i);
+    const day = logs.filter(l => l && String(l.dateKey).replace(/\//g, '-') === dk);
+    if (!day.length) continue;
+    logged++;
+    const prot = day.reduce((s, l) => s + (parseFloat(l.protein) || 0), 0);
+    if (prot >= tgt) hit++;
+  }
+  const pct = Math.round(hit / 7 * 100);
+  pctEl.textContent = pct + '%';
+  pctEl.style.color = pct >= 70 ? '#34D399' : pct >= 40 ? '#FBBF24' : '#FF6B6B';
+  const fill = document.getElementById('ntProteinConsistFill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct >= 70 ? '#34D399' : pct >= 40 ? '#FBBF24' : '#FF6B6B';
+  document.getElementById('ntProteinConsistSub').textContent =
+    hit + ' of last 7 days hit ' + tgt + 'g protein' + (logged < 7 ? ' (' + (7 - logged) + ' unlogged days count as missed)' : '');
+}
+renderProteinConsist();
+if (typeof window.__ntRenderToday === 'function') {
+  const orig = window.__ntRenderToday;
+  window.__ntRenderToday = function () { orig(); renderProteinConsist(); };
+}
+document.querySelectorAll('.nt-tab[data-tab="today"]').forEach(b => b.addEventListener('click', () => setTimeout(renderProteinConsist, 50)));
+
+// ---- Grocery list ----
+const GROCERY_KEY = 'nt:grocery:v1';
+function groceryItems() { return lsGet(GROCERY_KEY) || []; }
+function saveGrocery(items) { lsSet(GROCERY_KEY, items); renderGrocery(); }
+
+function renderGrocery() {
+  const el = document.getElementById('groceryListEl');
+  if (!el) return;
+  const items = groceryItems();
+  const shareBtn = document.getElementById('groceryShareBtn');
+  if (shareBtn) shareBtn.style.display = items.length ? '' : 'none';
+  if (!items.length) {
+    el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text-tertiary);font-size:12px">No list yet. Generate one from your meal history or add items below.</div>';
+    return;
+  }
+  const cats = {};
+  items.forEach(it => { (cats[it.cat || 'Other'] = cats[it.cat || 'Other'] || []).push(it); });
+  el.innerHTML = Object.keys(cats).map(cat =>
+    '<div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary);margin:10px 0 4px">' + escH(cat) + '</div>'
+    + cats[cat].map(it =>
+      '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">'
+      + '<input type="checkbox" data-gid="' + escH(it.id) + '" ' + (it.checked ? 'checked' : '') + ' style="width:17px;height:17px;accent-color:#34D399;flex:none">'
+      + '<span style="flex:1;font-size:13px;color:' + (it.checked ? 'var(--text-tertiary)' : 'var(--text-primary)') + ';' + (it.checked ? 'text-decoration:line-through' : '') + '">' + escH(it.name) + '</span>'
+      + '<button data-gdel="' + escH(it.id) + '" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:14px;padding:2px 6px" aria-label="Remove">&times;</button>'
+      + '</div>').join('')
+  ).join('');
+  el.querySelectorAll('[data-gid]').forEach(cb => cb.addEventListener('change', () => {
+    saveGrocery(groceryItems().map(it => it.id === cb.dataset.gid ? Object.assign({}, it, { checked: cb.checked }) : it));
+  }));
+  el.querySelectorAll('[data-gdel]').forEach(btn => btn.addEventListener('click', () => {
+    saveGrocery(groceryItems().filter(it => it.id !== btn.dataset.gdel));
+  }));
+}
+
+function gid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+document.getElementById('groceryAddBtn')?.addEventListener('click', () => {
+  const inp = document.getElementById('groceryAddInput');
+  const name = (inp.value || '').trim();
+  if (!name) return;
+  saveGrocery(groceryItems().concat([{ id: gid(), name, cat: 'Other', checked: false }]));
+  inp.value = '';
+});
+document.getElementById('groceryAddInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('groceryAddBtn').click();
+});
+
+document.getElementById('groceryGenBtn')?.addEventListener('click', async () => {
+  const status = document.getElementById('groceryStatus');
+  const btn = document.getElementById('groceryGenBtn');
+  // Deterministic aggregation: meal name -> times eaten in last 14 days
+  const logs = lsGet('nt:logs') || [];
+  const counts = {};
+  for (let i = 0; i < 14; i++) {
+    const dk = dkOffset(i);
+    logs.filter(l => l && String(l.dateKey).replace(/\//g, '-') === dk)
+      .forEach(l => { if (l.name) counts[l.name] = (counts[l.name] || 0) + 1; });
+  }
+  const pattern = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 40)
+    .map(([name, n]) => name + ' x' + n).join(', ');
+  if (!pattern) { status.textContent = 'No meals logged in the last 14 days yet. Log some meals first.'; return; }
+  if (!window.LifeOS || !window.LifeOS.ai) { status.textContent = 'AI service not loaded.'; return; }
+  btn.disabled = true; status.textContent = 'Generating…';
+  try {
+    const week = dkOffset(0).slice(0, 8) + Math.ceil(new Date().getDate() / 7);
+    const d = await window.LifeOS.ai.chat({
+      prompt: 'Meals I ate in the last 14 days with frequency: ' + pattern,
+      context: 'Turn the user\'s recent meal pattern into a grocery shopping list of ingredients. Reply with ONLY a JSON object: {"Produce":["..."],"Meat & Fish":["..."],"Dairy & Eggs":["..."],"Grains & Bread":["..."],"Pantry":["..."],"Other":["..."]}. Only include categories that have items. Ingredients, not dish names. No prose.',
+      cacheKey: 'grocery_' + week,
+      ttlMs: 24 * 60 * 60 * 1000,
+    });
+    const m = String(d.reply || '').match(/\{[\s\S]*\}/);
+    const obj = m ? JSON.parse(m[0]) : null;
+    if (!obj) { status.textContent = 'Could not parse the generated list. Try again.'; return; }
+    const items = [];
+    Object.keys(obj).forEach(cat => (obj[cat] || []).forEach(name => items.push({ id: gid(), name: String(name), cat, checked: false })));
+    // keep manually added unchecked items
+    const manual = groceryItems().filter(it => it.cat === 'Other' && !it.checked && !items.some(x => x.name.toLowerCase() === it.name.toLowerCase()));
+    saveGrocery(items.concat(manual));
+    status.textContent = items.length + ' items from your last 14 days of meals.';
+  } catch (e) {
+    status.textContent = 'Generation failed: ' + e.message;
+  } finally { btn.disabled = false; }
+});
+
+document.getElementById('groceryShareBtn')?.addEventListener('click', async () => {
+  const items = groceryItems().filter(it => !it.checked);
+  const cats = {};
+  items.forEach(it => { (cats[it.cat || 'Other'] = cats[it.cat || 'Other'] || []).push(it.name); });
+  const text = 'Grocery list\n' + Object.keys(cats).map(c => '\n' + c + ':\n' + cats[c].map(n => '- ' + n).join('\n')).join('\n');
+  try {
+    if (navigator.share) await navigator.share({ text });
+    else { await navigator.clipboard.writeText(text); const b = document.getElementById('groceryShareBtn'); b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Share'; }, 1500); }
+  } catch (e) {}
+});
+
+renderGrocery();
 })();
 </script>
 
