@@ -826,6 +826,19 @@ body { padding-bottom: 90px; }
     </div>
 
     <div class="home-right">
+      <div class="ai-summary-card life-score-card" id="lifeScoreCard" role="button" tabindex="0">
+        <div class="card-eyebrow">Life Score</div>
+        <div class="ls-row">
+          <div class="ls-num" id="lsNum">&mdash;</div>
+          <div class="ls-meta">
+            <div class="ls-drag" id="lsDrag"></div>
+            <div class="ls-action" id="lsAction"></div>
+          </div>
+        </div>
+        <div class="ls-bars" id="lsBars" style="display:none"></div>
+        <div class="ls-quality" id="lsQuality"></div>
+      </div>
+
       <div class="ai-summary-card">
         <div class="card-eyebrow">AI Summary</div>
         <div class="ai-summary-text" id="aiSummaryText">Tap refresh to get your daily briefing.</div>
@@ -2209,6 +2222,41 @@ window.addEventListener('lifeos:event', function(e) {
     if (typeof loadInsightStrip === 'function') loadInsightStrip();
   }
 });
+</script>
+
+<script>
+// Life Score card: deterministic score + data quality from lifeos-core.js
+(function () {
+  'use strict';
+  function render() {
+    if (!window.LifeOS || !window.LifeOS.score) return false;
+    var s, q;
+    try { s = window.LifeOS.score(); q = window.LifeOS.quality(); } catch (_) { return false; }
+    var num = document.getElementById('lsNum');
+    if (!num) return true;
+    num.textContent = s.total;
+    num.style.color = s.total >= 75 ? 'var(--accent,#34D399)' : s.total >= 50 ? 'var(--warn,#FBBF24)' : 'var(--danger,#FF6B6B)';
+    document.getElementById('lsDrag').textContent = s.drag ? 'Biggest drag: ' + s.drag.label + ' (' + s.drag.pts + '/' + s.drag.max + ')' : '';
+    document.getElementById('lsAction').textContent = s.action || '';
+    var bars = document.getElementById('lsBars');
+    bars.innerHTML = s.parts.map(function (p) {
+      var pct = Math.round(p.pts / p.max * 100);
+      return '<div class="ls-bar-row"><span class="ls-bar-label">' + p.label + '</span>'
+        + '<div class="ls-bar-track"><div class="ls-bar-fill" style="width:' + pct + '%"></div></div>'
+        + '<span class="ls-bar-detail">' + p.detail + '</span></div>';
+    }).join('');
+    var worst = q.worst ? (q.worst.label + (q.worst.daysAgo != null ? ' stale ' + q.worst.daysAgo + 'd' : ' never logged')) : 'all fresh';
+    document.getElementById('lsQuality').textContent = 'Data quality ' + q.score + '% · ' + worst;
+    return true;
+  }
+  if (!render()) window.addEventListener('lifeos:ready', render);
+  window.addEventListener('lifeos:logged', render);
+  var card = document.getElementById('lifeScoreCard');
+  if (card) card.addEventListener('click', function () {
+    var b = document.getElementById('lsBars');
+    b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  });
+})();
 </script>
 
 </body>

@@ -27,6 +27,23 @@
     document.head.appendChild(link);
   }
 
+  // ---- LifeOS layer: AI service, context core, command bar ----
+  // Loaded sequentially so command.js can rely on both globals.
+  (function loadLifeOS() {
+    const chain = ['claude.js', 'lifeos-core.js', 'command.js']
+      .filter(src => !document.querySelector('script[src="' + src + '"]'));
+    function next() {
+      const src = chain.shift();
+      if (!src) return;
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = next;
+      s.onerror = next;
+      document.head.appendChild(s);
+    }
+    next();
+  })();
+
   // ---- CSS ----
   const style = document.createElement('style');
   style.textContent = `

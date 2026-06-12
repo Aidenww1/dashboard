@@ -271,3 +271,18 @@ a, button, label, select, input, textarea, [role="button"] {
 .inc-add-btn, .wish-add-btn, .sub-add-btn {
   min-height: 44px;
 }
+
+/* ===== Life Score card (index) ===== */
+.life-score-card { cursor: pointer; }
+.ls-row { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+.ls-num { font-size: var(--fs-xxl, 32px); font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.ls-meta { min-width: 0; }
+.ls-drag { font-size: var(--fs-sm, 13px); color: var(--text-secondary, #B4B4B8); }
+.ls-action { font-size: var(--fs-xs, 11px); color: var(--text-tertiary, #6E6E76); margin-top: 2px; }
+.ls-quality { font-size: var(--fs-xs, 11px); color: var(--text-tertiary, #6E6E76); margin-top: 10px; }
+.ls-bars { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.ls-bar-row { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs, 11px); }
+.ls-bar-label { width: 78px; color: var(--text-secondary, #B4B4B8); flex: none; }
+.ls-bar-track { flex: 1; height: 4px; background: var(--bg-inset, #0F0F11); border-radius: 2px; overflow: hidden; }
+.ls-bar-fill { height: 100%; background: var(--accent, #34D399); border-radius: 2px; }
+.ls-bar-detail { color: var(--text-tertiary, #6E6E76); white-space: nowrap; flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; }
