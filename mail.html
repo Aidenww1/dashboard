@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Mail</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --bg-input: rgba(0,0,0,0.28);
+  --border: rgba(255,255,255,0.06);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --accent: #E07658;
+  --green: #6BE3A4;
+  --amber: #E0B658;
+  --red: #FF6B6B;
+  --purple: #A855F7;
+  --blue: #60A5FA;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text-primary); font-family:var(--font); min-height:100vh; padding-bottom:90px; }
+.shell { max-width:980px; margin:0 auto; padding:18px 14px 30px; }
+.page-title { font-size:22px; font-weight:800; letter-spacing:-0.02em; margin:6px 0 2px; }
+.page-sub { font-size:12px; color:var(--text-tertiary); margin-bottom:16px; }
+.card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:14px; }
+.eyebrow { font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:10px; }
+.btn { padding:9px 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:var(--text-primary); font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn.primary { background:rgba(107,227,164,0.15); border-color:rgba(107,227,164,0.3); color:var(--green); }
+.btn.danger { background:rgba(255,107,107,0.1); border-color:rgba(255,107,107,0.3); color:var(--red); }
+.btn:disabled { opacity:0.45; cursor:not-allowed; }
+.setup-step { display:flex; gap:10px; align-items:flex-start; font-size:13px; color:var(--text-secondary); margin-bottom:8px; line-height:1.5; }
+.setup-num { flex-shrink:0; width:20px; height:20px; border-radius:50%; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+.stat { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:12px; padding:10px 12px; text-align:center; cursor:pointer; }
+.stat-num { font-size:20px; font-weight:800; letter-spacing:-0.02em; }
+.stat-lbl { font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-tertiary); margin-top:2px; }
+.section-h { display:flex; justify-content:space-between; align-items:center; margin:18px 0 8px; }
+.section-t { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.45); }
+.section-c { font-size:11px; color:var(--text-tertiary); }
+.mail-card { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:6px; }
+.mail-card.unread { border-left:3px solid var(--accent); }
+.mail-top { display:flex; justify-content:space-between; gap:10px; }
+.mail-from { font-size:12px; font-weight:700; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:55%; }
+.mail-date { font-size:11px; color:var(--text-tertiary); flex-shrink:0; }
+.mail-subj { font-size:13px; color:var(--text-secondary); margin-top:2px; line-height:1.4; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.mail-badges { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.badge { font-size:9px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:2px 7px; border-radius:20px; background:rgba(255,255,255,0.07); color:var(--text-tertiary); }
+.badge.red { background:rgba(255,107,107,0.12); color:var(--red); }
+.badge.green { background:rgba(107,227,164,0.12); color:var(--green); }
+.badge.amber { background:rgba(224,182,88,0.12); color:var(--amber); }
+.badge.purple { background:rgba(168,85,247,0.12); color:var(--purple); }
+.badge.blue { background:rgba(96,165,250,0.12); color:var(--blue); }
+.mail-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.act { font-size:11px; font-weight:700; padding:5px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); color:var(--text-secondary); cursor:pointer; font-family:inherit; }
+.act:hover { background:rgba(255,255,255,0.09); }
+.act.danger { color:var(--red); border-color:rgba(255,107,107,0.25); }
+.mail-summary { display:none; margin-top:8px; padding:9px 11px; border-radius:9px; background:rgba(83,74,183,0.08); border:1px solid rgba(83,74,183,0.25); font-size:12px; color:var(--text-secondary); line-height:1.55; }
+.empty { text-align:center; padding:18px; font-size:13px; color:rgba(255,255,255,0.32); }
+.notice { font-size:12px; color:var(--text-tertiary); padding:8px 12px; border-radius:10px; background:rgba(255,255,255,0.03); border:1px solid var(--border); margin-bottom:14px; line-height:1.5; }
+.clean-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-size:12px; color:var(--text-secondary); }
+.clean-row span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#syncStatus { font-size:11px; color:var(--text-tertiary); }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="page-title">Mail</div>
+  <div class="page-sub">Gmail command center — only what needs you</div>
+
+  <!-- Setup (no client id) -->
+  <div class="card hidden" id="setupSection">
+    <div class="eyebrow">Gmail setup required</div>
+    <div class="setup-step"><span class="setup-num">1</span><span>Uses the same Google Cloud project as Calendar. In <strong>console.cloud.google.com</strong> &rarr; APIs &amp; Services &rarr; Library &rarr; enable <strong>Gmail API</strong>.</span></div>
+    <div class="setup-step"><span class="setup-num">2</span><span>OAuth consent screen &rarr; add scope <strong>gmail.modify</strong> (read, label, archive — never full delete without trash).</span></div>
+    <div class="setup-step"><span class="setup-num">3</span><span><strong>GOOGLE_CLIENT_ID</strong> env var must be set in Vercel (already done if Calendar works).</span></div>
+    <a href="https://console.cloud.google.com" target="_blank" rel="noopener" class="btn" style="display:inline-block;text-decoration:none;margin-top:6px">Open Google Cloud Console &#8599;</a>
+  </div>
+
+  <!-- Connect -->
+  <div class="card hidden" id="connectSection" style="text-align:center;padding:28px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px">Connect Gmail</div>
+    <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:14px;line-height:1.5">Read-and-organize access (gmail.modify). Nothing is sent or deleted without your confirmation.</div>
+    <button class="btn primary" id="connectBtn">Connect Gmail</button>
+  </div>
+  <div class="card hidden" id="reconnectSection" style="text-align:center;padding:24px">
+    <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px">Gmail session expired. Reconnect to sync.</div>
+    <button class="btn primary" id="reconnectBtn">Reconnect Gmail</button>
+  </div>
+
+  <!-- Main -->
+  <div class="hidden" id="mailSection">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px">
+      <span id="syncStatus">Not synced yet</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="syncBtn">Sync inbox</button>
+        <button class="btn" id="disconnectBtn" style="font-size:11px;padding:9px 10px">Disconnect</button>
+      </div>
+    </div>
+    <div class="notice hidden" id="offlineNotice">Showing cached emails — connect Gmail to sync and act on them.</div>
+
+    <!-- Attention summary -->
+    <div class="card" id="attentionCard">
+      <div class="eyebrow">Needs your attention</div>
+      <div class="stat-grid" id="statGrid"></div>
+    </div>
+
+    <!-- Cleanup plan -->
+    <div class="card hidden" id="cleanCard">
+      <div class="eyebrow">Inbox cleanup plan</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">
+        Newsletters and promos older than
+        <input type="number" id="cleanDays" value="14" min="1" max="90" style="width:46px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:3px 6px;color:var(--text-primary);font-family:inherit;font-size:12px;text-align:center">
+        days. Mail from people, banks, government, orders and bills is never touched.
+      </div>
+      <div id="cleanList" style="max-height:220px;overflow-y:auto;margin-bottom:10px"></div>
+      <button class="btn primary" id="cleanBtn">Archive selected</button>
+      <div id="cleanResult" style="font-size:12px;color:var(--text-tertiary);margin-top:8px"></div>
+    </div>
+
+    <!-- Sections -->
+    <div id="sections"></div>
+  </div>
+</div>
+
+<script src="tabbar.js"></script>
+<script>
+(function mailApp() {
+  'use strict';
+  var TOKEN_KEY = 'gmail:token:v1';
+  var WAS_CONN  = 'gmail:was_connected';
+  var CACHE_KEY = 'mail:cache:v1';      // {id: meta} message metadata
+  var SNOOZE_KEY = 'mail:snooze:v1';    // {id: 'YYYY-MM-DD'} hidden until
+  var ORDERS_KEY = 'mail:orders:v1';    // tracked orders
+  var SUMMARY_KEY = 'mail:summary:v1';  // lean snapshot for lifeos-core
+  var AICLASS_KEY = 'mail:aiclass:v1';  // {id: category} Claude verdicts
+
+  var accessToken = null;
+  var tokenClient = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  function show(id) { $(id) && $(id).classList.remove('hidden'); }
+  function hide(id) { $(id) && $(id).classList.add('hidden'); }
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+  /* ---------- token (mirrors calendar.html) ---------- */
+  function storeToken(token, expiresIn) {
+    accessToken = token;
+    jset(TOKEN_KEY, { token: token, expiry: Date.now() + (expiresIn - 60) * 1000 });
+    localStorage.setItem(WAS_CONN, '1');
+  }
+  function loadToken() {
+    var s = jget(TOKEN_KEY, null);
+    if (s && s.expiry > Date.now()) { accessToken = s.token; return true; }
+    return false;
+  }
+  function clearToken() { localStorage.removeItem(TOKEN_KEY); accessToken = null; }
+
+  function gFetch(path, opts) {
+    return fetch('https://gmail.googleapis.com/gmail/v1/users/me' + path, Object.assign({}, opts, {
+      headers: Object.assign({ Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, opts && opts.headers),
+    })).then(function (r) {
+      if (r.status === 401) {
+        clearToken();
+        if (tokenClient) { try { tokenClient.requestAccessToken({ prompt: '' }); } catch (e) { showConnect(); } }
+        else showConnect();
+        return null;
+      }
+      if (r.status === 204) return null;
+      if (!r.ok) return r.json().catch(function () { return {}; }).then(function (e) {
+        throw new Error((e && e.error && e.error.message) || ('Gmail error ' + r.status));
+      });
+      return r.json();
+    });
+  }
+
+  /* ---------- deterministic classification ---------- */
+  var CARRIERS = ['postnl', 'dhl', 'dpd', 'ups.com', 'gls-', 'fedex', 'budbee', 'trunkrs', 'homerr'];
+  var SHOPS = ['bol.com', 'amazon', 'coolblue', 'zalando', 'asos', 'aliexpress', 'mediamarkt', 'wehkamp', 'decathlon', 'ikea', 'apple.com', 'gymshark', 'myprotein', 'bodyenfit'];
+  var IMPORTANT_DOMAINS = ['belastingdienst', 'overheid.nl', 'digid', 'gemeente', 'rijksoverheid', 'duo.nl', 'mijnoverheid', 'ing.nl', 'rabobank', 'abnamro', 'bunq', 'knab', 'zilverenkruis', 'vgz', 'cz.nl', 'menzis', 'kvk.nl', 'notaris', 'verzekering'];
+  var BILL_KW = ['factuur', 'invoice', 'betaling', 'payment due', 'incasso', 'tikkie', 'betalingsherinnering', 'aanmaning', 'afgeschreven', 'automatische incasso', 'payment failed', 'betaal'];
+  var RECEIPT_KW = ['receipt', 'kassabon', 'orderbevestiging', 'order confirmation', 'bevestiging van je bestelling', 'payment received', 'betaling ontvangen', 'je aankoop', 'your purchase', 'paid'];
+  var ORDER_KW = ['order', 'bestelling', 'verzonden', 'shipped', 'delivery', 'bezorg', 'track', 'pakket', 'parcel', 'retour', 'return', 'onderweg', 'shipment'];
+  var CAL_KW = ['uitnodiging', 'invitation', 'invite', 'calendar', 'afspraak bevestigd', 'appointment'];
+  var FREEMAIL = ['gmail.com', 'hotmail.com', 'outlook.com', 'live.nl', 'yahoo.', 'icloud.com', 'proton'];
+
+  function fromDomain(from) {
+    var m = String(from || '').match(/@([a-z0-9.-]+)/i);
+    return m ? m[1].toLowerCase() : '';
+  }
+  function hasAny(text, kws) {
+    var t = String(text || '').toLowerCase();
+    return kws.some(function (k) { return t.indexOf(k) >= 0; });
+  }
+  function orderStatus(text) {
+    var t = String(text || '').toLowerCase();
+    if (/vertraag|delayed|vertraging/.test(t)) return 'delayed';
+    if (/mislukt|failed|niet gelukt|kon niet bezorgen/.test(t)) return 'failed';
+    if (/\bbezorgd\b|\bdelivered\b|\bafgeleverd\b/.test(t)) return 'delivered';
+    if (/vandaag|out for delivery|onderweg|komt eraan|today/.test(t)) return 'arriving';
+    return 'update';
+  }
+
+  // Returns {cat, sub} — cat one of: needs_reply, orders, bills, important,
+  // receipts, newsletters, promo, calendar, personal, ambiguous
+  function classify(m) {
+    var dom = fromDomain(m.from);
+    var text = (m.subject || '') + ' ' + (m.snippet || '');
+    var labels = m.labels || [];
+    var important = IMPORTANT_DOMAINS.some(function (d) { return dom.indexOf(d) >= 0; });
+
+    if (CARRIERS.some(function (d) { return dom.indexOf(d) >= 0; })) return { cat: 'orders', sub: orderStatus(text) };
+    if (hasAny(text, RECEIPT_KW) && !important) return { cat: 'receipts', sub: '' };
+    if (SHOPS.some(function (d) { return dom.indexOf(d) >= 0; }) && hasAny(text, ORDER_KW)) return { cat: 'orders', sub: orderStatus(text) };
+    if (hasAny(text, BILL_KW) || (important && /betaal|factuur|premie|invoice/.test(text.toLowerCase()))) return { cat: 'bills', sub: '' };
+    if (important) return { cat: 'important', sub: '' };
+    if (hasAny(text, CAL_KW)) return { cat: 'calendar', sub: '' };
+    if (labels.indexOf('CATEGORY_PROMOTIONS') >= 0 || labels.indexOf('CATEGORY_SOCIAL') >= 0) return { cat: 'promo', sub: '' };
+    if (m.unsub) return { cat: 'newsletters', sub: '' };
+    if (hasAny(text, ORDER_KW)) return { cat: 'orders', sub: orderStatus(text) };
+    var freemail = FREEMAIL.some(function (d) { return dom.indexOf(d) >= 0; });
+    if (freemail || labels.indexOf('CATEGORY_PERSONAL') >= 0) {
+      if (labels.indexOf('UNREAD') >= 0) return { cat: 'needs_reply', sub: '' };
+      return { cat: 'personal', sub: '' };
+    }
+    return { cat: 'ambiguous', sub: '' };
+  }
+
+  /* ---------- opportunities (deterministic keyword scan) ---------- */
+  var OPP_RULES = [
+    [/refund|terugbetaling|geld terug/i, 'Refund', 'green'],
+    [/retourtermijn|return window|return by|retour uiterlijk/i, 'Return deadline', 'amber'],
+    [/trial (ends|ending)|proefperiode (eindigt|loopt af)/i, 'Trial ending', 'amber'],
+    [/prijsverhoging|price increase|tarief wijzigt|prices? (are|is) (going up|changing)/i, 'Price increase', 'red'],
+    [/kortingscode|discount code|voucher|tegoed/i, 'Discount', 'blue'],
+    [/garantie|warranty/i, 'Warranty', 'blue'],
+    [/onbetaald|overdue|outstanding invoice|openstaande factuur/i, 'Unpaid invoice', 'red'],
+  ];
+  function findOpportunities(msgs) {
+    var out = [];
+    msgs.forEach(function (m) {
+      var text = (m.subject || '') + ' ' + (m.snippet || '');
+      OPP_RULES.forEach(function (r) {
+        if (r[0].test(text)) out.push({ id: m.id, label: r[1], color: r[2], from: m.from, subject: m.subject, date: m.date });
+      });
+    });
+    return out.slice(0, 10);
+  }
+
+  /* ---------- Claude for ambiguous only ---------- */
+  function aiClassify(ambiguous) {
+    if (!ambiguous.length || !window.LifeOS || !LifeOS.ai) return Promise.resolve();
+    var batch = ambiguous.slice(0, 20);
+    var ids = batch.map(function (m) { return m.id; }).sort().join(',');
+    var hash = 0;
+    for (var i = 0; i < ids.length; i++) { hash = ((hash << 5) - hash + ids.charCodeAt(i)) | 0; }
+    return LifeOS.ai.chat({
+      prompt: 'Classify each email into exactly one category: needs_reply, orders, bills, important, receipts, newsletters, promo, calendar, personal. Reply ONLY a JSON object mapping id to category, no other text.\nEmails:\n' + batch.map(function (m) {
+        return JSON.stringify({ id: m.id, from: m.from, subject: m.subject, snippet: (m.snippet || '').slice(0, 120) });
+      }).join('\n'),
+      cacheKey: 'mail_classify_' + Math.abs(hash),
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+    }).then(function (res) {
+      var mjson = String(res.reply || '').match(/\{[\s\S]*\}/);
+      if (!mjson) return;
+      var verdicts = JSON.parse(mjson[0]);
+      var store = jget(AICLASS_KEY, {}) || {};
+      var valid = ['needs_reply', 'orders', 'bills', 'important', 'receipts', 'newsletters', 'promo', 'calendar', 'personal'];
+      Object.keys(verdicts).forEach(function (id) {
+        if (valid.indexOf(verdicts[id]) >= 0) store[id] = verdicts[id];
+      });
+      jset(AICLASS_KEY, store);
+    }).catch(function () {});
+  }
+
+  /* ---------- sync ---------- */
+  function syncInbox() {
+    var btn = $('syncBtn');
+    btn.disabled = true; btn.textContent = 'Syncing…';
+    $('syncStatus').textContent = 'Fetching inbox…';
+    var cache = jget(CACHE_KEY, {}) || {};
+    gFetch('/messages?maxResults=100&q=' + encodeURIComponent('in:inbox -in:chats')).then(function (list) {
+      if (!list) throw new Error('Not connected');
+      var ids = (list.messages || []).map(function (m) { return m.id; });
+      // Drop cache entries no longer in the inbox
+      Object.keys(cache).forEach(function (id) { if (ids.indexOf(id) < 0) delete cache[id]; });
+      var missing = ids.filter(function (id) { return !cache[id]; });
+      var done = 0;
+      $('syncStatus').textContent = 'Fetching ' + missing.length + ' new emails…';
+      // Sequential chunks of 8 to stay friendly with rate limits
+      function chunk(i) {
+        if (i >= missing.length) return Promise.resolve();
+        return Promise.all(missing.slice(i, i + 8).map(function (id) {
+          return gFetch('/messages/' + id + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=List-Unsubscribe').then(function (m) {
+            if (!m) return;
+            var h = {};
+            ((m.payload && m.payload.headers) || []).forEach(function (x) { h[x.name.toLowerCase()] = x.value; });
+            cache[id] = {
+              id: id,
+              from: h.from || '',
+              subject: h.subject || '(no subject)',
+              date: m.internalDate ? new Date(Number(m.internalDate)).toISOString() : (h.date || ''),
+              snippet: m.snippet || '',
+              labels: m.labelIds || [],
+              unsub: !!h['list-unsubscribe'],
+            };
+            done++;
+          });
+        })).then(function () {
+          $('syncStatus').textContent = 'Fetched ' + done + ' / ' + missing.length + '…';
+          return chunk(i + 8);
+        });
+      }
+      return chunk(0).then(function () {
+        jset(CACHE_KEY, cache);
+        var msgs = Object.values(cache);
+        var ambiguous = msgs.filter(function (m) {
+          return classify(m).cat === 'ambiguous' && !(jget(AICLASS_KEY, {}) || {})[m.id];
+        });
+        return aiClassify(ambiguous);
+      });
+    }).then(function () {
+      $('syncStatus').textContent = 'Synced ' + new Date().toLocaleTimeString().slice(0, 5) + ' · ' + Object.keys(jget(CACHE_KEY, {})).length + ' emails';
+      renderAll();
+    }).catch(function (e) {
+      $('syncStatus').textContent = 'Sync failed: ' + e.message;
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = 'Sync inbox';
+    });
+  }
+
+  /* ---------- actions ---------- */
+  function needToken() { if (!accessToken) { alert('Connect Gmail first to act on emails.'); return true; } return false; }
+  function removeFromCache(ids) {
+    var cache = jget(CACHE_KEY, {}) || {};
+    ids.forEach(function (id) { delete cache[id]; });
+    jset(CACHE_KEY, cache);
+  }
+  function archive(ids) {
+    if (needToken()) return Promise.reject();
+    return gFetch('/messages/batchModify', { method: 'POST', body: JSON.stringify({ ids: ids, removeLabelIds: ['INBOX'] }) })
+      .then(function () { removeFromCache(ids); renderAll(); });
+  }
+  function markRead(id) {
+    if (needToken()) return;
+    gFetch('/messages/' + id + '/modify', { method: 'POST', body: JSON.stringify({ removeLabelIds: ['UNREAD'] }) }).then(function () {
+      var cache = jget(CACHE_KEY, {}) || {};
+      if (cache[id]) { cache[id].labels = (cache[id].labels || []).filter(function (l) { return l !== 'UNREAD'; }); jset(CACHE_KEY, cache); }
+      renderAll();
+    });
+  }
+  function trash(id, subject) {
+    if (needToken()) return;
+    if (!confirm('Move to Gmail trash?\n\n' + subject)) return;
+    gFetch('/messages/' + id + '/trash', { method: 'POST' }).then(function () { removeFromCache([id]); renderAll(); });
+  }
+  function snooze(id) {
+    var days = prompt('Snooze for how many days?', '3');
+    var n = parseInt(days, 10);
+    if (!n || n < 1) return;
+    var s = jget(SNOOZE_KEY, {}) || {};
+    var until = new Date(); until.setDate(until.getDate() + n);
+    s[id] = until.toISOString().slice(0, 10);
+    jset(SNOOZE_KEY, s);
+    renderAll();
+  }
+  function addTask(m) {
+    if (window.LifeOS && LifeOS.log) {
+      var r = LifeOS.log({ type: 'task', title: 'Mail: ' + m.subject + ' (' + m.from.replace(/<.*/, '').trim() + ')' });
+      alert(r && r.ok ? 'Task added.' : 'Could not add task.');
+    } else alert('LifeOS not loaded.');
+  }
+  function summarize(m, el) {
+    if (needToken()) return;
+    el.style.display = 'block'; el.textContent = 'Summarizing…';
+    gFetch('/messages/' + m.id + '?format=full').then(function (full) {
+      function findText(p) {
+        if (!p) return '';
+        if (p.mimeType === 'text/plain' && p.body && p.body.data) return p.body.data;
+        if (p.parts) { for (var i = 0; i < p.parts.length; i++) { var t = findText(p.parts[i]); if (t) return t; } }
+        if (p.mimeType === 'text/html' && p.body && p.body.data) return p.body.data;
+        return '';
+      }
+      var raw = findText(full && full.payload);
+      var text = raw ? decodeURIComponent(escape(atob(raw.replace(/-/g, '+').replace(/_/g, '/')))) : (m.snippet || '');
+      text = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 4000);
+      return LifeOS.ai.chat({
+        prompt: 'Summarize this email in 2 short sentences, then one line "Action:" with what (if anything) the reader must do.\n\nFrom: ' + m.from + '\nSubject: ' + m.subject + '\n\n' + text,
+        cacheKey: 'mail_sum_' + m.id,
+        ttlMs: 7 * 24 * 60 * 60 * 1000,
+      });
+    }).then(function (res) {
+      el.textContent = res.reply || 'No summary.';
+    }).catch(function (e) {
+      el.textContent = 'Summary failed: ' + e.message;
+    });
+  }
+  function trackOrder(m) {
+    var orders = jget(ORDERS_KEY, []) || [];
+    if (orders.some(function (o) { return o.id === m.id; })) { alert('Already tracked.'); return; }
+    var num = ((m.subject || '') + ' ' + (m.snippet || '')).match(/(?:order|bestelling|bestelnummer|#)\s*#?\s*([A-Z0-9][A-Z0-9-]{5,20})/i);
+    orders.unshift({
+      id: m.id, store: fromDomain(m.from).split('.')[0], subject: m.subject,
+      orderNumber: num ? num[1] : null, status: classify(m).sub || 'update',
+      date: (m.date || '').slice(0, 10), addedAt: todayStr(),
+    });
+    jset(ORDERS_KEY, orders.slice(0, 30));
+    renderAll();
+  }
+
+  /* ---------- render ---------- */
+  var SECTION_DEFS = [
+    ['needs_reply', 'Needs reply', 'red'],
+    ['orders', 'Orders & deliveries', 'blue'],
+    ['bills', 'Bills & payments', 'amber'],
+    ['important', 'Important updates', 'purple'],
+    ['opportunities', 'Opportunities', 'green'],
+    ['calendar', 'Calendar & events', 'blue'],
+    ['receipts', 'Receipts', ''],
+    ['personal', 'Personal', ''],
+    ['newsletters', 'Newsletters', ''],
+    ['promo', 'Promotions & junk', ''],
+    ['ambiguous', 'Needs manual review', ''],
+  ];
+
+  function visibleMsgs() {
+    var cache = jget(CACHE_KEY, {}) || {};
+    var snoozed = jget(SNOOZE_KEY, {}) || {};
+    var t = todayStr();
+    return Object.values(cache).filter(function (m) { return !(snoozed[m.id] && snoozed[m.id] > t); })
+      .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  }
+  function catOf(m) {
+    var ai = (jget(AICLASS_KEY, {}) || {})[m.id];
+    var det = classify(m);
+    if (det.cat === 'ambiguous' && ai) return { cat: ai, sub: det.sub };
+    return det;
+  }
+
+  function mailCardHtml(m, c) {
+    var unread = (m.labels || []).indexOf('UNREAD') >= 0;
+    var d = (m.date || '').slice(0, 10);
+    var fromName = esc(m.from.replace(/<.*/, '').replace(/"/g, '').trim() || m.from);
+    var badges = '';
+    if (unread) badges += '<span class="badge red">unread</span>';
+    if (c.sub === 'delivered') badges += '<span class="badge green">delivered</span>';
+    if (c.sub === 'delayed') badges += '<span class="badge amber">delayed</span>';
+    if (c.sub === 'failed') badges += '<span class="badge red">delivery failed</span>';
+    if (c.sub === 'arriving') badges += '<span class="badge blue">arriving</span>';
+    return '<div class="mail-card' + (unread ? ' unread' : '') + '" data-mid="' + esc(m.id) + '">'
+      + '<div class="mail-top"><span class="mail-from">' + fromName + '</span><span class="mail-date">' + esc(d) + '</span></div>'
+      + '<div class="mail-subj">' + esc(m.subject) + '</div>'
+      + (badges ? '<div class="mail-badges">' + badges + '</div>' : '')
+      + '<div class="mail-actions">'
+      + '<button class="act" data-a="archive">Archive</button>'
+      + (unread ? '<button class="act" data-a="read">Mark read</button>' : '')
+      + '<button class="act" data-a="sum">Summarize</button>'
+      + '<button class="act" data-a="task">+ Task</button>'
+      + (c.cat === 'orders' ? '<button class="act" data-a="track">Track</button>' : '')
+      + '<button class="act" data-a="snooze">Snooze</button>'
+      + '<a class="act" style="text-decoration:none" target="_blank" rel="noopener" href="https://mail.google.com/mail/u/0/#all/' + esc(m.id) + '">Open</a>'
+      + '<button class="act danger" data-a="trash">Trash</button>'
+      + '</div><div class="mail-summary"></div></div>';
+  }
+
+  function renderAll() {
+    var msgs = visibleMsgs();
+    var byCat = {};
+    msgs.forEach(function (m) {
+      var c = catOf(m);
+      (byCat[c.cat] = byCat[c.cat] || []).push({ m: m, c: c });
+    });
+    var opps = findOpportunities(msgs);
+
+    // Attention stats
+    var unreadCount = msgs.filter(function (m) { return (m.labels || []).indexOf('UNREAD') >= 0; }).length;
+    var deliveryIssues = (byCat.orders || []).filter(function (x) { return x.c.sub === 'delayed' || x.c.sub === 'failed'; }).length;
+    $('statGrid').innerHTML = [
+      ['Needs reply', (byCat.needs_reply || []).length, 'var(--red)'],
+      ['Bills', (byCat.bills || []).length, 'var(--amber)'],
+      ['Orders', (byCat.orders || []).length, 'var(--blue)'],
+      ['Delivery issues', deliveryIssues, deliveryIssues ? 'var(--red)' : 'var(--text-tertiary)'],
+      ['Opportunities', opps.length, 'var(--green)'],
+      ['Unread total', unreadCount, 'var(--text-primary)'],
+    ].map(function (s) {
+      return '<div class="stat"><div class="stat-num" style="color:' + s[2] + '">' + s[1] + '</div><div class="stat-lbl">' + s[0] + '</div></div>';
+    }).join('');
+
+    // Sections
+    var html = '';
+    SECTION_DEFS.forEach(function (def) {
+      var key = def[0], title = def[1];
+      if (key === 'opportunities') {
+        if (!opps.length) return;
+        html += '<div class="section-h"><span class="section-t">' + title + '</span><span class="section-c">' + opps.length + '</span></div>';
+        opps.forEach(function (o) {
+          html += '<div class="mail-card"><div class="mail-top"><span class="mail-from">' + esc(o.from.replace(/<.*/, '').trim()) + '</span><span class="mail-date">' + esc((o.date || '').slice(0, 10)) + '</span></div>'
+            + '<div class="mail-subj">' + esc(o.subject) + '</div>'
+            + '<div class="mail-badges"><span class="badge ' + o.color + '">' + esc(o.label) + '</span></div></div>';
+        });
+        return;
+      }
+      var items = byCat[key] || [];
+      if (!items.length) return;
+      var collapse = ['receipts', 'newsletters', 'promo', 'personal'].indexOf(key) >= 0;
+      html += '<div class="section-h"><span class="section-t">' + title + '</span><span class="section-c">' + items.length + '</span></div>';
+      var shown = collapse ? items.slice(0, 3) : items.slice(0, 15);
+      shown.forEach(function (x) { html += mailCardHtml(x.m, x.c); });
+      if (items.length > shown.length) html += '<div class="empty" style="padding:6px">+ ' + (items.length - shown.length) + ' more in Gmail</div>';
+    });
+
+    // Tracked orders
+    var orders = jget(ORDERS_KEY, []) || [];
+    if (orders.length) {
+      html += '<div class="section-h"><span class="section-t">Tracked orders</span><span class="section-c">' + orders.length + '</span></div>';
+      orders.slice(0, 8).forEach(function (o) {
+        html += '<div class="mail-card"><div class="mail-top"><span class="mail-from">' + esc(o.store) + (o.orderNumber ? ' · #' + esc(o.orderNumber) : '') + '</span><span class="mail-date">' + esc(o.date) + '</span></div>'
+          + '<div class="mail-subj">' + esc(o.subject) + '</div>'
+          + '<div class="mail-badges"><span class="badge ' + (o.status === 'delivered' ? 'green' : o.status === 'delayed' || o.status === 'failed' ? 'red' : 'blue') + '">' + esc(o.status) + '</span></div></div>';
+      });
+    }
+
+    $('sections').innerHTML = msgs.length ? html : '<div class="empty">Inbox cache is empty. Sync to load your Gmail.</div>';
+
+    // Wire card actions
+    $('sections').querySelectorAll('.mail-card[data-mid]').forEach(function (card) {
+      var id = card.dataset.mid;
+      var cache = jget(CACHE_KEY, {}) || {};
+      var m = cache[id];
+      if (!m) return;
+      card.querySelectorAll('[data-a]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var a = b.dataset.a;
+          if (a === 'archive') archive([id]).catch(function () {});
+          else if (a === 'read') markRead(id);
+          else if (a === 'sum') summarize(m, card.querySelector('.mail-summary'));
+          else if (a === 'task') addTask(m);
+          else if (a === 'track') trackOrder(m);
+          else if (a === 'snooze') snooze(id);
+          else if (a === 'trash') trash(id, m.subject);
+        });
+      });
+    });
+
+    renderCleanup(msgs, byCat);
+    writeSummary(msgs, byCat, opps, deliveryIssues);
+  }
+
+  /* ---------- cleanup plan ---------- */
+  function cleanupCandidates(msgs) {
+    var days = parseInt($('cleanDays').value, 10) || 14;
+    var cutoff = Date.now() - days * 86400000;
+    return msgs.filter(function (m) {
+      var c = catOf(m);
+      if (c.cat !== 'newsletters' && c.cat !== 'promo') return false;
+      var ts = Date.parse(m.date || '');
+      return ts && ts < cutoff;
+    });
+  }
+  function renderCleanup(msgs) {
+    var cands = cleanupCandidates(msgs);
+    if (!cands.length) { hide('cleanCard'); return; }
+    show('cleanCard');
+    $('cleanList').innerHTML = cands.map(function (m) {
+      return '<label class="clean-row"><input type="checkbox" checked data-cid="' + esc(m.id) + '"><span>' + esc(m.from.replace(/<.*/, '').trim()) + ' — ' + esc(m.subject) + '</span></label>';
+    }).join('');
+    $('cleanBtn').textContent = 'Archive selected (' + cands.length + ')';
+  }
+  $('cleanBtn').addEventListener('click', function () {
+    var ids = Array.prototype.map.call(document.querySelectorAll('#cleanList input:checked'), function (i) { return i.dataset.cid; });
+    if (!ids.length) return;
+    if (needToken()) return;
+    if (!confirm('Archive ' + ids.length + ' newsletters/promos? They stay searchable in Gmail, just leave the inbox.')) return;
+    $('cleanResult').textContent = 'Archiving…';
+    archive(ids).then(function () {
+      $('cleanResult').textContent = 'Archived ' + ids.length + ' emails.';
+    }).catch(function (e) {
+      $('cleanResult').textContent = 'Failed: ' + (e && e.message || 'not connected');
+    });
+  });
+  $('cleanDays').addEventListener('change', renderAll);
+
+  /* ---------- lean snapshot for LifeOS context ---------- */
+  function writeSummary(msgs, byCat, opps, deliveryIssues) {
+    jset(SUMMARY_KEY, {
+      ts: Date.now(),
+      total_inbox: msgs.length,
+      needs_reply: (byCat.needs_reply || []).slice(0, 5).map(function (x) { return { from: x.m.from.replace(/<.*/, '').trim(), subject: x.m.subject }; }),
+      bills: (byCat.bills || []).slice(0, 5).map(function (x) { return x.m.subject; }),
+      orders_active: (byCat.orders || []).length,
+      delivery_issues: deliveryIssues,
+      opportunities: opps.slice(0, 5).map(function (o) { return o.label + ': ' + o.subject; }),
+      newsletters_promo: ((byCat.newsletters || []).length + (byCat.promo || []).length),
+    });
+  }
+
+  /* ---------- connect flow ---------- */
+  function showConnect() {
+    hide('setupSection'); hide('mailSection');
+    if (localStorage.getItem(WAS_CONN) === '1') { hide('connectSection'); show('reconnectSection'); }
+    else { hide('reconnectSection'); show('connectSection'); }
+    // Cached mail still viewable offline
+    if (Object.keys(jget(CACHE_KEY, {})).length) {
+      show('mailSection'); show('offlineNotice');
+      renderAll();
+    }
+  }
+  function showMail() {
+    hide('setupSection'); hide('connectSection'); hide('reconnectSection'); hide('offlineNotice');
+    show('mailSection');
+    renderAll();
+    syncInbox();
+  }
+  function handleToken(resp) {
+    if (resp.error) { showConnect(); return; }
+    storeToken(resp.access_token, resp.expires_in);
+    showMail();
+  }
+
+  function init() {
+    fetch('/api/gcal-nlp').then(function (r) { return r.json(); }).catch(function () { return {}; }).then(function (d) {
+      var clientId = (d && d.clientId) || '';
+      if (!clientId) {
+        // No client id (or running locally): setup info + cached view
+        show('setupSection');
+        if (Object.keys(jget(CACHE_KEY, {})).length) { show('mailSection'); show('offlineNotice'); renderAll(); }
+        return;
+      }
+      var attempts = 0;
+      (function waitGsi() {
+        if (typeof google === 'undefined' || !google.accounts) {
+          if (++attempts > 40) { show('setupSection'); return; }
+          setTimeout(waitGsi, 200);
+          return;
+        }
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/gmail.modify',
+          callback: handleToken,
+        });
+        $('connectBtn').onclick = function () { tokenClient.requestAccessToken({ prompt: '' }); };
+        $('reconnectBtn').onclick = function () { tokenClient.requestAccessToken({ prompt: '' }); };
+        if (loadToken()) showMail(); else showConnect();
+      })();
+    });
+  }
+  $('syncBtn').addEventListener('click', syncInbox);
+  $('disconnectBtn').addEventListener('click', function () {
+    clearToken(); localStorage.removeItem(WAS_CONN); showConnect();
+  });
+  // Expose render for verification/devtools
+  window.__mailRenderAll = renderAll;
+  init();
+})();
+</script>
+</body>
+</html>

@@ -471,6 +471,21 @@
     return { data_quality_pct: q.score, stale: q.stale };
   }
 
+  function sliceMail() {
+    var s = get('mail:summary:v1', null);
+    if (!s) return { synced: false, note: 'Gmail not synced yet (mail.html)' };
+    return {
+      synced_hours_ago: Math.round((Date.now() - (s.ts || 0)) / 3600000),
+      total_inbox: s.total_inbox,
+      needs_reply: s.needs_reply,
+      bills: s.bills,
+      orders_active: s.orders_active,
+      delivery_issues: s.delivery_issues,
+      opportunities: s.opportunities,
+      newsletters_promo: s.newsletters_promo,
+    };
+  }
+
   function sliceSkin() {
     var logs = get('skin:logs', []) || [];
     var prods = get('skin:products', []) || [];
@@ -530,6 +545,7 @@
       case 'missing_data': return sliceMissing();
       case 'body_progress': return sliceBodyProgress();
       case 'skin': return sliceSkin();
+      case 'mail': return sliceMail();
       case 'full_summary': return sliceFull();
       case 'today':
       default: return sliceToday();
