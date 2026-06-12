@@ -1,4 +1,4 @@
-const CACHE = 'dashboard-v11';
+const CACHE = 'dashboard-v12';
 const PRECACHE = [
   '/', '/index.html', '/health.html', '/water.html', '/gym.html',
   '/finance.html', '/nutrition.html', '/calendar.html',
