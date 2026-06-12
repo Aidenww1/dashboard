@@ -184,20 +184,95 @@
     });
   }
 
-  /* ---------- ask mode ---------- */
+  /* ---------- ask-anything chat (Phase 11) ----------
+     ?question starts a thread; further Enters continue it with history.
+     Context is smart-sliced: keyword routing picks the LifeOS slices the
+     question actually needs instead of dumping everything. "/new" resets. */
+
+  var CHAT_KEY = 'coach:chat:v1'; // {threads:[{id,title,at,messages:[{role,content}]}]} cap 5 threads x 30 msgs
+  var chatMode = false;
+  var activeThread = null;
+
+  var SLICE_RULES = [
+    [/afford|cost|money|spend|spent|sav(e|ing)|tax|btw|mortgage|huis|house|sub(scription)?|invoice|income|net worth/i, ['finance', 'opportunities']],
+    [/sleep|recover|tired|fatigue|readiness|deload|rest day/i, ['recovery', 'training']],
+    [/train|gym|workout|lift|squat|bench|deadlift|volume|pr\b/i, ['training']],
+    [/eat|meal|protein|calorie|macro|food|diet|hungry/i, ['nutrition']],
+    [/mail|email|inbox|reply|order|deliver|package|track/i, ['mail']],
+    [/opportunit|missing out|radar/i, ['opportunities']],
+    [/skin|acne|breakout|spf|sunscreen/i, ['skin']],
+    [/photo|physique|body|muscle|lean|fat/i, ['body_progress']],
+    [/plan|today|schedule|focus|deep work|task|goal/i, ['productivity']],
+    [/data|track|log|quality|stale/i, ['missing_data']],
+  ];
+
+  function pickSlices(q) {
+    var names = ['today'];
+    SLICE_RULES.forEach(function (rule) {
+      if (rule[0].test(q)) rule[1].forEach(function (s) { if (names.indexOf(s) < 0) names.push(s); });
+    });
+    return names.slice(0, 4);
+  }
+
+  function buildContext(q) {
+    var parts = {};
+    pickSlices(q).forEach(function (s) {
+      try { parts[s] = window.LifeOS.context(s); } catch (_) {}
+    });
+    return 'You are the user\'s life coach inside their personal Life OS. Answer from the data below; be specific with numbers; if the data does not contain the answer, say what is missing and which page logs it. Life context slices: ' + JSON.stringify(parts);
+  }
+
+  function loadThreads() { var s; try { s = JSON.parse(localStorage.getItem(CHAT_KEY)); } catch (_) {} return (s && s.threads) || []; }
+  function saveThread(t) {
+    var threads = loadThreads().filter(function (x) { return x.id !== t.id; });
+    t.messages = t.messages.slice(-30);
+    threads.push(t);
+    try { localStorage.setItem(CHAT_KEY, JSON.stringify({ threads: threads.slice(-5) })); } catch (_) {}
+  }
+
+  function renderChat(pending) {
+    els();
+    if (!activeThread) return;
+    var html = '<div class="lo-cmd-section">Chat · /new = new thread · Esc = close</div>';
+    html += activeThread.messages.map(function (m) {
+      var user = m.role === 'user';
+      return '<div class="lo-cmd-msg" style="' + (user ? 'color:#F7F8F8;font-weight:600' : '') + '">' + (user ? '› ' : '') + esc(m.content) + '</div>';
+    }).join('');
+    if (pending) html += '<div class="lo-cmd-msg">Thinking…</div>';
+    body.innerHTML = html;
+    body.scrollTop = body.scrollHeight;
+  }
+
   function ask(question) {
     els();
     if (!window.LifeOS || !window.LifeOS.ai) { body.innerHTML = '<div class="lo-cmd-msg lo-cmd-err">AI service not loaded.</div>'; return; }
-    body.innerHTML = '<div class="lo-cmd-msg">Thinking…</div>';
-    var ctx = '';
-    try { ctx = 'User life context (today slice): ' + JSON.stringify(window.LifeOS.context('today')); } catch (_) {}
-    window.LifeOS.ai.chat({ prompt: question, context: ctx, timeoutMs: 30000 })
-      .then(function (d) { body.innerHTML = '<div class="lo-cmd-msg">' + esc(d.reply) + '</div>'; })
-      .catch(function (e) { body.innerHTML = '<div class="lo-cmd-msg lo-cmd-err">' + esc(e.message) + '</div>'; });
+    if (!activeThread) {
+      activeThread = { id: Date.now().toString(36), title: question.slice(0, 60), at: new Date().toISOString(), messages: [] };
+    }
+    chatMode = true;
+    activeThread.messages.push({ role: 'user', content: question });
+    renderChat(true);
+    window.LifeOS.ai.chat({
+      messages: activeThread.messages.slice(-10).map(function (m) { return { role: m.role, content: m.content }; }),
+      context: buildContext(activeThread.messages.map(function (m) { return m.content; }).join(' ')),
+      timeoutMs: 45000,
+    }).then(function (d) {
+      activeThread.messages.push({ role: 'assistant', content: d.reply || '(no reply)' });
+      activeThread.at = new Date().toISOString();
+      saveThread(activeThread);
+      renderChat(false);
+    }).catch(function (e) {
+      activeThread.messages.pop(); // don't persist the unanswered turn
+      renderChat(false);
+      body.innerHTML += '<div class="lo-cmd-msg lo-cmd-err">' + esc(e.message) + '</div>';
+    });
   }
+
+  function resetChat() { chatMode = false; activeThread = null; }
 
   document.addEventListener('input', function (e) {
     if (e.target && e.target.id === 'loCmdInput') {
+      if (chatMode) return; // no live search while chatting
       clearTimeout(searchTimer);
       searchTimer = setTimeout(renderSearch, 150);
     }
@@ -206,8 +281,17 @@
     if (e.target && e.target.id === 'loCmdInput' && e.key === 'Enter') {
       var v = e.target.value.trim();
       if (!v) return;
-      if (v.startsWith('?')) ask(v.slice(1).trim());
-      else parseAndConfirm(v);
+      e.target.value = '';
+      if (v === '/new') { resetChat(); body.innerHTML = '<div class="lo-cmd-msg">New thread. Ask away.</div>'; return; }
+      if (v.startsWith('?')) { ask(v.slice(1).trim()); return; }
+      if (chatMode) { ask(v); return; }
+      e.target.value = v;
+      parseAndConfirm(v);
     }
   });
+  // leaving the panel ends chat mode so the bar reopens in log/search mode
+  var _open = open;
+  open = function () { resetChat(); _open(); };
+  fab.removeEventListener('click', _open);
+  fab.addEventListener('click', open);
 })();

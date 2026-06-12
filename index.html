@@ -851,6 +851,16 @@ body { padding-bottom: 90px; }
         <div class="ls-quality" id="rdDebt"></div>
       </div>
 
+      <div class="ai-summary-card" id="coachCard" style="display:none">
+        <div class="card-eyebrow">Today's Insight</div>
+        <div class="ls-drag" id="coachTitle" style="font-size:14px;font-weight:700;color:var(--text-primary,#FAFAFA)"></div>
+        <div class="ls-action" id="coachWhy" style="margin-top:6px;line-height:1.5"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button id="coachActBtn" style="flex:1;padding:8px;border-radius:10px;border:1px solid rgba(107,227,164,0.3);background:rgba(107,227,164,0.12);color:#6BE3A4;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit"></button>
+          <button id="coachDismissBtn" style="padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">Dismiss</button>
+        </div>
+      </div>
+
       <div class="ai-summary-card" id="focusCard">
         <div class="card-eyebrow">Deep Work</div>
         <div class="ls-row">
@@ -2397,6 +2407,201 @@ window.addEventListener('lifeos:event', function(e) {
   render();
   renderEnergy();
   window.addEventListener('lifeos:logged', render);
+})();
+</script>
+
+<script>
+// ===== PHASE 11: PROACTIVE COACH — daily insight =====
+// Deterministic trigger scan, ranked by importance, max 1 ping per day.
+// No AI call: every trigger phrases itself with the real numbers.
+(function proactiveCoach() {
+  'use strict';
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function localKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function todayStr() { return localKey(new Date()); }
+  function daysAgoKey(n) { var d = new Date(); d.setDate(d.getDate() - n); return localKey(d); }
+  function daysSince(dateStr) {
+    if (!dateStr) return null;
+    var d = new Date(String(dateStr).slice(0, 10).replace(/\//g, '-') + 'T12:00:00');
+    return isNaN(d) ? null : Math.floor((Date.now() - d.getTime()) / 86400000);
+  }
+
+  var STATE_KEY = 'coach:insight:v1';      // {date, id, dismissed}
+  var LOG_KEY = 'coach:insight_log:v1';    // [{date, id}] cap 14 — 3-day repeat suppression
+
+  /* Each trigger: null or {id, rank, title, why, action, link}. Higher rank wins. */
+
+  function tSleepDebt() {
+    var rd = LifeOS.readiness();
+    if (!rd || rd.sleep_debt_hrs == null || rd.sleep_debt_hrs < 5) return null;
+    return { id: 'sleep_debt', rank: 8, title: 'Sleep debt is at ' + rd.sleep_debt_hrs + 'h this week',
+      why: 'That deficit drags readiness (' + rd.score + '/100 today), mood and training quality. One early night recovers more than a weekend lie-in.',
+      action: 'Set tonight: in bed 30 min earlier', link: 'health.html' };
+  }
+  function tTrainLoad() {
+    var rd = LifeOS.readiness();
+    if (!rd || rd.score >= 50) return null;
+    var done = jget('po_coach_workout_done', {}) || {};
+    var recent = 0;
+    for (var i = 0; i < 3; i++) if (done[daysAgoKey(i)]) recent++;
+    if (recent < 2) return null;
+    return { id: 'train_load', rank: 7, title: 'Readiness ' + rd.score + ' after ' + recent + ' sessions in 3 days',
+      why: 'Training stress is outrunning recovery. Adaptation happens on the easy days, not the hard ones.',
+      action: 'Make today easy or rest', link: 'gym.html' };
+  }
+  function tOrderDelayed() {
+    var m = jget('mail:summary:v1', null);
+    if (!m || !(m.delivery_issues > 0)) return null;
+    return { id: 'order_delayed', rank: 7, title: m.delivery_issues + ' deliver' + (m.delivery_issues === 1 ? 'y has' : 'ies have') + ' problems',
+      why: 'Carrier emails flag a delay or failure. Refund and replacement windows close quietly.',
+      action: 'Check the affected orders in Mail', link: 'mail.html' };
+  }
+  function tSavingsDrop() {
+    var f = LifeOS.context('finance');
+    var r = f && f.savings_rate_last_month_actual_pct;
+    if (r == null || r >= 10) return null;
+    return { id: 'savings_drop', rank: 6, title: 'Savings rate fell to ' + r + '% last month',
+      why: 'Bank import shows the real number, not the plan. The house-by-23 goal needs 20%+ most months.',
+      action: 'Open the monthly money review', link: 'finance.html' };
+  }
+  function tRetestOverdue() {
+    var logs = jget('blood:logs', []) || [];
+    if (!logs.length) return null;
+    var last = logs.map(function (e) { return e.date; }).sort().pop();
+    var d = daysSince(last);
+    if (d == null || d < 180) return null;
+    return { id: 'retest_overdue', rank: 6, title: 'Bloodwork is ' + d + ' days old',
+      why: 'Whatever you changed since (' + last + ') is unverified. Markers move silently.',
+      action: 'Book a retest this week', link: 'health.html' };
+  }
+  function tWeightFast() {
+    var logs = (jget('po_coach_weights', []) || []).filter(function (e) { return e && e.dateKey && e.weight > 0; })
+      .sort(function (a, b) { return String(a.dateKey).localeCompare(String(b.dateKey)); }).slice(-10);
+    if (logs.length < 4) return null;
+    var recent = logs.slice(-3).reduce(function (s, e) { return s + e.weight; }, 0) / 3;
+    var older = logs.slice(0, 3).reduce(function (s, e) { return s + e.weight; }, 0) / 3;
+    var diff = +(recent - older).toFixed(1);
+    if (Math.abs(diff) < 1) return null;
+    return { id: 'weight_fast', rank: 6, title: 'Weight moved ' + (diff > 0 ? '+' : '') + diff + ' kg this week',
+      why: 'Faster than ~0.5 kg/week is mostly water or a real intake shift — either way worth a look at the food log.',
+      action: 'Check this week’s nutrition vs target', link: 'nutrition.html' };
+  }
+  function tSuppStopped() {
+    var items = jget('stack:items', []) || [];
+    if (!items.length) return null;
+    var takenBy = {};
+    for (var i = 0; i < 14; i++) takenBy[i] = jget('stack:taken:' + daysAgoKey(i), {}) || {};
+    for (var j = 0; j < items.length; j++) {
+      var it = items[j];
+      if (!it || !it.id) continue;
+      var before = 0, recent = 0;
+      for (var k = 0; k < 5; k++) if (takenBy[k][it.id]) recent++;
+      for (var l = 6; l < 14; l++) if (takenBy[l][it.id]) before++;
+      if (before >= 3 && recent === 0) {
+        return { id: 'supp_stopped_' + it.id, rank: 5, title: 'You stopped taking ' + (it.name || 'a supplement'),
+          why: 'Logged regularly until 5 days ago, nothing since. Deliberate is fine — just know any metric change in 2-6 weeks may trace back to this.',
+          action: 'Resume it or note why you stopped', link: 'gym.html' };
+      }
+    }
+    return null;
+  }
+  function tSkinWorse() {
+    var logs = (jget('skin:logs', []) || []).filter(function (e) { return e && e.date && e.rating != null; })
+      .sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+    if (logs.length < 6) return null;
+    var avg = function (arr) { return arr.reduce(function (s, e) { return s + Number(e.rating); }, 0) / arr.length; };
+    var drop = avg(logs.slice(-6, -3)) - avg(logs.slice(-3));
+    if (drop < 1) return null;
+    return { id: 'skin_worse', rank: 5, title: 'Skin ratings dropped ' + drop.toFixed(1) + ' points',
+      why: 'Last 3 checks vs the 3 before. If you added a product recently, that is suspect number one.',
+      action: 'Review recent product changes', link: 'skin.html' };
+  }
+  function tRadarTop() {
+    var s = jget('radar:summary:v1', null);
+    if (!s || !s.shown || !s.shown.length || (s.total_found || 0) < 3) return null;
+    return { id: 'radar_top', rank: 5, title: s.total_found + ' opportunities on the radar',
+      why: 'Top one: ' + s.shown[0].title + '.',
+      action: 'Open the Opportunity Radar', link: 'radar.html' };
+  }
+  function tPhotoStale() {
+    var ps = jget('body:photos:v1', []) || [];
+    if (!ps.length) return null;
+    var d = daysSince(ps.map(function (p) { return p.date; }).sort().pop());
+    if (d == null || d < 14) return null;
+    return { id: 'photo_stale', rank: 4, title: 'No progress photo in ' + d + ' days',
+      why: 'The scale lies week to week; photos do not. Same angle, same light, 30 seconds.',
+      action: 'Take this week’s photo now', link: 'body.html' };
+  }
+  function tInboxReply() {
+    var m = jget('mail:summary:v1', null);
+    if (!m || !(m.needs_reply >= 5)) return null;
+    return { id: 'inbox_reply', rank: 4, title: m.needs_reply + ' emails are waiting on you',
+      why: 'Real people, classified as needing a reply. Batch them once instead of carrying the weight all day.',
+      action: 'Batch-reply in Mail', link: 'mail.html' };
+  }
+  function tDataQuality() {
+    var q = LifeOS.quality();
+    if (!q || q.score >= 50 || !q.worst) return null;
+    return { id: 'dq_low', rank: 3, title: 'Data quality is ' + q.score + '% — advice is degrading',
+      why: 'Most stale: ' + q.worst.label + (q.worst.daysAgo != null ? ' (' + q.worst.daysAgo + 'd old)' : ' (never logged)') + '. Every recommendation is built on this data.',
+      action: 'Add suggested check-ins', link: 'reminders.html' };
+  }
+
+  function scan() {
+    var fns = [tSleepDebt, tTrainLoad, tOrderDelayed, tSavingsDrop, tRetestOverdue, tWeightFast, tSuppStopped, tSkinWorse, tRadarTop, tPhotoStale, tInboxReply, tDataQuality];
+    var hits = [];
+    fns.forEach(function (fn) { try { var r = fn(); if (r) hits.push(r); } catch (e) {} });
+    // suppress anything shown in the last 3 days
+    var log = jget(LOG_KEY, []) || [];
+    var cutoff = daysAgoKey(2);
+    var recentIds = log.filter(function (e) { return e.date >= cutoff; }).map(function (e) { return e.id; });
+    hits = hits.filter(function (h) { return recentIds.indexOf(h.id) < 0; });
+    return hits.sort(function (a, b) { return b.rank - a.rank; })[0] || null;
+  }
+
+  function show(ins, state) {
+    var card = document.getElementById('coachCard');
+    if (!card) return;
+    if (!ins || (state && state.dismissed)) { card.style.display = 'none'; return; }
+    document.getElementById('coachTitle').textContent = ins.title;
+    document.getElementById('coachWhy').textContent = ins.why;
+    var act = document.getElementById('coachActBtn');
+    act.textContent = ins.action;
+    act.onclick = function () { window.location.href = ins.link || 'index.html'; };
+    document.getElementById('coachDismissBtn').onclick = function () {
+      var s = jget(STATE_KEY, {}) || {};
+      s.dismissed = true;
+      jset(STATE_KEY, s);
+      card.style.display = 'none';
+    };
+    card.style.display = '';
+  }
+
+  function run() {
+    var today = todayStr();
+    var state = jget(STATE_KEY, null);
+    if (state && state.date === today) {
+      // already picked today's insight — re-render it (or stay hidden if dismissed)
+      show(state.insight || null, state);
+      return;
+    }
+    var ins = scan();
+    jset(STATE_KEY, { date: today, id: ins ? ins.id : null, insight: ins, dismissed: false });
+    if (ins) {
+      var log = (jget(LOG_KEY, []) || []);
+      log.push({ date: today, id: ins.id });
+      jset(LOG_KEY, log.slice(-14));
+    }
+    show(ins, null);
+  }
+
+  window.__coachScan = scan;   // test hook: full ranked pick with current storage
+  window.__coachRun = run;
+
+  if (window.LifeOS && LifeOS.readiness) run();
+  else window.addEventListener('lifeos:ready', run, { once: true });
+  setTimeout(function () { try { if (window.LifeOS && LifeOS.readiness && !jget(STATE_KEY, null)) run(); } catch (e) {} }, 1500);
 })();
 </script>
 

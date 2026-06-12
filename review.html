@@ -116,6 +116,23 @@ h1 { font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px;
     <div id="ritualBody" style="display:none"></div>
   </div>
 
+  <div class="section" id="trajSection">
+    <div class="section-title">Trajectories</div>
+    <div class="stat-card">
+      <div id="trajBody" style="font-size:12px;line-height:1.6;color:var(--text-secondary)"></div>
+      <div id="trajEmpty" style="display:none;font-size:12px;color:var(--text-tertiary)">Not enough history yet. Trajectories appear once an area has 5+ data points across 2+ weeks.</div>
+    </div>
+  </div>
+
+  <div class="section" id="reportSection">
+    <div class="section-title">Weekly report</div>
+    <div class="stat-card">
+      <div id="reportMeta" style="font-size:12px;color:var(--text-tertiary);margin-bottom:8px"></div>
+      <div id="reportBody" style="display:none;font-size:13px;line-height:1.65;color:var(--text-secondary);white-space:pre-wrap"></div>
+      <button class="ai-btn" id="reportBtn" style="width:auto;padding:9px 18px;margin-top:4px">Generate this week's report</button>
+    </div>
+  </div>
+
   <div class="ai-section">
     <button class="ai-btn" id="aiBtn">Get AI Weekly Review</button>
     <div class="ai-output" id="aiOutput"></div>
@@ -678,6 +695,331 @@ if (document.readyState !== 'loading') setTimeout(run, 400); else document.addEv
     body.style.display = open ? 'none' : 'block';
     if (!open) render();
   });
+})();
+</script>
+<script>
+// ===== PHASE 11: PROACTIVE COACH — trajectories + weekly report =====
+// Projections are pure code (least-squares over real logs). Claude only
+// writes the weekly report prose, once per week, cached.
+(function coachReview() {
+  'use strict';
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function localKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function todayStr() { return localKey(new Date()); }
+  function mondayKey() {
+    var d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return localKey(d);
+  }
+  function dayIdx(dateStr) {
+    var d = new Date(String(dateStr).slice(0, 10).replace(/\//g, '-') + 'T12:00:00');
+    return isNaN(d) ? null : Math.floor(d.getTime() / 86400000);
+  }
+  function fmtDate(daysFromNow) {
+    var d = new Date(); d.setDate(d.getDate() + daysFromNow);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  // least squares over [{x: dayIdx, y}] -> {slope per day, at: y at last x}
+  function lsq(pts) {
+    var n = pts.length;
+    if (n < 2) return null;
+    var sx = 0, sy = 0, sxx = 0, sxy = 0;
+    pts.forEach(function (p) { sx += p.x; sy += p.y; sxx += p.x * p.x; sxy += p.x * p.y; });
+    var den = n * sxx - sx * sx;
+    if (!den) return null;
+    var slope = (n * sxy - sx * sy) / den;
+    var b = (sy - slope * sx) / n;
+    var lastX = pts[pts.length - 1].x;
+    return { slope: slope, at: slope * lastX + b, lastX: lastX };
+  }
+  // weekly buckets: values per ISO-week Monday for the last n weeks (incl. current)
+  function weekKeys(n) {
+    var out = [];
+    var d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    for (var i = n - 1; i >= 0; i--) {
+      var w = new Date(d); w.setDate(d.getDate() - i * 7);
+      out.push(localKey(w));
+    }
+    return out;
+  }
+  function weekOf(dateStr) {
+    var d = new Date(String(dateStr).slice(0, 10).replace(/\//g, '-') + 'T12:00:00');
+    if (isNaN(d)) return null;
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return localKey(d);
+  }
+
+  /* ---------- trajectory areas (each: null or {label, now, trend, projection}) ---------- */
+
+  function gatherT() {
+    return {
+      weights: (jget('po_coach_weights', []) || []).filter(function (e) { return e && e.dateKey && e.weight > 0; })
+        .sort(function (a, b) { return String(a.dateKey).localeCompare(String(b.dateKey)); }),
+      tx: jget('ing:tx', []) || [],
+      glRev: jget('gl:revenue', []) || [],
+      glExp: jget('gl:expenses', []) || [],
+      nt: jget('nt:logs', []) || [],
+      ntTarget: (jget('nt:targets', {}) || {}).protein || 150,
+      sleep: jget('sleep:logs', []) || [],
+      focus: jget('focus:logs:v1', []) || [],
+      workoutDone: jget('po_coach_workout_done', {}) || {},
+      skinRoutine: jget('skin:routine:v1', {}) || {},
+      skinProducts: (jget('skin:products', []) || []).length,
+      photos: jget('body:photos:v1', []) || [],
+      now: new Date(),
+    };
+  }
+
+  function weeklySeries(label, unit, byWeek, fmt) {
+    var wks = weekKeys(4);
+    var pts = [];
+    wks.forEach(function (wk, i) {
+      var v = byWeek[wk];
+      if (v != null) pts.push({ x: i, y: v, wk: wk });
+    });
+    if (pts.length < 3) return null;
+    var fit = lsq(pts);
+    if (!fit) return null;
+    var f = fmt || function (v) { return Math.round(v * 10) / 10; };
+    return {
+      label: label,
+      now: f(pts[pts.length - 1].y) + ' ' + unit + ' this week',
+      trend: (fit.slope >= 0 ? '+' : '') + f(fit.slope) + ' ' + unit + '/wk',
+      projection: wks.map(function (wk) { return byWeek[wk] != null ? f(byWeek[wk]) : '–'; }).join(' → '),
+      slope: fit.slope,
+    };
+  }
+
+  function computeTraj(d) {
+    var rows = [];
+    try { // weight: daily series, kg/wk + 30d projection
+      var w = d.weights.slice(-30);
+      if (w.length >= 5) {
+        var pts = w.map(function (e) { return { x: dayIdx(e.dateKey), y: e.weight }; }).filter(function (p) { return p.x != null; });
+        if (pts.length >= 5 && pts[pts.length - 1].x - pts[0].x >= 14) {
+          var fit = lsq(pts);
+          var cur = w[w.length - 1].weight;
+          rows.push({ label: 'Weight', now: cur + ' kg',
+            trend: (fit.slope * 7 >= 0 ? '+' : '') + (fit.slope * 7).toFixed(2) + ' kg/wk',
+            projection: 'at this rate ' + (cur + fit.slope * 30).toFixed(1) + ' kg by ' + fmtDate(30),
+            slope: fit.slope * 7 });
+        }
+      }
+    } catch (e) {}
+    try { // savings: monthly net from bank import
+      var m = {};
+      d.tx.forEach(function (t) {
+        var ym = String(t.date || '').slice(0, 7);
+        if (!/^\d{4}-\d{2}$/.test(ym)) return;
+        m[ym] = (m[ym] || 0) + (Number(t.amount) || 0);
+      });
+      var cur2 = todayStr().slice(0, 7);
+      var keys = Object.keys(m).filter(function (k) { return k !== cur2; }).sort().slice(-6);
+      if (keys.length >= 3) {
+        var pts2 = keys.map(function (k, i) { return { x: i, y: m[k] }; });
+        var fit2 = lsq(pts2);
+        rows.push({ label: 'Savings (monthly net)', now: '€' + Math.round(m[keys[keys.length - 1]]) + ' in ' + keys[keys.length - 1],
+          trend: (fit2.slope >= 0 ? '+' : '') + '€' + Math.round(fit2.slope) + '/mo trend',
+          projection: keys.map(function (k) { return '€' + Math.round(m[k]); }).join(' → '),
+          slope: fit2.slope });
+      }
+    } catch (e) {}
+    try { // mortgage basis: YTD profit projection x4.5
+      var y = String(d.now.getFullYear());
+      var rev = 0, exp = 0;
+      d.glRev.forEach(function (r) { if (String(r.date || '').slice(0, 4) === y) rev += Number(r.amount) || 0; });
+      d.glExp.forEach(function (e2) { if (String(e2.date || '').slice(0, 4) === y) exp += Number(e2.amount) || 0; });
+      if (rev > 0) {
+        var doy = Math.max(1, Math.floor((Date.now() - new Date(d.now.getFullYear(), 0, 1)) / 86400000));
+        var proj = Math.max(0, rev - exp) / doy * 365;
+        rows.push({ label: 'Mortgage basis', now: '€' + Math.round(Math.max(0, rev - exp)) + ' profit YTD',
+          trend: 'projects to €' + Math.round(proj) + '/yr',
+          projection: '≈ €' + Math.round(proj * 4.5) + ' max mortgage once lenders accept the year',
+          slope: 0 });
+      }
+    } catch (e) {}
+    try { // protein consistency: % of logged days >= 90% target, weekly
+      var byWeek = {}, daysW = {};
+      d.nt.forEach(function (l) {
+        var dk = String(l.dateKey || '').replace(/\//g, '-');
+        var wk = weekOf(dk);
+        if (!wk) return;
+        daysW[wk] = daysW[wk] || {};
+        daysW[wk][dk] = (daysW[wk][dk] || 0) + (Number(l.protein) || 0);
+      });
+      Object.keys(daysW).forEach(function (wk) {
+        var days = Object.keys(daysW[wk]);
+        var hit = days.filter(function (dk) { return daysW[wk][dk] >= d.ntTarget * 0.9; }).length;
+        byWeek[wk] = Math.round(hit / days.length * 100);
+      });
+      var r4 = weeklySeries('Protein consistency', '%', byWeek, function (v) { return Math.round(v); });
+      if (r4) rows.push(r4);
+    } catch (e) {}
+    try { // sleep debt: hours under 8h per week
+      var byWeek2 = {};
+      d.sleep.forEach(function (s) {
+        var wk = weekOf(s.date);
+        if (!wk || !s.duration) return;
+        byWeek2[wk] = (byWeek2[wk] || 0) + Math.max(0, 480 - Number(s.duration)) / 60;
+      });
+      var r5 = weeklySeries('Sleep debt', 'h', byWeek2);
+      if (r5) { r5.projection += (r5.slope > 0.3 ? ' — growing' : r5.slope < -0.3 ? ' — shrinking' : ' — flat'); rows.push(r5); }
+    } catch (e) {}
+    try { // deep work: focus hours per week
+      var byWeek3 = {};
+      d.focus.forEach(function (f) {
+        var wk = weekOf(f.date);
+        if (!wk) return;
+        byWeek3[wk] = (byWeek3[wk] || 0) + (Number(f.sec) || 0) / 3600;
+      });
+      var r6 = weeklySeries('Deep work', 'h', byWeek3);
+      if (r6) rows.push(r6);
+    } catch (e) {}
+    try { // training volume: sessions per week
+      var byWeek4 = {};
+      Object.keys(d.workoutDone).forEach(function (dk) {
+        var wk = weekOf(dk);
+        if (wk) byWeek4[wk] = (byWeek4[wk] || 0) + 1;
+      });
+      var r7 = weeklySeries('Training', 'sessions', byWeek4, function (v) { return Math.round(v * 10) / 10; });
+      if (r7) rows.push(r7);
+    } catch (e) {}
+    try { // skin adherence: % of product-checks done per week
+      if (d.skinProducts > 0) {
+        var byWeek5 = {};
+        Object.keys(d.skinRoutine).forEach(function (dk) {
+          var wk = weekOf(dk);
+          if (!wk) return;
+          byWeek5[wk] = (byWeek5[wk] || 0) + (d.skinRoutine[dk] || []).length;
+        });
+        Object.keys(byWeek5).forEach(function (wk) {
+          byWeek5[wk] = Math.min(100, Math.round(byWeek5[wk] / (7 * d.skinProducts) * 100));
+        });
+        var r8 = weeklySeries('Skin routine', '%', byWeek5, function (v) { return Math.round(v); });
+        if (r8) rows.push(r8);
+      }
+    } catch (e) {}
+    try { // photo consistency: cadence of last photos
+      var dates = d.photos.map(function (p) { return p.date; }).filter(Boolean).sort();
+      if (dates.length >= 3) {
+        var last5 = dates.slice(-5);
+        var gaps = [];
+        for (var i = 1; i < last5.length; i++) gaps.push(dayIdx(last5[i]) - dayIdx(last5[i - 1]));
+        var avgGap = Math.round(gaps.reduce(function (a, b) { return a + b; }, 0) / gaps.length);
+        var since = dayIdx(todayStr()) - dayIdx(dates[dates.length - 1]);
+        rows.push({ label: 'Progress photos', now: since + 'd since last',
+          trend: 'every ' + avgGap + 'd on average',
+          projection: since > avgGap ? 'overdue by ' + (since - avgGap) + 'd' : 'next one due in ' + (avgGap - since) + 'd',
+          slope: 0 });
+      }
+    } catch (e) {}
+    return rows;
+  }
+
+  function renderTraj() {
+    var body = document.getElementById('trajBody');
+    var empty = document.getElementById('trajEmpty');
+    if (!body) return [];
+    var rows = computeTraj(gatherT());
+    if (!rows.length) {
+      body.innerHTML = '';
+      if (empty) empty.style.display = 'block';
+      return rows;
+    }
+    if (empty) empty.style.display = 'none';
+    body.innerHTML = rows.map(function (r) {
+      return '<div style="display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05);padding:6px 0">'
+        + '<span style="font-weight:700;color:var(--text-primary,#FAFAFA);flex-shrink:0">' + esc(r.label) + '</span>'
+        + '<span style="text-align:right">' + esc(r.now) + ' · ' + esc(r.trend) + '<br><span style="color:var(--text-tertiary,#76746E)">' + esc(r.projection) + '</span></span>'
+        + '</div>';
+    }).join('');
+    return rows;
+  }
+
+  /* ---------- weekly report (Claude, once per week, cached) ---------- */
+
+  var REPORT_KEY = 'coach:report:v1'; // {monday: {text, at}} cap 12 weeks
+
+  function reportContext(trajRows) {
+    var parts = {};
+    try { parts.summary = LifeOS.context('full_summary'); } catch (e) {}
+    try { parts.mail = LifeOS.context('mail'); } catch (e) {}
+    try { parts.opportunities = LifeOS.context('opportunities'); } catch (e) {}
+    try { parts.skin = LifeOS.context('skin'); } catch (e) {}
+    try { parts.body = LifeOS.context('body_progress'); } catch (e) {}
+    try { parts.quality = LifeOS.quality().score; } catch (e) {}
+    parts.trajectories = trajRows.map(function (r) { return r.label + ': ' + r.now + ', ' + r.trend + ' (' + r.projection + ')'; });
+    try {
+      var rituals = jget('review:ritual:v1', {}) || {};
+      var mk = mondayKey();
+      var lastRitual = Object.keys(rituals).filter(function (k) { return k <= mk; }).sort().pop();
+      if (lastRitual) parts.last_ritual_answers = rituals[lastRitual].answers;
+    } catch (e) {}
+    return 'Life data for the weekly report (all numbers are real, from local logs):\n' + JSON.stringify(parts);
+  }
+
+  function renderReport() {
+    var meta = document.getElementById('reportMeta');
+    var body = document.getElementById('reportBody');
+    var btn = document.getElementById('reportBtn');
+    if (!btn) return;
+    var mk = mondayKey();
+    var all = jget(REPORT_KEY, {}) || {};
+    var rec = all[mk];
+    if (rec && rec.text) {
+      meta.textContent = 'Week of ' + mk + ' · generated ' + new Date(rec.at).toLocaleDateString();
+      body.textContent = rec.text;
+      body.style.display = 'block';
+      btn.style.display = 'none';
+    } else {
+      meta.textContent = 'Week of ' + mk + ' · covers every module, one priority at the end. Generated once, then cached.';
+      body.style.display = 'none';
+      btn.style.display = '';
+    }
+  }
+
+  function generateReport() {
+    var btn = document.getElementById('reportBtn');
+    var body = document.getElementById('reportBody');
+    if (!window.LifeOS || !LifeOS.ai) { alert('AI service not loaded yet.'); return; }
+    btn.disabled = true; btn.textContent = 'Writing report…';
+    var trajRows = computeTraj(gatherT());
+    var mk = mondayKey();
+    var prompt = 'Write my weekly life report. Cover, in short labeled sections: Health, Training, Nutrition, Recovery, Body progress, Skin, Finance, Mail & orders, Productivity, Opportunities, Risks, Missing data. '
+      + 'Use the real numbers from context; where a module has no data say "no data" in one line — never invent. '
+      + 'Reference the trajectory projections where relevant. Keep it tight: 1-3 lines per section. '
+      + 'End with exactly one line starting "Priority: " naming the single highest-leverage thing for next week and why.';
+    LifeOS.ai.chat({
+      prompt: prompt,
+      context: reportContext(trajRows),
+      cacheKey: 'weekly_report_' + mk,
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+      timeoutMs: 60000,
+    }).then(function (d) {
+      if (!d.reply) throw new Error('Empty report');
+      var all = jget(REPORT_KEY, {}) || {};
+      all[mk] = { text: d.reply, at: new Date().toISOString() };
+      var keys = Object.keys(all).sort();
+      while (keys.length > 12) { delete all[keys.shift()]; }
+      jset(REPORT_KEY, all);
+      renderReport();
+    }).catch(function (e) {
+      body.style.display = 'block';
+      body.textContent = 'Report failed: ' + (e.message || e) + '. Works on the deployed app, not in local preview.';
+      btn.disabled = false; btn.textContent = 'Generate this week\'s report';
+    });
+  }
+  document.getElementById('reportBtn').addEventListener('click', generateReport);
+
+  window.__trajCompute = computeTraj;  // test hook: pass a synthetic gatherT()-shaped object
+  window.__trajGather = gatherT;
+  window.__reportRender = renderReport;
+
+  function boot() { renderTraj(); renderReport(); }
+  if (window.LifeOS && LifeOS.context) boot();
+  else window.addEventListener('lifeos:ready', boot, { once: true });
+  setTimeout(function () { try { if (!document.getElementById('trajBody').innerHTML && document.getElementById('trajEmpty').style.display !== 'block') boot(); } catch (e) {} }, 1500);
 })();
 </script>
 </body>
