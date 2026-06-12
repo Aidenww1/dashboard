@@ -2384,6 +2384,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       <button class="quick-add-btn" id="subAddBtn" onclick="window.__addSub && window.__addSub()">+ Add</button>
     </div>
   </div>
+  <div class="card" id="recurCard" style="display:none;margin-top:14px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:10px">Detected recurring charges</div>
+    <div id="recurList"></div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:8px">From your ING import: same name, similar amount, regular rhythm. Add the ones that are real subscriptions.</div>
+  </div>
 </div>
 
 <!-- ===== INCOMING ORDERS ===== -->
@@ -2451,6 +2456,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 <div class="section" data-section="wish">
   <div class="section-title">
     <span class="section-title-text">WISHLIST</span>
+  </div>
+  <!-- Can I afford this? -->
+  <div class="card" id="affordCard" style="margin-bottom:14px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:8px">Can I afford this?</div>
+    <div style="display:flex;gap:8px">
+      <input type="number" id="affordAmt" step="0.01" min="0" placeholder="Price (&euro;)" style="flex:1;min-width:0;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      <button id="affordBtn" style="padding:8px 16px;border-radius:8px;background:rgba(107,227,164,0.15);border:1px solid rgba(107,227,164,0.3);color:#6BE3A4;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">Check</button>
+    </div>
+    <div id="affordVerdict" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:700"></div>
+    <div id="affordMath" style="display:none;margin-top:8px;font-size:12px;color:var(--text-secondary);line-height:1.8"></div>
   </div>
   <!-- Hero card with stats -->
   <div class="card wish-hero">
@@ -2645,6 +2660,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       <input type="date"   id="bizExpDate"   class="biz-input">
       <button class="biz-add-btn" onclick="window.__bizAddExp && window.__bizAddExp()">+ Add</button>
     </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+      <label style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer">
+        Scan receipt
+        <input type="file" id="bizReceiptFile" accept="image/*" style="display:none">
+      </label>
+      <span id="bizReceiptStatus" style="font-size:12px;color:var(--text-tertiary)">Photo fills the form above. You confirm before it logs. Photo is not stored.</span>
+    </div>
+    <div id="bizReceiptReport" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(107,227,164,0.06);border:1px solid rgba(107,227,164,0.2);font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
   </div>
   <div id="bizExpFilterBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
   <div id="bizExpList"></div>
@@ -2681,6 +2704,50 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         <div class="biz-rate-ctx-val" id="bizRateThreshold">—</div>
       </div>
     </div>
+  </div>
+
+  <!-- Tax reserve (ZZP) -->
+  <div class="section-title" style="margin-top:20px">
+    <span class="section-title-text">TAX RESERVE (ZZP)</span>
+  </div>
+  <div class="card" id="taxReserveCard">
+    <div id="taxResHero" style="font-size:26px;font-weight:800;color:#FAFAFA;letter-spacing:-0.02em">&euro; —</div>
+    <div id="taxResSub" style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px">Set aside for income tax + Zvw</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Profit this year (&euro;)</div>
+        <input type="number" id="taxProfit" step="1" placeholder="auto from P&amp;L" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Already reserved (&euro;)</div>
+        <input type="number" id="taxReserved" step="1" placeholder="0" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer"><input type="checkbox" id="taxHours" checked> Urencriterium (1225h+)</label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);cursor:pointer"><input type="checkbox" id="taxStarter"> Startersaftrek</label>
+    </div>
+    <div id="taxBreakdown" style="font-size:12px;color:var(--text-secondary);line-height:1.8"></div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:10px">2026 rates: box 1 (35.75% / 37.56% / 49.5%), zelfstandigenaftrek &euro;1,200, MKB-winstvrijstelling 12.7%, Zvw 4.85% (cap &euro;79,409). Excludes heffingskortingen, so this slightly over-reserves. Estimate, not tax advice.</div>
+  </div>
+
+  <!-- Mortgage readiness (ZZP) -->
+  <div class="section-title" style="margin-top:20px">
+    <span class="section-title-text">MORTGAGE READINESS</span>
+  </div>
+  <div class="card" id="mortCard">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Birthdate</div>
+        <input type="date" id="mortBirth" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:4px">Target home price (&euro;)</div>
+        <input type="number" id="mortPrice" step="1000" placeholder="e.g. 300000" style="width:100%;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#FAFAFA;font-size:14px;font-family:inherit;outline:none">
+      </div>
+    </div>
+    <div id="mortBody" style="font-size:12px;color:var(--text-secondary);line-height:1.8"></div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:10px">Rough model: lenders average your last 3 years of profit (capped at the latest year) and lend roughly 4.5x that income. Rules vary per lender and interest rate. Not mortgage advice.</div>
   </div>
 </div>
 
@@ -5497,6 +5564,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:12px">Upcoming this month</div>
     <div id="cfUpcoming"></div>
   </div>
+  <!-- Savings rate trend -->
+  <div style="background:rgba(255,255,255,0.04);border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.06);margin-top:14px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:12px">Savings rate per month</div>
+    <div id="srChart" style="display:flex;align-items:flex-end;gap:8px;height:96px"></div>
+    <div id="srLabels" style="display:flex;gap:8px;margin-top:6px"></div>
+    <div id="srEmpty" style="display:none;text-align:center;padding:16px;font-size:13px;color:rgba(255,255,255,0.35)">Import an ING CSV (Net worth tab) to see your real monthly savings rate.</div>
+  </div>
+  <!-- Monthly money review -->
+  <div style="background:rgba(255,255,255,0.04);border-radius:16px;padding:18px;border:1px solid rgba(255,255,255,0.06);margin-top:14px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:12px" id="mmrTitle">Monthly review</div>
+    <div id="mmrFacts" style="font-size:13px;color:var(--text-secondary);line-height:1.9"></div>
+    <div id="mmrSummary" style="display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(83,74,183,0.08);border:1px solid rgba(83,74,183,0.25);font-size:13px;color:var(--text-secondary);line-height:1.6"></div>
+  </div>
 </div>
 </div>
 
@@ -6695,6 +6775,500 @@ renderAccounts();
   document.getElementById('txMonthFilter')?.addEventListener('change', render);
   document.getElementById('txTypeFilter')?.addEventListener('change', render);
   document.querySelector('[data-tab="transactions"]')?.addEventListener('click', () => setTimeout(render, 0));
+})();
+</script>
+<script>
+// ===== PHASE 7: FINANCE INTELLIGENCE =====
+// Tax reserve, mortgage readiness, savings rate, monthly review,
+// can-I-afford, recurring detection, receipt scan. All math is
+// deterministic; Claude only phrases the monthly review.
+(function financeIntel() {
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function eur(n, dec) { var d = dec == null ? 0 : dec; return '€ ' + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function monthLabel(ym) { var p = ym.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1).toLocaleString('en-US', { month: 'short' }); }
+  function monthName(ym) { var p = ym.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' }); }
+
+  // Per-month income/spend map from imported ING transactions
+  function txMonths() {
+    var tx = jget('ing:tx', []) || [];
+    var m = {};
+    tx.forEach(function (t) {
+      var ym = String(t.date || '').slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(ym)) return;
+      if (!m[ym]) m[ym] = { inn: 0, out: 0 };
+      var a = Number(t.amount) || 0;
+      if (a > 0) m[ym].inn += a; else m[ym].out += Math.abs(a);
+    });
+    return m;
+  }
+  function bizProfitByYear() {
+    var rev = jget('gl:revenue', []) || [];
+    var exp = jget('gl:expenses', []) || [];
+    var by = {};
+    rev.forEach(function (r) { var y = String(r.date || '').slice(0, 4); if (!y) return; if (!by[y]) by[y] = { rev: 0, exp: 0 }; by[y].rev += Number(r.amount) || 0; });
+    exp.forEach(function (e) { var y = String(e.date || '').slice(0, 4); if (!y) return; if (!by[y]) by[y] = { rev: 0, exp: 0 }; by[y].exp += Number(e.amount) || 0; });
+    return by;
+  }
+
+  // ---------- Tax reserve (ZZP, 2026 rates) ----------
+  var TAX_KEY = 'fin:tax:v1';
+  var T = { BAND1: 38883, R1: 0.3575, BAND2: 78426, R2: 0.3756, R3: 0.495, ZELF: 1200, STARTER: 2123, MKB: 0.127, ZVW: 0.0485, ZVWCAP: 79409 };
+  function box1(taxable) {
+    if (taxable <= 0) return 0;
+    var t = Math.min(taxable, T.BAND1) * T.R1;
+    if (taxable > T.BAND1) t += (Math.min(taxable, T.BAND2) - T.BAND1) * T.R2;
+    if (taxable > T.BAND2) t += (taxable - T.BAND2) * T.R3;
+    return t;
+  }
+  function renderTax() {
+    var hero = document.getElementById('taxResHero');
+    if (!hero) return;
+    var s = jget(TAX_KEY, {}) || {};
+    var year = String(new Date().getFullYear());
+    var by = bizProfitByYear();
+    var auto = by[year] ? Math.max(0, by[year].rev - by[year].exp) : 0;
+    var profit = Number(s.override) > 0 ? Number(s.override) : auto;
+    var hours = s.hours !== false;
+    var starter = !!s.starter;
+    var reserved = Number(s.reserved) || 0;
+
+    var pEl = document.getElementById('taxProfit');
+    var rEl = document.getElementById('taxReserved');
+    if (pEl && document.activeElement !== pEl) pEl.value = Number(s.override) > 0 ? s.override : '';
+    if (pEl) pEl.placeholder = auto > 0 ? 'auto: ' + Math.round(auto) : 'auto from P&L';
+    if (rEl && document.activeElement !== rEl) rEl.value = reserved || '';
+    var hEl = document.getElementById('taxHours'); if (hEl) hEl.checked = hours;
+    var stEl = document.getElementById('taxStarter'); if (stEl) stEl.checked = starter;
+
+    var bd = document.getElementById('taxBreakdown');
+    var sub = document.getElementById('taxResSub');
+    if (profit <= 0) {
+      hero.textContent = '€ 0';
+      if (sub) sub.textContent = 'No profit logged for ' + year + ' yet. Add revenue above or type a profit estimate.';
+      if (bd) bd.innerHTML = '';
+      return;
+    }
+    var deduct = (hours ? T.ZELF : 0) + (hours && starter ? T.STARTER : 0);
+    var grond = Math.max(0, profit - deduct);
+    var taxable = grond * (1 - T.MKB);
+    var tax = box1(taxable);
+    var zvw = T.ZVW * Math.min(taxable, T.ZVWCAP);
+    var reserve = Math.round(tax + zvw);
+    var remaining = Math.max(0, reserve - reserved);
+    var pct = Math.round(reserve / profit * 100);
+
+    hero.textContent = eur(remaining);
+    if (sub) sub.textContent = reserved > 0
+      ? eur(reserve) + ' total estimated for ' + year + ' · ' + eur(reserved) + ' already reserved'
+      : 'Estimated ' + year + ' liability · ' + pct + '% of profit';
+    if (bd) bd.innerHTML = [
+      ['Profit', eur(profit)],
+      ['Zelfstandigenaftrek' + (starter ? ' + startersaftrek' : ''), deduct ? '− ' + eur(deduct) : 'not applied (urencriterium off)'],
+      ['MKB-winstvrijstelling 12.7%', '− ' + eur(Math.round(grond * T.MKB))],
+      ['Taxable (box 1)', eur(Math.round(taxable))],
+      ['Income tax', eur(Math.round(tax))],
+      ['Zvw 4.85%', eur(Math.round(zvw))],
+      ['Set aside per €100 invoiced', '€ ' + pct],
+    ].map(function (r) {
+      return '<div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.04);padding:2px 0"><span>' + r[0] + '</span><span style="color:#FAFAFA;font-weight:600">' + r[1] + '</span></div>';
+    }).join('');
+  }
+  function taxSave() {
+    var s = jget(TAX_KEY, {}) || {};
+    s.override = parseFloat((document.getElementById('taxProfit') || {}).value) || 0;
+    s.reserved = parseFloat((document.getElementById('taxReserved') || {}).value) || 0;
+    s.hours = !!(document.getElementById('taxHours') || {}).checked;
+    s.starter = !!(document.getElementById('taxStarter') || {}).checked;
+    jset(TAX_KEY, s);
+    renderTax();
+  }
+  ['taxProfit', 'taxReserved'].forEach(function (id) { var el = document.getElementById(id); if (el) el.addEventListener('change', taxSave); });
+  ['taxHours', 'taxStarter'].forEach(function (id) { var el = document.getElementById(id); if (el) el.addEventListener('change', taxSave); });
+
+  // ---------- Mortgage readiness (ZZP) ----------
+  var MORT_KEY = 'fin:mortgage:v1';
+  function renderMort() {
+    var body = document.getElementById('mortBody');
+    if (!body) return;
+    var s = jget(MORT_KEY, {}) || {};
+    var bEl = document.getElementById('mortBirth');
+    var pEl = document.getElementById('mortPrice');
+    if (bEl && document.activeElement !== bEl && s.birth) bEl.value = s.birth;
+    if (pEl && document.activeElement !== pEl && s.price) pEl.value = s.price;
+
+    var by = bizProfitByYear();
+    var nowY = new Date().getFullYear();
+    var rows = [];
+
+    // Years of business records (lenders typically want 3 annual statements)
+    var bookYears = Object.keys(by).filter(function (y) { return by[y].rev > 0 && Number(y) < nowY; }).sort();
+    var fullProfits = bookYears.slice(-3).map(function (y) { return { y: y, p: Math.max(0, by[y].rev - by[y].exp) }; });
+    rows.push(['Business record', bookYears.length + ' / 3 full years' + (bookYears.length ? ' (' + bookYears.join(', ') + ')' : '')]);
+
+    var basis = null, basisNote = '';
+    if (fullProfits.length) {
+      var avg = fullProfits.reduce(function (a, b) { return a + b.p; }, 0) / fullProfits.length;
+      var last = fullProfits[fullProfits.length - 1].p;
+      basis = Math.min(avg, last);
+      basisNote = fullProfits.length + '-year average, capped at latest year';
+    } else if (by[nowY] && by[nowY].rev > 0) {
+      var dayOfYear = Math.max(1, Math.floor((Date.now() - new Date(nowY, 0, 1)) / 86400000));
+      basis = Math.max(0, by[nowY].rev - by[nowY].exp) / dayOfYear * 365;
+      basisNote = 'projection from this year to date — lenders will not accept this yet';
+    }
+    if (basis != null) {
+      rows.push(['Lender income basis', eur(Math.round(basis)) + ' / yr (' + basisNote + ')']);
+      rows.push(['Max mortgage ≈ 4.5×', eur(Math.round(basis * 4.5))]);
+    } else {
+      rows.push(['Lender income basis', 'no business revenue logged yet']);
+    }
+
+    var price = Number(s.price) || 0;
+    var age = null;
+    if (s.birth) {
+      var bd = new Date(s.birth + 'T00:00');
+      age = Math.floor((Date.now() - bd.getTime()) / (365.25 * 86400000));
+      var target23 = new Date(bd.getFullYear() + 23, bd.getMonth(), bd.getDate());
+      var days23 = Math.ceil((target23.getTime() - Date.now()) / 86400000);
+      rows.push(['Age 23 milestone', days23 > 0 ? days23 + ' days (' + (days23 / 30.44).toFixed(1) + ' months) to go' : 'reached']);
+    }
+    if (price > 0 && basis != null) {
+      var starterExempt = age != null && age < 35 && price <= 525000;
+      var kkPct = starterExempt ? 3.5 : 5.5;
+      var kk = price * kkPct / 100;
+      var gap = Math.max(0, price - basis * 4.5);
+      rows.push(['Kosten koper ≈ ' + kkPct + '%', eur(Math.round(kk)) + (starterExempt ? ' (starter exemption: no 2% transfer tax under €525k)' : ' (incl. 2% transfer tax)')]);
+      rows.push(['Own money needed', eur(Math.round(gap + kk)) + (gap > 0 ? ' (' + eur(Math.round(gap)) + ' above max mortgage + costs)' : ' (costs only — price fits in max mortgage)')]);
+    }
+    body.innerHTML = rows.map(function (r) {
+      return '<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid rgba(255,255,255,0.04);padding:3px 0"><span style="flex-shrink:0">' + r[0] + '</span><span style="color:#FAFAFA;font-weight:600;text-align:right">' + r[1] + '</span></div>';
+    }).join('');
+  }
+  ['mortBirth', 'mortPrice'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', function () {
+      var s = jget(MORT_KEY, {}) || {};
+      s.birth = (document.getElementById('mortBirth') || {}).value || '';
+      s.price = parseFloat((document.getElementById('mortPrice') || {}).value) || 0;
+      jset(MORT_KEY, s);
+      renderMort();
+    });
+  });
+
+  // ---------- Savings rate trend ----------
+  function renderSavingsRate() {
+    var chart = document.getElementById('srChart');
+    if (!chart) return;
+    var labels = document.getElementById('srLabels');
+    var empty = document.getElementById('srEmpty');
+    var m = txMonths();
+    var keys = Object.keys(m).sort();
+    if (!keys.length) {
+      chart.innerHTML = ''; if (labels) labels.innerHTML = '';
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+    var curYm = new Date().toISOString().slice(0, 7);
+    var show = keys.slice(-6);
+    var bars = '', labs = '';
+    show.forEach(function (ym) {
+      var d = m[ym];
+      var rate = d.inn > 0 ? (d.inn - d.out) / d.inn * 100 : null;
+      var partial = ym === curYm;
+      var h, color, txt;
+      if (rate == null) { h = 4; color = 'rgba(255,255,255,0.15)'; txt = 'n/a'; }
+      else if (rate < 0) { h = 12; color = '#FF6B6B'; txt = Math.round(rate) + '%'; }
+      else { h = Math.max(6, Math.min(100, rate)); color = rate >= 20 ? '#6BE3A4' : '#E0B658'; txt = Math.round(rate) + '%'; }
+      bars += '<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%" title="' + esc(ym) + ': in ' + eur(d.inn) + ', out ' + eur(d.out) + '">'
+        + '<div style="font-size:10px;color:rgba(255,255,255,0.55);margin-bottom:3px">' + txt + '</div>'
+        + '<div style="width:100%;max-width:44px;height:' + h + '%;min-height:4px;border-radius:5px 5px 2px 2px;background:' + color + (partial ? ';opacity:0.5' : '') + '"></div></div>';
+      labs += '<div style="flex:1;text-align:center;font-size:10px;color:rgba(255,255,255,0.4)">' + monthLabel(ym) + (partial ? '*' : '') + '</div>';
+    });
+    chart.innerHTML = bars;
+    if (labels) labels.innerHTML = labs + (show.indexOf(curYm) >= 0 ? '' : '');
+  }
+
+  // ---------- Monthly money review ----------
+  function renderMonthlyReview() {
+    var facts = document.getElementById('mmrFacts');
+    if (!facts) return;
+    var now = new Date();
+    var prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    var ym = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+    var title = document.getElementById('mmrTitle');
+    if (title) title.textContent = 'Monthly review · ' + monthName(ym);
+    var m = txMonths();
+    var d = m[ym];
+    if (!d || (!d.inn && !d.out)) {
+      facts.innerHTML = '<div style="color:rgba(255,255,255,0.35)">No ING transactions cover ' + monthName(ym) + '. Import a CSV that includes that month.</div>';
+      return;
+    }
+    var tx = (jget('ing:tx', []) || []).filter(function (t) { return String(t.date || '').slice(0, 7) === ym; });
+    var spendBy = {};
+    var biggest = null;
+    tx.forEach(function (t) {
+      if (t.amount >= 0) return;
+      var k = (t.description || '?').trim();
+      spendBy[k] = (spendBy[k] || 0) + Math.abs(t.amount);
+      if (!biggest || Math.abs(t.amount) > Math.abs(biggest.amount)) biggest = t;
+    });
+    var top = Object.keys(spendBy).map(function (k) { return { name: k, total: spendBy[k] }; })
+      .sort(function (a, b) { return b.total - a.total; }).slice(0, 3);
+    var prevYm = new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+    var prevKey = prevYm.getFullYear() + '-' + String(prevYm.getMonth() + 1).padStart(2, '0');
+    var prevOut = m[prevKey] ? m[prevKey].out : null;
+    var net = d.inn - d.out;
+    var rate = d.inn > 0 ? Math.round(net / d.inn * 100) : null;
+
+    var rows = [
+      ['In', eur(d.inn, 2)], ['Out', eur(d.out, 2)],
+      ['Net', (net >= 0 ? '+' : '−') + eur(Math.abs(net), 2).slice(2)],
+      ['Savings rate', rate == null ? 'n/a' : rate + '%'],
+    ];
+    if (prevOut != null) {
+      var delta = d.out - prevOut;
+      rows.push(['vs ' + monthLabel(prevKey), (delta >= 0 ? '+' : '−') + eur(Math.abs(delta)).slice(2) + ' spending']);
+    }
+    if (top.length) rows.push(['Top spend', top.map(function (t) { return esc(t.name) + ' (' + eur(t.total) + ')'; }).join(', ')]);
+    if (biggest) rows.push(['Biggest single', esc(biggest.description) + ' ' + eur(Math.abs(biggest.amount), 2)]);
+    facts.innerHTML = rows.map(function (r) {
+      return '<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid rgba(255,255,255,0.04);padding:3px 0"><span style="flex-shrink:0">' + r[0] + '</span><span style="color:#FAFAFA;font-weight:600;text-align:right">' + r[1] + '</span></div>';
+    }).join('');
+
+    var sumEl = document.getElementById('mmrSummary');
+    if (sumEl && window.LifeOS && LifeOS.ai && LifeOS.ai.chat) {
+      LifeOS.ai.chat({
+        prompt: 'Write a 2-3 sentence plain-spoken review of this month of personal finances. Mention the savings rate and one concrete observation. No greetings, no bullet points.',
+        context: { month: monthName(ym), income: Math.round(d.inn), spent: Math.round(d.out), savings_rate_pct: rate, top_merchants: top, biggest_expense: biggest ? { name: biggest.description, amount: Math.abs(biggest.amount) } : null, prev_month_spent: prevOut == null ? null : Math.round(prevOut) },
+        cacheKey: 'money_review_' + ym,
+        ttlMs: 7 * 24 * 60 * 60 * 1000,
+      }).then(function (text) {
+        if (text) { sumEl.textContent = text; sumEl.style.display = 'block'; }
+      }).catch(function () {});
+    }
+  }
+
+  // ---------- Can I afford this? ----------
+  function nextRenewalWithin(sub, days) {
+    if (!sub.renewal) return false;
+    var d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(sub.renewal) ? sub.renewal + 'T00:00' : sub.renewal);
+    if (isNaN(d)) return false;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var safety = 0;
+    while (d < today && safety++ < 600) {
+      if (sub.period === 'weekly') d.setDate(d.getDate() + 7);
+      else if (sub.period === 'yearly') d.setFullYear(d.getFullYear() + 1);
+      else d.setMonth(d.getMonth() + 1);
+    }
+    return (d.getTime() - today.getTime()) / 86400000 <= days;
+  }
+  function renderAfford() {
+    var amt = parseFloat((document.getElementById('affordAmt') || {}).value);
+    var verdict = document.getElementById('affordVerdict');
+    var math = document.getElementById('affordMath');
+    if (!verdict || !math || !(amt > 0)) return;
+    var liquid = (jget('nw:bank', []) || []).reduce(function (s, b) { return s + (Number(b.amount) || 0); }, 0);
+    var upcoming = (jget('subs', []) || []).filter(function (s) { return nextRenewalWithin(s, 30); })
+      .reduce(function (s, x) { return s + (Number(x.amount) || 0); }, 0);
+    var m = txMonths();
+    var curYm = new Date().toISOString().slice(0, 7);
+    var fullKeys = Object.keys(m).filter(function (k) { return k !== curYm; }).sort().slice(-3);
+    var avgNet = null, avgOut = null;
+    if (fullKeys.length) {
+      avgNet = fullKeys.reduce(function (s, k) { return s + (m[k].inn - m[k].out); }, 0) / fullKeys.length;
+      avgOut = fullKeys.reduce(function (s, k) { return s + m[k].out; }, 0) / fullKeys.length;
+    }
+    var ef = jget('fin:emergency_fund:v1', { amount: 0, months: 6 }) || {};
+    var efTarget = avgOut != null ? (Number(ef.months) || 6) * avgOut : (Number(ef.amount) || 0);
+    var after = liquid - upcoming - amt;
+
+    var color, bg, msg;
+    if (liquid <= 0) {
+      color = 'rgba(255,255,255,0.6)'; bg = 'rgba(255,255,255,0.06)';
+      msg = 'No bank balance data. Add your account on the Net worth tab first.';
+    } else if (after < 0) {
+      color = '#FF6B6B'; bg = 'rgba(255,107,107,0.1)';
+      msg = 'No. After the next 30 days of subscriptions this leaves you ' + eur(Math.abs(after)) + ' short.';
+    } else if (efTarget > 0 && after < efTarget) {
+      color = '#E0B658'; bg = 'rgba(224,182,88,0.1)';
+      msg = 'Risky. You can pay it, but it leaves ' + eur(after) + ' — below your ' + (Number(ef.months) || 6) + '-month buffer of ' + eur(efTarget) + '.';
+    } else if (avgNet != null && avgNet > 0 && amt > 3 * avgNet) {
+      color = '#E0B658'; bg = 'rgba(224,182,88,0.1)';
+      msg = 'Affordable, but it equals ' + (amt / avgNet).toFixed(1) + ' months of your average savings. Sleep on it.';
+    } else {
+      color = '#6BE3A4'; bg = 'rgba(107,227,164,0.1)';
+      msg = 'Yes. Buffer stays intact' + (avgNet != null && avgNet > 0 ? ' and you re-save it in ~' + Math.max(1, Math.round(amt / avgNet)) + ' month(s)' : '') + '.';
+    }
+    verdict.textContent = msg;
+    verdict.style.color = color; verdict.style.background = bg; verdict.style.border = '1px solid ' + color.replace(')', ',0.35)').replace('rgb', 'rgba');
+    verdict.style.display = 'block';
+    var rows = [
+      ['Bank balance', eur(liquid)],
+      ['Subscriptions next 30d', '− ' + eur(upcoming)],
+      ['This purchase', '− ' + eur(amt)],
+      ['Left after', eur(after)],
+    ];
+    if (efTarget > 0) rows.push(['Emergency buffer target', eur(efTarget)]);
+    if (avgNet != null) rows.push(['Avg monthly savings (3 mo)', (avgNet >= 0 ? '' : '−') + eur(Math.abs(avgNet))]);
+    math.innerHTML = rows.map(function (r) {
+      return '<div style="display:flex;justify-content:space-between"><span>' + r[0] + '</span><span style="color:#FAFAFA;font-weight:600">' + r[1] + '</span></div>';
+    }).join('');
+    math.style.display = 'block';
+  }
+  var affordBtn = document.getElementById('affordBtn');
+  if (affordBtn) affordBtn.addEventListener('click', renderAfford);
+  var affordIn = document.getElementById('affordAmt');
+  if (affordIn) affordIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') renderAfford(); });
+
+  // ---------- Recurring charge detection ----------
+  var DISMISS_KEY = 'fin:recur_dismissed:v1';
+  function median(arr) { var a = arr.slice().sort(function (x, y) { return x - y; }); var mid = Math.floor(a.length / 2); return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2; }
+  function detectRecurring() {
+    var tx = jget('ing:tx', []) || [];
+    var subs = jget('subs', []) || [];
+    var dismissed = jget(DISMISS_KEY, []) || [];
+    var subNames = subs.map(function (s) { return String(s.name || '').trim().toLowerCase(); });
+    var groups = {};
+    tx.forEach(function (t) {
+      if (t.amount >= 0) return;
+      var k = String(t.description || '').trim().toLowerCase();
+      if (!k) return;
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(t);
+    });
+    var out = [];
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k];
+      if (g.length < 3) return;
+      if (dismissed.indexOf(k) >= 0) return;
+      if (subNames.some(function (n) { return n && (n === k || n.indexOf(k) >= 0 || k.indexOf(n) >= 0); })) return;
+      var dates = g.map(function (t) { return new Date(t.date + 'T00:00').getTime(); }).sort(function (a, b) { return a - b; });
+      var gaps = [];
+      for (var i = 1; i < dates.length; i++) gaps.push((dates[i] - dates[i - 1]) / 86400000);
+      var medGap = median(gaps);
+      var period = null;
+      if (medGap >= 25 && medGap <= 35) period = 'monthly';
+      else if (medGap >= 6 && medGap <= 8) period = 'weekly';
+      else if (medGap >= 330 && medGap <= 400) period = 'yearly';
+      if (!period) return;
+      var amts = g.map(function (t) { return Math.abs(t.amount); });
+      var medAmt = median(amts);
+      if (amts.some(function (a) { return Math.abs(a - medAmt) > 0.2 * medAmt; })) return;
+      out.push({ key: k, name: g[0].description, amount: Math.round(medAmt * 100) / 100, period: period, count: g.length, lastDate: g.map(function (t) { return t.date; }).sort().pop() });
+    });
+    return out.sort(function (a, b) { return b.amount - a.amount; }).slice(0, 6);
+  }
+  function renderRecurring() {
+    var card = document.getElementById('recurCard');
+    var list = document.getElementById('recurList');
+    if (!card || !list) return;
+    var found = detectRecurring();
+    if (!found.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = found.map(function (f, i) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">'
+        + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:#FAFAFA;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(f.name) + '</div>'
+        + '<div style="font-size:11px;color:rgba(255,255,255,0.4)">' + eur(f.amount, 2) + ' · ' + f.period + ' · ' + f.count + ' charges · last ' + esc(f.lastDate) + '</div></div>'
+        + '<button data-recur-add="' + i + '" style="padding:6px 12px;border-radius:8px;background:rgba(107,227,164,0.15);border:1px solid rgba(107,227,164,0.3);color:#6BE3A4;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Add</button>'
+        + '<button data-recur-dis="' + i + '" style="padding:6px 10px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);font-size:12px;cursor:pointer;font-family:inherit">×</button>'
+        + '</div>';
+    }).join('');
+    list.querySelectorAll('[data-recur-add]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var f = found[Number(b.dataset.recurAdd)];
+        if (!f) return;
+        var subs = jget('subs', []) || [];
+        var next = new Date(f.lastDate + 'T00:00');
+        if (f.period === 'weekly') next.setDate(next.getDate() + 7);
+        else if (f.period === 'yearly') next.setFullYear(next.getFullYear() + 1);
+        else next.setMonth(next.getMonth() + 1);
+        subs.push({ name: f.name, amount: f.amount, period: f.period, renewal: next.toISOString().slice(0, 10), entered_amount: f.amount, entered_currency: 'EUR', fromCat: 'bank', fromAccount: '', autoDeduct: false, lastDeductedAt: null });
+        jset('subs', subs);
+        if (window._financeRenderAll) try { window._financeRenderAll(); } catch (e) {}
+        renderRecurring();
+      });
+    });
+    list.querySelectorAll('[data-recur-dis]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var f = found[Number(b.dataset.recurDis)];
+        if (!f) return;
+        var dis = jget(DISMISS_KEY, []) || [];
+        if (dis.indexOf(f.key) < 0) dis.push(f.key);
+        jset(DISMISS_KEY, dis);
+        renderRecurring();
+      });
+    });
+  }
+
+  // ---------- Receipt scan (Analyze fills the form; user confirms with + Add) ----------
+  var receiptFile = document.getElementById('bizReceiptFile');
+  if (receiptFile) receiptFile.addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    var status = document.getElementById('bizReceiptStatus');
+    var report = document.getElementById('bizReceiptReport');
+    function setStatus(msg, err) { if (status) { status.textContent = msg; status.style.color = err ? '#FF6B6B' : ''; } }
+    setStatus('Reading photo…');
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function () {
+      URL.revokeObjectURL(url);
+      var MAX = 1280;
+      var scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      var cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * scale);
+      cv.height = Math.round(img.height * scale);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      var b64 = cv.toDataURL('image/jpeg', 0.85).split(',')[1];
+      setStatus('Analyzing receipt…');
+      fetch('/api/visual-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'receipt', image: b64, mimeType: 'image/jpeg', context: { categories: 'tools, marketing, equipment, travel, contractor, education, other' } }),
+      }).then(function (r) {
+        return r.text().then(function (t) {
+          var j; try { j = JSON.parse(t); } catch (err) { throw new Error('AI service unreachable (' + r.status + ')'); }
+          if (!r.ok) throw new Error(j.error || 'Analysis failed');
+          return j;
+        });
+      }).then(function (j) {
+        var rep = j.report || {};
+        var de = document.getElementById('bizExpDesc');
+        var am = document.getElementById('bizExpAmount');
+        var ca = document.getElementById('bizExpCategory');
+        var dt = document.getElementById('bizExpDate');
+        if (de && rep.merchant) de.value = rep.merchant;
+        if (am && rep.total != null) am.value = rep.total;
+        if (ca) ca.value = ['tools', 'marketing', 'equipment', 'travel', 'contractor', 'education', 'other'].indexOf(rep.category) >= 0 ? rep.category : 'other';
+        if (dt) dt.value = rep.date || new Date().toISOString().slice(0, 10);
+        setStatus('Form filled — check it, then press + Add to log. Photo not stored.');
+        if (report) {
+          var items = (rep.items || []).slice(0, 6).map(function (it) { return esc(it.name) + (it.price != null ? ' — ' + eur(it.price, 2) : ''); }).join('<br>');
+          report.innerHTML = '<strong>' + esc(rep.merchant || '?') + '</strong> · ' + esc(rep.date || 'no date') + ' · ' + (rep.total != null ? eur(rep.total, 2) : 'total unreadable')
+            + ' · confidence: ' + esc(rep.confidence || '?')
+            + (items ? '<div style="margin-top:6px;color:rgba(255,255,255,0.5)">' + items + '</div>' : '')
+            + (rep.notes ? '<div style="margin-top:6px;color:rgba(255,255,255,0.5)">' + esc(rep.notes) + '</div>' : '');
+          report.style.display = 'block';
+        }
+      }).catch(function (err) {
+        setStatus(err.message || 'Analysis failed', true);
+      });
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); setStatus('Could not read that image.', true); };
+    img.src = url;
+  });
+
+  // ---------- wiring ----------
+  function renderBiz() { renderTax(); renderMort(); }
+  function renderCf() { renderSavingsRate(); renderMonthlyReview(); }
+  document.querySelectorAll('[data-tab="business"]').forEach(function (b) { b.addEventListener('click', function () { setTimeout(renderBiz, 0); }); });
+  document.querySelectorAll('[data-tab="cashflow"]').forEach(function (b) { b.addEventListener('click', function () { setTimeout(renderCf, 0); }); });
+  document.querySelectorAll('[data-tab="subs"]').forEach(function (b) { b.addEventListener('click', function () { setTimeout(renderRecurring, 0); }); });
+  renderBiz(); renderCf(); renderRecurring();
 })();
 </script>
 <script>

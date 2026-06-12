@@ -42,6 +42,17 @@ export default async function handler(req, res) {
     '{"summary":"2-3 sentence overall skin status","findings":["visible irritation/redness/dryness/texture observations"],"comparison":"vs previous photo, or why not possible","product_correlation":"possible link to listed products/changes, or none","confidence":"low|medium|high","quality_notes":["lighting/angle/distance factors"],"next_action":"one concrete suggested action","professional":"yes or no - whether professional input seems worth it","data_wanted":"what extra data would raise confidence"}',
   ].filter(Boolean).join('\n');
 
+  const receiptPrompt = [
+    'You are reading a receipt or invoice photo for a personal expense log.',
+    c.categories ? `Available expense categories: ${c.categories}.` : '',
+    'Extract the data exactly as printed. Do not invent line items or totals you cannot read.',
+    'Amounts use the currency printed on the receipt; assume EUR if unclear.',
+    'If the total is unreadable, set total to null and explain in notes.',
+    '',
+    'Reply with ONLY a JSON object, no markdown fences:',
+    '{"merchant":"store/vendor name","date":"YYYY-MM-DD or null","total":12.34,"currency":"EUR","category":"best matching category from the list, or other","items":[{"name":"line item","price":1.23}],"confidence":"low|medium|high","notes":"anything unreadable, ambiguous, or worth flagging"}',
+  ].filter(Boolean).join('\n');
+
   const bodyPrompt = [
     'You are analyzing a body progress photo for a personal fitness log.',
     t.angle ? `Angle: ${t.angle}.` : '',
@@ -64,7 +75,7 @@ export default async function handler(req, res) {
   const content = [];
   if (prevImage) content.push({ type: 'image', source: { type: 'base64', media_type: prevMimeType || 'image/jpeg', data: prevImage } });
   content.push({ type: 'image', source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: image } });
-  content.push({ type: 'text', text: kind === 'skin' ? skinPrompt : bodyPrompt });
+  content.push({ type: 'text', text: kind === 'skin' ? skinPrompt : kind === 'receipt' ? receiptPrompt : bodyPrompt });
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',

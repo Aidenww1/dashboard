@@ -161,11 +161,34 @@
     var assets = accounts.filter(function (a) { return ['credit', 'loan'].indexOf(a.type) < 0; }).reduce(function (s, a) { return s + (a.balance || 0); }, 0);
     var liabs = accounts.filter(function (a) { return ['credit', 'loan'].indexOf(a.type) >= 0; }).reduce(function (s, a) { return s + (a.balance || 0); }, 0);
     var expenses = subsCost + budget;
+    // Actual savings rate for the last full month, from imported bank transactions
+    var lastMonthRate = null;
+    var bizProfitYtd = null;
+    try {
+      var now = new Date();
+      var prevYm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      var ymKey = prevYm.getFullYear() + '-' + String(prevYm.getMonth() + 1).padStart(2, '0');
+      var inn = 0, out = 0, seen = false;
+      (get('ing:tx', []) || []).forEach(function (t) {
+        if (String(t.date || '').slice(0, 7) !== ymKey) return;
+        seen = true;
+        var a = parseFloat(t.amount) || 0;
+        if (a > 0) inn += a; else out += Math.abs(a);
+      });
+      if (seen && inn > 0) lastMonthRate = Math.round((inn - out) / inn * 100);
+      var yr = String(now.getFullYear());
+      var rev = 0, exp = 0, hasBiz = false;
+      (get('gl:revenue', []) || []).forEach(function (r) { if (String(r.date || '').slice(0, 4) === yr) { rev += parseFloat(r.amount) || 0; hasBiz = true; } });
+      (get('gl:expenses', []) || []).forEach(function (e) { if (String(e.date || '').slice(0, 4) === yr) { exp += parseFloat(e.amount) || 0; hasBiz = true; } });
+      if (hasBiz) bizProfitYtd = Math.round(rev - exp);
+    } catch (e) {}
     return {
       monthly_income: Math.round(monthIncome),
       monthly_expenses_est: Math.round(expenses),
       subscriptions_monthly: Math.round(subsCost),
       savings_rate_pct: monthIncome ? Math.round((monthIncome - expenses) / monthIncome * 100) : null,
+      savings_rate_last_month_actual_pct: lastMonthRate,
+      business_profit_ytd: bizProfitYtd,
       net_worth: Math.round(assets - liabs),
       accounts: accounts.length,
     };
