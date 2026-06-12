@@ -2501,6 +2501,7 @@ img, video, canvas, svg { max-width: 100%; }
         <button id="stackAddBtn" class="stack-add-btn">+ Add</button>
       </div>
     </div>
+    <div id="stackWarnings"></div>
   </div>
 
 </div>
@@ -6046,6 +6047,71 @@ window.addEventListener('lifeos:event', function(e) {
       el.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:' + (isFlag?'#FF9999':'#86EFAC') + ';margin-right:8px">' + (isFlag?'Flag':'Insight') + '</span>' + match.data.text;
     }
   }).catch(function(){});
+})();
+</script>
+
+<script>
+// ── Supplement interaction warnings: static table first, Claude review only when stack changes ──
+(function () {
+'use strict';
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+
+// Common absorption/effect interactions. Not exhaustive — copy says so.
+var TABLE = [
+  { a: ['zinc'], b: ['copper'], note: 'Zinc competes with copper absorption — separate doses or use a balanced formula.' },
+  { a: ['zinc'], b: ['magnesium'], note: 'High-dose zinc and magnesium compete for absorption — take at different times.' },
+  { a: ['calcium'], b: ['iron'], note: 'Calcium blocks iron absorption — separate by 2+ hours.' },
+  { a: ['calcium'], b: ['zinc'], note: 'Calcium can reduce zinc absorption — separate doses.' },
+  { a: ['iron'], b: ['green tea', 'egcg'], note: 'Tea polyphenols cut iron absorption — separate by 2 hours.' },
+  { a: ['fish oil', 'omega'], b: ['aspirin', 'nattokinase', 'ginkgo'], note: 'Stacked blood-thinning effect — check this with a medical professional.' },
+  { a: ['5-htp'], b: ['melatonin'], note: 'Both act on serotonin/sleep pathways — start low, check with a medical professional.' },
+  { a: ['ashwagandha'], b: ['rhodiola'], note: 'Two adaptogens stack sedation/stimulation unpredictably — assess one at a time.' },
+  { a: ['berberine'], b: ['metformin'], note: 'Both lower glucose — combined hypoglycemia risk. Check with a medical professional.' },
+  { a: ['st john', "st. john"], b: ['5-htp', 'melatonin', 'ssri'], note: 'Serotonergic interaction risk — check with a medical professional.' },
+];
+
+function render() {
+  var el = document.getElementById('stackWarnings');
+  if (!el) return;
+  var items = (lsGet('stack:items') || []).map(function (i) { return (i.name || '').toLowerCase(); }).filter(Boolean);
+  if (items.length < 2) { el.innerHTML = ''; return; }
+  function has(kws) { return items.find(function (n) { return kws.some(function (k) { return n.indexOf(k) >= 0; }); }); }
+  var hits = [];
+  TABLE.forEach(function (row) {
+    var ma = has(row.a), mb = has(row.b);
+    if (ma && mb && ma !== mb) hits.push({ pair: ma + ' + ' + mb, note: row.note });
+  });
+  var html = '';
+  if (hits.length) {
+    html += '<div style="margin-top:14px;padding:10px 14px;border-radius:10px;border:1px solid rgba(251,191,36,0.3);background:rgba(251,191,36,0.05)">'
+      + '<div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#FBBF24;margin-bottom:6px">Interaction warnings</div>'
+      + hits.map(function (h) {
+          return '<div style="font-size:12px;color:var(--text-2,#B4B4B8);margin-bottom:4px"><strong style="color:#FBBF24">' + h.pair + '</strong> — ' + h.note + '</div>';
+        }).join('')
+      + '<div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Static check, not exhaustive. Not medical advice.</div>'
+      + '</div>';
+  }
+  el.innerHTML = html;
+
+  // Claude reviews the stack once per composition (hash-keyed cache = fires only on change)
+  if (items.length >= 3 && window.LifeOS && window.LifeOS.ai) {
+    var hash = items.slice().sort().join('|');
+    var h = 5381; for (var i = 0; i < hash.length; i++) h = ((h << 5) + h + hash.charCodeAt(i)) >>> 0;
+    window.LifeOS.ai.chat({
+      prompt: 'My current supplement stack: ' + items.join(', ') + '. Any interactions, redundancies, or timing issues worth knowing? 3 sentences max. Say "check with a medical professional" for anything risky. No fluff.',
+      cacheKey: 'stack_review_' + h.toString(36),
+      ttlMs: 30 * 24 * 60 * 60 * 1000,
+    }).then(function (d) {
+      if (!d.reply) return;
+      var div = document.createElement('div');
+      div.style.cssText = 'margin-top:8px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;color:var(--text-2,#B4B4B8);line-height:1.5';
+      div.innerHTML = '<span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-3,#6E6E76);display:block;margin-bottom:4px">Stack review</span>' + d.reply.replace(/[<>]/g, '');
+      el.appendChild(div);
+    }).catch(function () {});
+  }
+}
+render();
+window.addEventListener('storage', function (e) { if (e.key === 'stack:items') render(); });
 })();
 </script>
 

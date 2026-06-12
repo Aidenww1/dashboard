@@ -186,12 +186,23 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
     <div class="sk-stat"><div class="sk-stat-val" id="ovBreakouts">—</div><div class="sk-stat-lbl">Breakouts (30d)</div></div>
   </div>
 
+  <!-- UV index + SPF alert -->
+  <div class="sk-card" id="uvCard" style="display:flex;align-items:center;gap:14px;margin-bottom:12px">
+    <div style="font-size:26px">☀️</div>
+    <div style="flex:1">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-tertiary)">UV index today</div>
+      <div id="uvStatus" style="font-size:13px;color:var(--text-secondary);margin-top:2px">Loading…</div>
+    </div>
+    <div id="uvVal" style="font-size:26px;font-weight:600;font-variant-numeric:tabular-nums">—</div>
+  </div>
+
   <!-- Today's Routine -->
   <div class="s-head">Today's Routine</div>
   <div class="sk-card">
     <div class="sk-rt-tabs">
       <button class="sk-rt-tab active" id="rtabAm">Morning</button>
       <button class="sk-rt-tab" id="rtabPm">Evening</button>
+      <span id="rtAdherence" style="margin-left:auto;font-size:11px;color:var(--text-tertiary);align-self:center"></span>
     </div>
     <div class="sk-progress-bar"><div class="sk-progress-fill" id="routineProgress" style="width:0%"></div></div>
     <ul class="sk-routine-list" id="routineList"></ul>
@@ -345,6 +356,19 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
         <input type="file" accept="image/*" capture="environment" id="logPhoto">
       </label>
       <img class="sk-photo-preview" id="logPhotoPreview" alt="">
+      <div id="skAnalyzeRow" style="display:none;margin-top:8px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" id="skAreaRow">
+          <button type="button" class="sk-badge" data-area="face">Face</button>
+          <button type="button" class="sk-badge" data-area="forehead">Forehead</button>
+          <button type="button" class="sk-badge" data-area="cheeks">Cheeks</button>
+          <button type="button" class="sk-badge" data-area="chin">Chin/Jaw</button>
+          <button type="button" class="sk-badge" data-area="back">Back</button>
+          <button type="button" class="sk-badge" data-area="other">Other</button>
+        </div>
+        <button type="button" class="sk-photo-label" id="skAnalyzeBtn" style="background:rgba(52,211,153,0.12);border-color:rgba(52,211,153,0.3);color:#34D399;font-weight:600">Analyze photo</button>
+        <div id="skAnalyzeStatus" style="font-size:11px;color:var(--text-quaternary);margin-top:6px"></div>
+        <div id="skAnalyzeReport" style="display:none;margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);font-size:12px;color:var(--text-secondary);line-height:1.6"></div>
+      </div>
 
       <div class="sk-form-row" style="margin-top:12px">
         <button class="sk-btn-ghost" id="logCancel">Cancel</button>
@@ -687,6 +711,8 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
         _logPhoto = canvas.toDataURL('image/jpeg', 0.65);
         logPhotoPreview.src = _logPhoto; logPhotoPreview.style.display = 'block';
+        window.__skPhoto = _logPhoto;
+        const ar = document.getElementById('skAnalyzeRow'); if (ar) ar.style.display = 'block';
       };
       img.src = ev.target.result;
     };
@@ -745,8 +771,11 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
       sleep:      parseFloat(document.getElementById('logSleep').value) || null,
       notes:      document.getElementById('logNotes').value.trim(),
       photo:      _logPhoto,
+      area:       window.__skArea || null,
+      analysis:   window.__skAnalysis || null,
       nutrition:  getRecentNutrition(),
     });
+    window.__skArea = null; window.__skAnalysis = null;
     save(LOGS_KEY, logs);
     resetLogForm(); closeLogForm();
     renderHistory(); renderOverview(); renderTrend();
@@ -787,6 +816,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
         ${meta2 ? `<div class="sk-entry-line">${meta2}</div>` : ''}
         ${e.treatments ? `<div class="sk-entry-line">Products: ${e.treatments}</div>` : ''}
         ${e.notes ? `<div class="sk-entry-notes">${e.notes}</div>` : ''}
+        ${e.analysis && e.analysis.summary ? `<div class="sk-entry-line" style="color:var(--text-tertiary)">AI: ${String(e.analysis.summary).replace(/[<>]/g, '')}${e.analysis.confidence ? ' (' + e.analysis.confidence + ' confidence)' : ''}</div>` : ''}
         ${nut}
         ${e.photo ? `<img class="sk-entry-photo" src="${e.photo}" loading="lazy" alt="">` : ''}
       </div>`;
@@ -1256,6 +1286,168 @@ window.addEventListener('lifeos:event', function(e) {
     var shell = document.querySelector('main');
     if (shell) shell.insertBefore(div, shell.firstChild);
   }).catch(function(){});
+})();
+</script>
+
+<script>
+// ── Skin photo analysis (Analyze -> Report -> saved with skin check), UV/SPF alert, adherence ──
+(function () {
+'use strict';
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function escH(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+/* ---- area selection ---- */
+window.__skArea = null;
+document.querySelectorAll('#skAreaRow [data-area]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.querySelectorAll('#skAreaRow [data-area]').forEach(function (x) { x.classList.remove('on'); });
+    b.classList.add('on');
+    window.__skArea = b.dataset.area;
+  });
+});
+
+/* ---- Analyze ---- */
+var analyzeBtn = document.getElementById('skAnalyzeBtn');
+if (analyzeBtn) analyzeBtn.addEventListener('click', function () {
+  var photo = window.__skPhoto;
+  var status = document.getElementById('skAnalyzeStatus');
+  if (!photo) { status.textContent = 'Add a photo first.'; return; }
+  analyzeBtn.disabled = true;
+  status.textContent = 'Analyzing… (saved only when you save this skin check)';
+  var area = window.__skArea || 'face';
+  var prods = (lsGet('skin:products') || []);
+  var prodNames = prods.map(function (p) { return p.name; }).filter(Boolean).join(', ');
+  var recentProds = prods.filter(function (p) { return p.id && (Date.now() - p.id) < 14 * 86400000; }).map(function (p) { return p.name; }).join(', ');
+  // adherence 7d
+  var routine = lsGet('skin:routine:v1') || {};
+  var checks = 0;
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(); d.setDate(d.getDate() - i);
+    var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    checks += (routine[ds] || []).length;
+  }
+  var adherence = prods.length ? Math.min(100, Math.round(checks / (7 * prods.length) * 100)) : null;
+  // previous photo of same area
+  var prev = (lsGet('skin:logs') || []).filter(function (e) { return e.photo && (e.area || 'face') === area && e.date < todayStr(); })
+    .sort(function (a, b) { return b.date.localeCompare(a.date); })[0] || null;
+  var body = {
+    kind: 'skin',
+    image: photo.split(',')[1],
+    mimeType: 'image/jpeg',
+    tags: { area: area, ampm: new Date().getHours() < 12 ? 'morning' : 'evening' },
+    context: { products: prodNames || null, adherencePct: adherence, recentChanges: recentProds || null, prevDate: prev ? prev.date : null },
+  };
+  if (prev) { body.prevImage = prev.photo.split(',')[1]; body.prevMimeType = 'image/jpeg'; }
+  fetch('/api/visual-ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  }).then(function (r) {
+    return r.text().then(function (t) {
+      var d; try { d = JSON.parse(t); } catch (e) { throw new Error('AI service unreachable (' + r.status + ')'); }
+      if (!r.ok) throw new Error(d.error || 'Analysis failed');
+      return d;
+    });
+  }).then(function (d) {
+    if (d.usage && window._trackAiTokens) window._trackAiTokens(d.usage.input_tokens || 0, d.usage.output_tokens || 0);
+    var rep = d.report;
+    window.__skAnalysis = rep;
+    var el = document.getElementById('skAnalyzeReport');
+    function block(title, val) {
+      if (!val || (Array.isArray(val) && !val.length)) return '';
+      var bodyHtml = Array.isArray(val) ? '<ul style="margin:2px 0 0;padding-left:16px">' + val.map(function (x) { return '<li>' + escH(x) + '</li>'; }).join('') + '</ul>' : escH(val);
+      return '<div style="margin-bottom:8px"><span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-quaternary);display:block">' + title + '</span>' + bodyHtml + '</div>';
+    }
+    el.innerHTML =
+      '<div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:'
+      + (rep.confidence === 'high' ? '#34D399' : rep.confidence === 'medium' ? '#FBBF24' : '#FF6B6B')
+      + ';margin-bottom:8px">Confidence: ' + escH(rep.confidence || 'low') + '</div>'
+      + block('Summary', rep.summary)
+      + block('Findings', rep.findings)
+      + block('Comparison', rep.comparison)
+      + block('Product link', rep.product_correlation)
+      + block('Quality notes', rep.quality_notes)
+      + block('Next action', rep.next_action)
+      + (String(rep.professional).toLowerCase() === 'yes' ? '<div style="color:#FBBF24;font-size:12px">Consider professional input on this one.</div>' : '')
+      + '<div style="margin-top:6px;font-size:10px;color:var(--text-quaternary)">Saved with this skin check when you hit Save. Logs to: skin timeline · product reaction context · coach context · data quality.</div>';
+    el.style.display = 'block';
+    status.textContent = '';
+  }).catch(function (e) { status.textContent = 'Analysis failed: ' + e.message; })
+    .finally(function () { analyzeBtn.disabled = false; });
+});
+
+/* ---- UV index + SPF alert (open-meteo, no key) ---- */
+function renderUV() {
+  var valEl = document.getElementById('uvVal');
+  if (!valEl) return;
+  var loc = lsGet('skin:loc:v1') || { lat: 52.37, lon: 4.90, label: 'Amsterdam (default)' };
+  fetch('https://api.open-meteo.com/v1/forecast?latitude=' + loc.lat + '&longitude=' + loc.lon + '&daily=uv_index_max&timezone=auto&forecast_days=1')
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var uv = d && d.daily && d.daily.uv_index_max && d.daily.uv_index_max[0];
+      if (uv == null) throw new Error('no data');
+      uv = Math.round(uv * 10) / 10;
+      valEl.textContent = uv;
+      valEl.style.color = uv >= 6 ? '#FF6B6B' : uv >= 3 ? '#FBBF24' : '#34D399';
+      var advice = uv >= 6 ? 'High UV — SPF 50, reapply midday, limit 12:00-15:00 sun.'
+        : uv >= 3 ? 'Moderate UV — wear SPF if you are outside today.'
+        : 'Low UV — SPF optional today.';
+      document.getElementById('uvStatus').textContent = advice + ' · ' + (loc.label || 'your location');
+      // one SPF notification per high-UV day
+      var key = 'skin:uvnotif:' + todayStr();
+      if (uv >= 6 && !localStorage.getItem(key) && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          localStorage.setItem(key, '1');
+          if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+            navigator.serviceWorker.ready.then(function (reg) { reg.showNotification('High UV today (' + uv + ')', { body: 'SPF 50 before you head out.', tag: 'spf-alert' }); }).catch(function () {});
+          } else new Notification('High UV today (' + uv + ')', { body: 'SPF 50 before you head out.' });
+        } catch (e) {}
+      }
+    })
+    .catch(function () {
+      valEl.textContent = '—';
+      document.getElementById('uvStatus').textContent = 'Could not load UV data. Check connection.';
+    });
+  // upgrade to precise location once, silently, if permission was already granted
+  if (navigator.permissions && navigator.geolocation && !lsGet('skin:loc:v1')) {
+    navigator.permissions.query({ name: 'geolocation' }).then(function (p) {
+      if (p.state === 'granted') {
+        navigator.geolocation.getCurrentPosition(function (pos) {
+          lsSet('skin:loc:v1', { lat: +pos.coords.latitude.toFixed(2), lon: +pos.coords.longitude.toFixed(2), label: 'your location' });
+        });
+      }
+    }).catch(function () {});
+  }
+}
+renderUV();
+
+/* ---- 7-day routine adherence ---- */
+function renderAdherence() {
+  var el = document.getElementById('rtAdherence');
+  if (!el) return;
+  var prods = lsGet('skin:products') || [];
+  if (!prods.length) { el.textContent = ''; return; }
+  var routine = lsGet('skin:routine:v1') || {};
+  var checks = 0;
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(); d.setDate(d.getDate() - i);
+    var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    checks += (routine[ds] || []).length;
+  }
+  var pct = Math.min(100, Math.round(checks / (7 * prods.length) * 100));
+  el.textContent = '7d adherence ' + pct + '%';
+  el.style.color = pct >= 70 ? '#34D399' : pct >= 40 ? '#FBBF24' : '#FF6B6B';
+}
+renderAdherence();
+document.addEventListener('click', function (e) {
+  if (e.target && e.target.closest && e.target.closest('.sk-routine-item')) setTimeout(renderAdherence, 100);
+});
 })();
 </script>
 

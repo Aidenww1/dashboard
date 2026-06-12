@@ -1135,9 +1135,21 @@ main {
     <div id="labOcrStatus" style="font-size:12px;color:var(--text-tertiary);margin:4px 0 8px;display:none"></div>
 
     <div class="bld-form" id="bloodForm">
-      <div style="margin-bottom:10px">
-        <div class="bld-form-label">Test date</div>
-        <input type="date" class="bld-input" id="bloodDate">
+      <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:130px">
+          <div class="bld-form-label">Test date</div>
+          <input type="date" class="bld-input" id="bloodDate">
+        </div>
+        <div style="flex:1;min-width:130px">
+          <div class="bld-form-label">Protocol phase</div>
+          <select class="bld-input" id="bloodPhase">
+            <option value="normal">Normal</option>
+            <option value="on-cycle">On-cycle</option>
+            <option value="cruise">Cruise</option>
+            <option value="off">Off</option>
+            <option value="pct">PCT</option>
+          </select>
+        </div>
       </div>
       <div id="bloodFormGroups"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
@@ -1146,8 +1158,22 @@ main {
       </div>
     </div>
 
+    <div id="bloodRetest"></div>
     <div id="bloodCharts"></div>
     <div id="bloodHistory"></div>
+
+    <details style="margin-top:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:10px 14px">
+      <summary style="font-size:12px;font-weight:700;color:var(--text-secondary);cursor:pointer">Pre-bloodwork checklist</summary>
+      <ul style="margin:10px 0 4px;padding-left:18px;font-size:12px;color:var(--text-tertiary);line-height:1.8">
+        <li>Fast 10-12h (water and black coffee OK) for lipids and glucose</li>
+        <li>No training 48h before — lifting inflates liver enzymes (ALT/AST) and CK</li>
+        <li>On injectables: test at trough, note hours since last injection</li>
+        <li>Hydrate normally — dehydration inflates hematocrit</li>
+        <li>Sleep normally the night before; bad sleep skews glucose and cortisol</li>
+        <li>List every supplement and compound to disclose (biotin can distort thyroid panels)</li>
+        <li>Ask the lab for: CBC, lipids, liver, kidney, glucose/HbA1c, testosterone, estradiol (sensitive), TSH</li>
+      </ul>
+    </details>
   </div>
   </div><!-- /panel:blood -->
   </div>
@@ -2692,7 +2718,11 @@ main {
     if (!logs.length) { el.innerHTML = '<div class="bld-empty">No tests logged yet.</div>'; return; }
     el.innerHTML = [...logs].sort((a,b) => b.date.localeCompare(a.date)).map(e =>
       '<div class="bld-entry">'
-      + '<div class="bld-entry-date">' + e.date + '</div>'
+      + '<div class="bld-entry-date">' + e.date
+      + (e.phase && e.phase !== 'normal'
+        ? ' <span style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:rgba(155,107,255,0.15);color:#B79CFF;border-radius:4px;padding:2px 6px;vertical-align:middle">' + e.phase + '</span>'
+        : '')
+      + '</div>'
       + '<div class="bld-entry-markers">'
       + MARKERS.filter(m => e.markers[m.key] != null).map(m => {
           const st = markerStatus(m, e.markers[m.key]);
@@ -2707,7 +2737,33 @@ main {
     });
   }
 
-  function render() { const logs = load(); renderCharts(logs); renderHistory(logs); }
+  // Retest reminder: deterministic interval from phase + flagged markers
+  function renderRetest(logs) {
+    const el = document.getElementById('bloodRetest');
+    if (!el) return;
+    if (!logs.length) { el.innerHTML = ''; return; }
+    const latest = [...logs].sort((a,b) => b.date.localeCompare(a.date))[0];
+    const flagged = MARKERS.filter(m => latest.markers[m.key] != null && markerStatus(m, latest.markers[m.key]) !== 'ok');
+    const phase = latest.phase || 'normal';
+    const active = phase === 'on-cycle' || phase === 'cruise' || phase === 'pct';
+    const weeks = active ? (flagged.length ? 6 : 10) : phase === 'off' ? (flagged.length ? 8 : 16) : (flagged.length ? 8 : 26);
+    const due = new Date(latest.date + 'T12:00:00');
+    due.setDate(due.getDate() + weeks * 7);
+    const dueStr = due.toISOString().slice(0,10);
+    const overdue = Date.now() > due.getTime();
+    const daysLeft = Math.ceil((due.getTime() - Date.now()) / 86400000);
+    const why = (flagged.length ? flagged.length + ' flagged marker' + (flagged.length > 1 ? 's' : '') + ' (' + flagged.slice(0,3).map(m => m.label).join(', ') + ')' : 'all in range')
+      + ' · phase ' + phase + ' → ' + weeks + ' week interval';
+    el.innerHTML = '<div style="margin:10px 0;padding:10px 14px;border-radius:10px;border:1px solid '
+      + (overdue ? 'rgba(255,107,107,0.35)' : 'rgba(255,255,255,0.08)') + ';background:rgba(255,255,255,0.03)">'
+      + '<div style="font-size:12px;font-weight:700;color:' + (overdue ? '#FF6B6B' : 'var(--text-secondary)') + '">'
+      + (overdue ? 'Retest overdue since ' + dueStr : 'Next bloodwork due ' + dueStr + ' (' + daysLeft + 'd)')
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">' + why + '</div>'
+      + '</div>';
+  }
+
+  function render() { const logs = load(); renderRetest(logs); renderCharts(logs); renderHistory(logs); }
 
   buildFormGroups();
 
@@ -2764,10 +2820,11 @@ main {
     const markers = getFormValues();
     if (!Object.keys(markers).length) return;
     const date = dateInp.value || new Date().toISOString().slice(0,10);
+    const phase = (document.getElementById('bloodPhase') || {}).value || 'normal';
     const logs = load();
     const idx = logs.findIndex(e => e.date === date);
-    if (idx >= 0) logs[idx].markers = Object.assign({}, logs[idx].markers, markers);
-    else logs.push({ id: Date.now(), date, markers });
+    if (idx >= 0) { logs[idx].markers = Object.assign({}, logs[idx].markers, markers); logs[idx].phase = phase; }
+    else logs.push({ id: Date.now(), date, markers, phase });
     save(logs); clearForm(); closeForm(); render();
     const entry = logs.find(e => e.date === date);
     if (entry) {

@@ -357,6 +357,8 @@
     check('finance', 'Finance', fi, 35, 'Income data drives savings rate and afford checks.');
     var pp = (get('body:photos:v1', []) || []).map(function (p) { return p.date; }).sort().pop();
     check('photos', 'Progress photos', pp, 14, 'Visual checks keep weight-trend advice honest.');
+    var sk = (get('skin:logs', []) || []).map(function (e) { return e.date; }).sort().pop();
+    check('skin', 'Skin checks', sk, 7, 'Skin ratings power product-reaction detection.');
 
     var freshCount = checks.filter(function (c) { return c.fresh; }).length;
     var stale = checks.filter(function (c) { return !c.fresh; });
@@ -446,6 +448,22 @@
     return { data_quality_pct: q.score, stale: q.stale };
   }
 
+  function sliceSkin() {
+    var logs = get('skin:logs', []) || [];
+    var prods = get('skin:products', []) || [];
+    var routine = get('skin:routine:v1', {}) || {};
+    var checks = 0;
+    lastDates(7).forEach(function (ds) { checks += (routine[ds] || []).length; });
+    var recent = logs.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 7);
+    return {
+      adherence_7d_pct: prods.length ? Math.min(100, Math.round(checks / (7 * prods.length) * 100)) : null,
+      products: prods.map(function (p) { return p.name; }).filter(Boolean),
+      recent_ratings: recent.map(function (e) { return { date: e.date, rating: e.rating, concerns: e.concerns }; }),
+      latest_analysis: (recent.find(function (e) { return e.analysis; }) || {}).analysis || null,
+      last_check_date: recent.length ? recent[0].date : null,
+    };
+  }
+
   function sliceBodyProgress() {
     var ps = get('body:photos:v1', []) || [];
     var rs = get('body:photo_reports:v1', []) || [];
@@ -488,6 +506,7 @@
       case 'productivity': return sliceProductivity();
       case 'missing_data': return sliceMissing();
       case 'body_progress': return sliceBodyProgress();
+      case 'skin': return sliceSkin();
       case 'full_summary': return sliceFull();
       case 'today':
       default: return sliceToday();

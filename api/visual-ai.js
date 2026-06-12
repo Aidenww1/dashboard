@@ -23,6 +23,25 @@ export default async function handler(req, res) {
     '- Direct, short, practical tone. No motivation fluff.',
   ].join('\n');
 
+  const skinPrompt = [
+    'You are analyzing a skin photo for a personal skincare log.',
+    t.area ? `Area: ${t.area}.` : '',
+    t.ampm ? `Taken ${t.ampm}.` : '',
+    c.products ? `Active products/routine: ${c.products}.` : '',
+    c.adherencePct != null ? `Routine adherence last 7 days: ${c.adherencePct}%.` : '',
+    c.recentChanges ? `Recent product changes: ${c.recentChanges}.` : '',
+    prevImage
+      ? `The FIRST image is a previous photo of the same area${c.prevDate ? ` taken ${c.prevDate}` : ''}. The SECOND image is today's. Compare them.`
+      : 'No previous photo of this area exists; analyze the single photo.',
+    '',
+    safety,
+    '- Never name a skin disease or condition. Describe what is visible (redness, dryness, texture, breakouts) and possible product/behavior correlations only.',
+    '- If something looks like it needs professional attention, say "consider seeing a professional" without naming a condition.',
+    '',
+    'Reply with ONLY a JSON object, no markdown fences:',
+    '{"summary":"2-3 sentence overall skin status","findings":["visible irritation/redness/dryness/texture observations"],"comparison":"vs previous photo, or why not possible","product_correlation":"possible link to listed products/changes, or none","confidence":"low|medium|high","quality_notes":["lighting/angle/distance factors"],"next_action":"one concrete suggested action","professional":"yes or no - whether professional input seems worth it","data_wanted":"what extra data would raise confidence"}',
+  ].filter(Boolean).join('\n');
+
   const bodyPrompt = [
     'You are analyzing a body progress photo for a personal fitness log.',
     t.angle ? `Angle: ${t.angle}.` : '',
@@ -45,7 +64,7 @@ export default async function handler(req, res) {
   const content = [];
   if (prevImage) content.push({ type: 'image', source: { type: 'base64', media_type: prevMimeType || 'image/jpeg', data: prevImage } });
   content.push({ type: 'image', source: { type: 'base64', media_type: mimeType || 'image/jpeg', data: image } });
-  content.push({ type: 'text', text: bodyPrompt });
+  content.push({ type: 'text', text: kind === 'skin' ? skinPrompt : bodyPrompt });
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
