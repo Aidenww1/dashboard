@@ -381,10 +381,20 @@ export default async function handler(req, res) {
 
   // ── Chat mode ──
   if (body?.mode === 'chat') {
-    const { messages: chatMsgs, context: pageCtx } = body;
+    const { messages: chatMsgs, context: pageCtx, web_search: webSearch } = body;
     if (!Array.isArray(chatMsgs) || !chatMsgs.length) {
       return res.status(400).json({ error: 'messages required' });
     }
+    // web_search: true routes to the smart model with Anthropic's server-side
+    // web search tool instead of the local health-data tools. Used by the
+    // Opportunity Radar weekly news scan (client caches the result 7 days).
+    const useWeb = webSearch === true;
+    const chatModel = useWeb ? MODELS.smart : MODELS.fast;
+    const chatTools = useWeb
+      ? [{ type: 'web_search_20260209', name: 'web_search', max_uses: 4 }]
+      : TOOLS;
+    const chatMaxTokens = useWeb ? 2000 : 600;
+    const chatMaxIter = useWeb ? 6 : 4;
     const chatSystemStable = `You are Claude, embedded in the user's personal health and life dashboard. You have tools to read their actual data. Available via read_health_data: nutrition, hydration, steps, sleep, exercise, totalcalories, weight, heartrate, distance, floorsclimbed, bloodwork, mood, insights, hrv, oxygensaturation, skintemperature, respiratoryrate, mindfulness, sleepstage, bodyfat, height, basalmetabolicrate, calories, calendar. Use read_finance_data for any money/finance question (accounts, transactions, subscriptions, net worth, income, savings goals, wishlist). Use the right tool and give specific data-driven answers.
 
 Be concise — this is a mobile chat. If you look something up, summarize what you found rather than dumping raw data. If you write anything, briefly mention it.`;
@@ -397,12 +407,12 @@ Be concise — this is a mobile chat. If you look something up, summarize what y
     let totalIn = 0, totalOut = 0, iterations = 0, finalReply = '';
 
     try {
-      while (iterations < 4) {
+      while (iterations < chatMaxIter) {
         iterations++;
         const r = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-          body: JSON.stringify({ model: MODELS.fast, max_tokens: 600, system: chatSystem, tools: TOOLS, messages: msgs }),
+          body: JSON.stringify({ model: chatModel, max_tokens: chatMaxTokens, system: chatSystem, tools: chatTools, messages: msgs }),
         });
         if (!r.ok) return res.status(500).json({ error: await r.text() });
         const resp = await r.json();
@@ -413,6 +423,8 @@ Be concise — this is a mobile chat. If you look something up, summarize what y
           finalReply = resp.content.filter(b => b.type === 'text').map(b => b.text).join('').trim();
           break;
         }
+        // Server-side web search can pause mid-turn; re-send to let it resume.
+        if (resp.stop_reason === 'pause_turn') continue;
         if (resp.stop_reason === 'tool_use') {
           const calls = resp.content.filter(b => b.type === 'tool_use');
           const results = [];
@@ -427,7 +439,7 @@ Be concise — this is a mobile chat. If you look something up, summarize what y
       return res.status(500).json({ error: e.message });
     }
 
-    await logUsage(MODELS.fast, totalIn, totalOut, 'chat', null).catch(() => {});
+    await logUsage(chatModel, totalIn, totalOut, 'chat', useWeb ? 'web_search' : null).catch(() => {});
     return res.json({ ok: true, reply: finalReply, usage: { input_tokens: totalIn, output_tokens: totalOut } });
   }
 

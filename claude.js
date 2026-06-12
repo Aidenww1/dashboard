@@ -81,7 +81,9 @@
     var hit = cacheGet(opts.cacheKey);
     if (hit) return Promise.resolve({ reply: hit, cached: true });
     var messages = opts.messages || [{ role: 'user', content: opts.prompt }];
-    return post({ mode: 'chat', messages: messages, context: opts.context || '' }, opts.timeoutMs)
+    var body = { mode: 'chat', messages: messages, context: opts.context || '' };
+    if (opts.webSearch) body.web_search = true; // server routes to smart model + Anthropic web search tool
+    return post(body, opts.timeoutMs)
       .then(function (d) {
         var reply = d.reply || d.summary || '';
         if (reply && opts.cacheKey) cacheSet(opts.cacheKey, reply, opts.ttlMs || TTL.daily);

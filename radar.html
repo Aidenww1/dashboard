@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<title>Radar</title>
+<style>
+:root {
+  --bg: #050506;
+  --bg-card: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.06);
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --accent: #E07658;
+  --green: #6BE3A4;
+  --amber: #E0B658;
+  --red: #FF6B6B;
+  --purple: #A855F7;
+  --blue: #60A5FA;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text-primary); font-family:var(--font); min-height:100vh; padding-bottom:90px; }
+.shell { max-width:980px; margin:0 auto; padding:18px 14px 30px; }
+.page-title { font-size:22px; font-weight:800; letter-spacing:-0.02em; margin:6px 0 2px; }
+.page-sub { font-size:12px; color:var(--text-tertiary); margin-bottom:16px; }
+.card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:14px; }
+.eyebrow { font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:10px; }
+.btn { padding:8px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:var(--text-primary); font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn.primary { background:rgba(107,227,164,0.15); border-color:rgba(107,227,164,0.3); color:var(--green); }
+.btn:disabled { opacity:0.45; cursor:not-allowed; }
+.btn.small { padding:5px 10px; font-size:11px; border-radius:8px; }
+.opp-card { background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:13px 14px; margin-bottom:8px; }
+.opp-top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.opp-title { font-size:14px; font-weight:700; line-height:1.35; }
+.opp-badges { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.badge { font-size:9px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; padding:2px 7px; border-radius:20px; background:rgba(255,255,255,0.07); color:var(--text-tertiary); }
+.badge.green { background:rgba(107,227,164,0.12); color:var(--green); }
+.badge.amber { background:rgba(224,182,88,0.12); color:var(--amber); }
+.badge.red { background:rgba(255,107,107,0.12); color:var(--red); }
+.badge.purple { background:rgba(168,85,247,0.12); color:var(--purple); }
+.badge.blue { background:rgba(96,165,250,0.12); color:var(--blue); }
+.opp-why { font-size:12px; color:var(--text-secondary); line-height:1.5; margin-top:8px; }
+.opp-meta { font-size:11px; color:var(--text-tertiary); margin-top:6px; line-height:1.5; }
+.opp-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+.empty { text-align:center; padding:22px 10px; font-size:13px; color:rgba(255,255,255,0.35); line-height:1.6; }
+.news-item { border-top:1px solid var(--border); padding:10px 0; }
+.news-item:first-child { border-top:none; }
+.news-title { font-size:13px; font-weight:700; line-height:1.4; }
+.news-body { font-size:12px; color:var(--text-secondary); line-height:1.5; margin-top:4px; }
+.news-link { font-size:11px; color:var(--blue); text-decoration:none; word-break:break-all; }
+.foot-note { font-size:11px; color:var(--text-tertiary); text-align:center; margin-top:4px; line-height:1.5; }
+.section-h { display:flex; justify-content:space-between; align-items:center; margin:18px 0 8px; }
+.section-t { font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.45); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="page-title">Opportunity Radar</div>
+  <div class="page-sub">What you can act on right now, found in your own data. Detection is pure code; Claude only scans news.</div>
+
+  <div id="oppList"></div>
+  <div id="oppFoot" class="foot-note"></div>
+
+  <div class="section-h"><div class="section-t">News scan</div><button class="btn small" id="newsBtn">Scan this week</button></div>
+  <div class="card" id="newsCard">
+    <div id="newsBody" class="empty">Weekly Claude scan for ZZP tax changes, mortgage rates, and tools relevant to your goals. Runs at most once a week.</div>
+  </div>
+
+  <div class="section-h"><div class="section-t">Saved</div><div class="foot-note" id="savedCount"></div></div>
+  <div id="savedList"><div class="empty" id="savedEmpty">Nothing saved. Save an opportunity to keep it past its week.</div></div>
+</div>
+
+<script src="tabbar.js"></script>
+<script>
+(function radar() {
+  'use strict';
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function eur(n) { return '€' + Math.round(Number(n) || 0).toLocaleString('en-US'); }
+  // Local-date keys (toISOString shifts to UTC and is wrong before ~02:00 CEST)
+  function localKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function todayStr() { return localKey(new Date()); }
+  function curYm() { return todayStr().slice(0, 7); }
+  function daysAgoKey(n) { var d = new Date(); d.setDate(d.getDate() - n); return localKey(d); }
+  function mondayKey() {
+    var d = new Date(); var day = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - day);
+    return localKey(d);
+  }
+  function monthName(ym) { var p = ym.split('-'); return new Date(Number(p[0]), Number(p[1]) - 1).toLocaleString('en-US', { month: 'long' }); }
+
+  var DISMISS_KEY = 'radar:dismissed:v1';   // [id] — permanent per id; period-suffixed ids resurface next period
+  var SNOOZE_KEY  = 'radar:snoozed:v1';     // {id: 'YYYY-MM-DD' show again on/after}
+  var SAVED_KEY   = 'radar:saved:v1';       // [opp] cap 50
+  var NEWS_KEY    = 'radar:news:v1';        // {week, at, items:[]}
+  var SUMMARY_KEY = 'radar:summary:v1';     // lean snapshot for LifeOS context
+
+  var CAT_COLOR = { Money: 'green', Mortgage: 'amber', Time: 'blue', Productivity: 'blue', Health: 'red', Risk: 'red', Gmail: 'purple', 'Data quality': '' };
+  var CONF_W = { high: 1, medium: 0.7, low: 0.4 };
+
+  /* ================= data gathering (all reads, no writes) ================= */
+
+  function gather() {
+    return {
+      tx: jget('ing:tx', []) || [],
+      subs: jget('subs', []) || [],
+      bank: jget('nw:bank', []) || [],
+      glRev: jget('gl:revenue', []) || [],
+      glExp: jget('gl:expenses', []) || [],
+      tax: jget('fin:tax:v1', {}) || {},
+      mort: jget('fin:mortgage:v1', {}) || {},
+      energy: jget('energy:logs:v1', []) || [],
+      focus: jget('focus:logs:v1', []) || [],
+      sleep: jget('sleep:logs', []) || [],
+      workoutDone: jget('po_coach_workout_done', {}) || {},
+      mail: jget('mail:summary:v1', null),
+      quality: (window.LifeOS && LifeOS.quality) ? LifeOS.quality() : null,
+      now: new Date(),
+    };
+  }
+
+  /* ================= shared math (replicas of finance.html / calendar.html logic) ================= */
+
+  function txMonths(tx) {
+    var m = {};
+    (tx || []).forEach(function (t) {
+      var ym = String(t.date || '').slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(ym)) return;
+      if (!m[ym]) m[ym] = { inn: 0, out: 0 };
+      var a = Number(t.amount) || 0;
+      if (a > 0) m[ym].inn += a; else m[ym].out += Math.abs(a);
+    });
+    return m;
+  }
+  function fullMonthKeys(m) {
+    var cur = curYm();
+    return Object.keys(m).filter(function (k) { return k !== cur; }).sort();
+  }
+  // 2026 ZZP tax replica (same constants as finance.html renderTax)
+  var T = { BAND1: 38883, R1: 0.3575, BAND2: 78426, R2: 0.3756, R3: 0.495, ZELF: 1200, STARTER: 2123, MKB: 0.127, ZVW: 0.0485, ZVWCAP: 79409 };
+  function box1(taxable) {
+    if (taxable <= 0) return 0;
+    var t = Math.min(taxable, T.BAND1) * T.R1;
+    if (taxable > T.BAND1) t += (Math.min(taxable, T.BAND2) - T.BAND1) * T.R2;
+    if (taxable > T.BAND2) t += (taxable - T.BAND2) * T.R3;
+    return t;
+  }
+  function taxState(d) {
+    var year = String(d.now.getFullYear());
+    var rev = 0, exp = 0;
+    d.glRev.forEach(function (r) { if (String(r.date || '').slice(0, 4) === year) rev += Number(r.amount) || 0; });
+    d.glExp.forEach(function (e) { if (String(e.date || '').slice(0, 4) === year) exp += Number(e.amount) || 0; });
+    var auto = Math.max(0, rev - exp);
+    var profit = Number(d.tax.override) > 0 ? Number(d.tax.override) : auto;
+    if (profit <= 0) return null;
+    var hours = d.tax.hours !== false;
+    var deduct = (hours ? T.ZELF : 0) + (hours && d.tax.starter ? T.STARTER : 0);
+    var taxable = Math.max(0, profit - deduct) * (1 - T.MKB);
+    var reserve = Math.round(box1(taxable) + T.ZVW * Math.min(taxable, T.ZVWCAP));
+    return { year: year, profit: profit, reserve: reserve, reserved: Number(d.tax.reserved) || 0 };
+  }
+  function subMonthly(s) {
+    var a = Number(s.amount) || 0;
+    return s.period === 'yearly' ? a / 12 : s.period === 'weekly' ? a * 4.33 : a;
+  }
+  // Energy peak windows — same rules as calendar.html dayPlanner
+  function energyPeaks(logs) {
+    if (!logs || logs.length < 15) return null;
+    var days = {}, byHour = {}, sum = 0;
+    logs.forEach(function (l) {
+      var dt = new Date(l.ts);
+      days[localKey(dt)] = 1;
+      var h = dt.getHours();
+      (byHour[h] = byHour[h] || []).push(Number(l.level) || 0);
+      sum += Number(l.level) || 0;
+    });
+    var keys = Object.keys(days).sort();
+    if ((new Date(keys[keys.length - 1]) - new Date(keys[0])) / 86400000 < 21) return null;
+    var overall = sum / logs.length;
+    var peakHours = [];
+    Object.keys(byHour).forEach(function (h) {
+      var arr = byHour[h];
+      if (arr.length >= 2 && arr.reduce(function (a, b) { return a + b; }, 0) / arr.length >= overall + 0.3) peakHours.push(Number(h));
+    });
+    peakHours.sort(function (a, b) { return a - b; });
+    var windows = [];
+    peakHours.forEach(function (h) {
+      var last = windows[windows.length - 1];
+      if (last && last.end === h) last.end = h + 1;
+      else windows.push({ start: h, end: h + 1 });
+    });
+    return windows.length ? windows.map(function (w) {
+      return String(w.start).padStart(2, '0') + ':00-' + String(w.end).padStart(2, '0') + ':00';
+    }) : null;
+  }
+  function focusMin(logs, fromKey, toKey) {
+    var s = 0;
+    (logs || []).forEach(function (l) {
+      if (l.date >= fromKey && l.date <= toKey) s += (Number(l.sec) || 0) / 60;
+    });
+    return Math.round(s);
+  }
+
+  /* ================= detectors =================
+     Each returns null or {id, title, cat, conf, impact 1-5, upside, effort,
+     deadline, why, action, link, source}. All deterministic. */
+
+  function dTaxGap(d) {
+    var t = taxState(d);
+    if (!t) return null;
+    var gap = t.reserve - t.reserved;
+    if (gap < 200) return null;
+    return {
+      id: 'tax_gap_' + t.year + '_' + curYm(), cat: 'Money', conf: 'high',
+      impact: Math.min(5, 2 + gap / 2000),
+      title: 'Tax reserve is ' + eur(gap) + ' short',
+      upside: 'No surprise bill when the ' + t.year + ' aanslag lands',
+      effort: 'low', deadline: null,
+      why: 'Profit so far ' + eur(t.profit) + ' → estimated liability ' + eur(t.reserve) + ' (income tax + Zvw, 2026 ZZP rates). You marked ' + eur(t.reserved) + ' as reserved.',
+      action: 'Move ' + eur(gap) + ' to a separate account and update "reserved" on the Business tab',
+      link: 'finance.html', source: 'Business P&L + tax settings',
+    };
+  }
+
+  function dSavingsRate(d) {
+    var m = txMonths(d.tx);
+    var keys = fullMonthKeys(m);
+    if (!keys.length) return null;
+    var ym = keys[keys.length - 1];
+    var v = m[ym];
+    if (!v || v.inn <= 0) return null;
+    var rate = (v.inn - v.out) / v.inn * 100;
+    if (rate >= 20) return null;
+    var target = v.inn * 0.2 - (v.inn - v.out);
+    return {
+      id: 'sav_rate_' + ym, cat: 'Money', conf: 'high',
+      impact: rate < 0 ? 5 : rate < 10 ? 4 : 3,
+      title: monthName(ym) + ' savings rate was ' + Math.round(rate) + '%',
+      upside: eur(target) + '/mo more toward the house fund at a 20% rate',
+      effort: 'medium', deadline: null,
+      why: 'Bank import shows ' + eur(v.inn) + ' in, ' + eur(v.out) + ' out in ' + ym + '. Your house-by-23 goal needs a consistent 20%+ rate.',
+      action: 'Open the monthly money review and pick one category to cut',
+      link: 'finance.html', source: 'ING transactions',
+    };
+  }
+
+  function dSpendSpike(d) {
+    var m = txMonths(d.tx);
+    var keys = fullMonthKeys(m);
+    if (keys.length < 4) return null;
+    var ym = keys[keys.length - 1];
+    var prev = keys.slice(-4, -1);
+    var avg = prev.reduce(function (s, k) { return s + m[k].out; }, 0) / prev.length;
+    var diff = m[ym].out - avg;
+    if (avg <= 0 || diff < 100 || diff / avg < 0.15) return null;
+    return {
+      id: 'spend_spike_' + ym, cat: 'Money', conf: 'medium',
+      impact: Math.min(4, 2 + diff / 500),
+      title: 'Spending jumped ' + eur(diff) + ' in ' + monthName(ym),
+      upside: 'Catch a creeping cost before it becomes the new normal',
+      effort: 'low', deadline: null,
+      why: ym + ' outflow ' + eur(m[ym].out) + ' vs ' + eur(avg) + ' average over the prior 3 months (+' + Math.round(diff / avg * 100) + '%).',
+      action: 'Search ' + ym + ' transactions and find what changed',
+      link: 'finance.html', source: 'ING transactions',
+    };
+  }
+
+  function dSubRenewal(d) {
+    var soon = null;
+    var now = d.now.getTime();
+    (d.subs || []).forEach(function (s) {
+      if (s.period !== 'yearly' || !s.renewal || (Number(s.amount) || 0) < 20) return;
+      var days = Math.ceil((new Date(s.renewal + 'T00:00').getTime() - now) / 86400000);
+      if (days < 0 || days > 30) return;
+      if (!soon || days < soon.days) soon = { s: s, days: days };
+    });
+    if (!soon) return null;
+    var name = soon.s.name || 'A subscription';
+    return {
+      id: 'sub_renew_' + name + '_' + soon.s.renewal, cat: 'Money', conf: 'high',
+      impact: Math.min(4, 2 + (Number(soon.s.amount) || 0) / 100),
+      title: name + ' renews in ' + soon.days + ' day' + (soon.days === 1 ? '' : 's') + ' for ' + eur(soon.s.amount),
+      upside: eur(soon.s.amount) + '/yr back if you no longer use it',
+      effort: 'low', deadline: soon.s.renewal,
+      why: 'Yearly subscription, renewal date ' + soon.s.renewal + '. Annual renewals are the easiest money to recover — decide before it charges.',
+      action: 'Still using it? Snooze this. Not using it? Cancel before ' + soon.s.renewal,
+      link: 'finance.html', source: 'Subscriptions list',
+    };
+  }
+
+  function dSubsShare(d) {
+    var m = txMonths(d.tx);
+    var keys = fullMonthKeys(m).slice(-3);
+    if (!keys.length || !(d.subs || []).length) return null;
+    var inn = keys.reduce(function (s, k) { return s + m[k].inn; }, 0) / keys.length;
+    if (inn <= 0) return null;
+    var total = d.subs.reduce(function (s, x) { return s + subMonthly(x); }, 0);
+    var pct = total / inn * 100;
+    if (pct < 8) return null;
+    return {
+      id: 'subs_share_' + curYm(), cat: 'Money', conf: 'medium', impact: 3,
+      title: 'Subscriptions eat ' + Math.round(pct) + '% of your income',
+      upside: 'Cutting two mid-size subs is usually ' + eur(total * 0.2 * 12) + '/yr',
+      effort: 'low', deadline: null,
+      why: d.subs.length + ' subscriptions total ' + eur(total) + '/mo against ' + eur(inn) + '/mo average income (last ' + keys.length + ' full months).',
+      action: 'Sort the subs list by amount and kill the bottom of the list',
+      link: 'finance.html', source: 'Subscriptions + ING income',
+    };
+  }
+
+  function dMortgageYear(d) {
+    var byYear = {};
+    d.glRev.forEach(function (r) { var y = String(r.date || '').slice(0, 4); if (y) { byYear[y] = byYear[y] || { rev: 0, exp: 0 }; byYear[y].rev += Number(r.amount) || 0; } });
+    d.glExp.forEach(function (e) { var y = String(e.date || '').slice(0, 4); if (y) { byYear[y] = byYear[y] || { rev: 0, exp: 0 }; byYear[y].exp += Number(e.amount) || 0; } });
+    var nowY = d.now.getFullYear();
+    var fullYears = Object.keys(byYear).filter(function (y) { return byYear[y].rev > 0 && Number(y) < nowY; }).length;
+    var cur = byYear[String(nowY)];
+    if (fullYears >= 3 || !cur || cur.rev <= 0) return null;
+    var dayOfYear = Math.max(1, Math.floor((Date.now() - new Date(nowY, 0, 1)) / 86400000));
+    var proj = Math.max(0, cur.rev - cur.exp) / dayOfYear * 365;
+    return {
+      id: 'mort_year_' + nowY, cat: 'Mortgage', conf: 'high', impact: 3,
+      title: 'Jaarrekening ' + (fullYears + 1) + ' of 3 is building now',
+      upside: 'Projected ' + eur(proj) + '/yr basis → roughly ' + eur(proj * 4.5) + ' max mortgage once lenders accept it',
+      effort: 'low', deadline: nowY + '-12-31',
+      why: 'Lenders want 3 annual statements; you have ' + fullYears + '. Every invoice logged this year raises the income basis (capped at the latest year).',
+      action: 'Keep every invoice in the Business P&L and close the year cleanly',
+      link: 'finance.html', source: 'Business P&L',
+    };
+  }
+
+  function dPeakUnused(d) {
+    var peaks = energyPeaks(d.energy);
+    if (!peaks) return null;
+    var today = todayStr();
+    var mins = focusMin(d.focus, daysAgoKey(6), today);
+    if (mins >= 150) return null; // already doing real deep work this week
+    return {
+      id: 'peak_unused_' + mondayKey(), cat: 'Time', conf: 'high', impact: 3,
+      title: 'Your peak energy is ' + peaks.join(', ') + ' — mostly unprotected',
+      upside: 'Hardest work done in hours your own data says you are sharpest',
+      effort: 'low', deadline: null,
+      why: d.energy.length + ' energy logs show these windows run ≥0.3 above your average. Only ' + Math.round(mins / 60 * 10) / 10 + 'h of tracked deep work in the last 7 days.',
+      action: 'Use the day planner — it places demanding blocks inside these windows',
+      link: 'calendar.html', source: 'Energy logs + focus tracker',
+    };
+  }
+
+  function dFocusDrop(d) {
+    var t = new Date();
+    var day = (t.getDay() + 6) % 7;
+    var mon = new Date(t); mon.setDate(t.getDate() - day);
+    var monKey = localKey(mon);
+    var prevMon = new Date(mon); prevMon.setDate(mon.getDate() - 7);
+    var prevSun = new Date(mon); prevSun.setDate(mon.getDate() - 1);
+    var thisW = focusMin(d.focus, monKey, todayStr());
+    var lastW = focusMin(d.focus, localKey(prevMon), localKey(prevSun));
+    if (lastW < 90 || day < 3 || thisW >= lastW * 0.5) return null; // judge from Thursday on
+    return {
+      id: 'focus_drop_' + monKey, cat: 'Productivity', conf: 'medium', impact: 3,
+      title: 'Deep work halved: ' + Math.round(thisW / 60 * 10) / 10 + 'h vs ' + Math.round(lastW / 60 * 10) / 10 + 'h last week',
+      upside: 'Catch the slide before the week is gone',
+      effort: 'medium', deadline: null,
+      why: 'Focus timer totals, Monday to today vs the full prior week.',
+      action: 'Start one 50-minute focus block today',
+      link: 'index.html', source: 'Focus tracker',
+    };
+  }
+
+  function dTrainLowSleep(d) {
+    var sleepBy = {};
+    (d.sleep || []).forEach(function (s) { if (s.date) sleepBy[s.date] = Number(s.duration) || 0; });
+    var count = 0;
+    var since = daysAgoKey(13);
+    Object.keys(d.workoutDone || {}).forEach(function (dk) {
+      if (dk < since) return;
+      var night = sleepBy[dk]; // sleep entry dated the wake-up day = the night before training
+      if (night && night < 360) count++;
+    });
+    if (count < 2) return null;
+    return {
+      id: 'train_sleep_' + mondayKey(), cat: 'Health', conf: 'medium', impact: 3,
+      title: 'Trained after under 6h sleep ' + count + 'x in 2 weeks',
+      upside: 'Same training stress, better adaptation, lower injury odds',
+      effort: 'low', deadline: null,
+      why: count + ' workout days in the last 14 followed a night under 6 hours. Recovery, not the session, is where you grow.',
+      action: 'On short-sleep days swap the heavy session for an easy one',
+      link: 'gym.html', source: 'Workout log + sleep log',
+    };
+  }
+
+  function dMail(d) {
+    if (!d.mail) return null;
+    var out = [];
+    if ((d.mail.delivery_issues || 0) > 0) out.push({
+      id: 'mail_delay_' + todayStr(), cat: 'Risk', conf: 'high', impact: 3,
+      title: d.mail.delivery_issues + ' deliver' + (d.mail.delivery_issues === 1 ? 'y is' : 'ies are') + ' delayed or failed',
+      upside: 'Refund or replacement window stays open',
+      effort: 'low', deadline: null,
+      why: 'Carrier emails in your inbox flag delivery problems.',
+      action: 'Open Mail and check the affected orders',
+      link: 'mail.html', source: 'Gmail order tracking',
+    });
+    if ((d.mail.opportunities || 0) > 0) out.push({
+      id: 'mail_opps_' + mondayKey(), cat: 'Gmail', conf: 'medium', impact: 2 + Math.min(2, d.mail.opportunities),
+      title: d.mail.opportunities + ' money-related email' + (d.mail.opportunities === 1 ? '' : 's') + ' flagged',
+      upside: 'Refunds, return deadlines, expiring trials — money on the table',
+      effort: 'low', deadline: null,
+      why: 'Deterministic inbox scan matched refund / return-deadline / trial-ending / price-increase patterns.',
+      action: 'Open Mail and work the flagged list',
+      link: 'mail.html', source: 'Gmail opportunity scan',
+    });
+    if ((d.mail.needs_reply || 0) >= 3) out.push({
+      id: 'mail_reply_' + mondayKey(), cat: 'Gmail', conf: 'medium', impact: 2,
+      title: d.mail.needs_reply + ' emails are waiting on your reply',
+      upside: 'Unblock people before it gets awkward',
+      effort: 'medium', deadline: null,
+      why: 'Unread personal emails classified as needing a response.',
+      action: 'Batch-reply in one sitting',
+      link: 'mail.html', source: 'Gmail classification',
+    });
+    return out;
+  }
+
+  function dDataQuality(d) {
+    var q = d.quality;
+    if (!q || !q.worst) return null;
+    var w = q.worst;
+    return {
+      id: 'dq_' + w.key + '_' + curYm(), cat: 'Data quality', conf: 'high', impact: 2,
+      title: w.label + ' data is ' + (w.daysAgo == null ? 'missing' : w.daysAgo + ' days stale'),
+      upside: 'Sharper advice everywhere — quality is ' + q.score + '% right now',
+      effort: 'low', deadline: null,
+      why: w.why || 'Stale data degrades every recommendation built on it.',
+      action: 'Add a one-tap check-in reminder for it',
+      link: 'reminders.html', source: 'LifeOS data quality',
+    };
+  }
+
+  function detectAll(d) {
+    var fns = [dTaxGap, dSavingsRate, dSpendSpike, dSubRenewal, dSubsShare, dMortgageYear, dPeakUnused, dFocusDrop, dTrainLowSleep, dDataQuality];
+    var out = [];
+    fns.forEach(function (fn) {
+      try { var r = fn(d); if (r) out.push(r); } catch (e) { /* one bad detector never kills the page */ }
+    });
+    try { var m = dMail(d); if (m) out = out.concat(m); } catch (e) {}
+    out.forEach(function (o) {
+      var boost = 0;
+      if (o.deadline) {
+        var days = Math.ceil((new Date(o.deadline + 'T00:00') - Date.now()) / 86400000);
+        if (days >= 0 && days <= 7) boost = 1.5;
+        else if (days > 7 && days <= 30) boost = 0.5;
+      }
+      o.score = (Number(o.impact) || 1) * (CONF_W[o.conf] || 0.5) + boost;
+    });
+    return out.sort(function (a, b) { return b.score - a.score; });
+  }
+
+  /* ================= rendering ================= */
+
+  function visible(all) {
+    var dismissed = jget(DISMISS_KEY, []) || [];
+    var snoozed = jget(SNOOZE_KEY, {}) || {};
+    var today = todayStr();
+    return all.filter(function (o) {
+      if (dismissed.indexOf(o.id) >= 0) return false;
+      if (snoozed[o.id] && snoozed[o.id] > today) return false;
+      return true;
+    });
+  }
+
+  function oppHtml(o, saved) {
+    var color = CAT_COLOR[o.cat] || '';
+    var meta = [];
+    if (o.upside) meta.push('Upside: ' + o.upside);
+    if (o.deadline) meta.push('Deadline: ' + o.deadline);
+    meta.push('Effort: ' + o.effort);
+    meta.push('Source: ' + o.source);
+    var btns = saved
+      ? '<button class="btn small" data-act="unsave" data-id="' + esc(o.id) + '">Remove</button>'
+        + '<button class="btn small primary" data-act="go" data-link="' + esc(o.link) + '">Act now</button>'
+      : '<button class="btn small" data-act="ignore" data-id="' + esc(o.id) + '">Ignore</button>'
+        + '<button class="btn small" data-act="snooze" data-id="' + esc(o.id) + '">Snooze 7d</button>'
+        + '<button class="btn small" data-act="save" data-id="' + esc(o.id) + '">Save</button>'
+        + '<button class="btn small primary" data-act="go" data-link="' + esc(o.link) + '">Act now</button>';
+    return '<div class="opp-card">'
+      + '<div class="opp-top"><div class="opp-title">' + esc(o.title) + '</div></div>'
+      + '<div class="opp-badges"><span class="badge ' + color + '">' + esc(o.cat) + '</span><span class="badge">' + esc(o.conf) + ' confidence</span></div>'
+      + '<div class="opp-why">' + esc(o.why) + '<br><strong style="color:var(--text-primary)">Next: </strong>' + esc(o.action) + '</div>'
+      + '<div class="opp-meta">' + esc(meta.join(' · ')) + '</div>'
+      + '<div class="opp-actions">' + btns + '</div>'
+      + '</div>';
+  }
+
+  var lastAll = [];
+
+  function writeSummary(shown, total) {
+    try {
+      jset(SUMMARY_KEY, {
+        generated_at: new Date().toISOString(),
+        total_found: total,
+        shown: shown.map(function (o) { return { title: o.title, cat: o.cat, action: o.action }; }),
+      });
+    } catch (e) {}
+  }
+
+  function renderAll() {
+    var d = gather();
+    lastAll = detectAll(d);
+    var vis = visible(lastAll);
+    var top = vis.slice(0, 5);
+    var list = document.getElementById('oppList');
+    var foot = document.getElementById('oppFoot');
+    if (!top.length) {
+      list.innerHTML = '<div class="card"><div class="empty">No opportunities right now. That is the honest answer — detectors only fire on real signals in your data.</div></div>';
+    } else {
+      list.innerHTML = top.map(function (o) { return oppHtml(o, false); }).join('');
+    }
+    foot.textContent = '11 detectors ran · ' + lastAll.length + ' signal' + (lastAll.length === 1 ? '' : 's') + ' found · showing best ' + top.length
+      + (vis.length > top.length ? ' (' + (vis.length - top.length) + ' more below the bar)' : '');
+    writeSummary(top, lastAll.length);
+    renderSaved();
+    renderNewsCached();
+  }
+
+  function renderSaved() {
+    var saved = jget(SAVED_KEY, []) || [];
+    var list = document.getElementById('savedList');
+    var count = document.getElementById('savedCount');
+    count.textContent = saved.length ? saved.length + ' kept' : '';
+    if (!saved.length) {
+      list.innerHTML = '<div class="empty" id="savedEmpty">Nothing saved. Save an opportunity to keep it past its week.</div>';
+      return;
+    }
+    list.innerHTML = saved.map(function (o) { return oppHtml(o, true); }).join('');
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var act = b.getAttribute('data-act');
+    var id = b.getAttribute('data-id');
+    if (act === 'go') { window.location.href = b.getAttribute('data-link') || 'index.html'; return; }
+    if (act === 'ignore') {
+      var dis = jget(DISMISS_KEY, []) || [];
+      if (dis.indexOf(id) < 0) dis.push(id);
+      jset(DISMISS_KEY, dis.slice(-200));
+    } else if (act === 'snooze') {
+      var sn = jget(SNOOZE_KEY, {}) || {};
+      var until = new Date(); until.setDate(until.getDate() + 7);
+      sn[id] = localKey(until);
+      jset(SNOOZE_KEY, sn);
+    } else if (act === 'save') {
+      var opp = lastAll.filter(function (o) { return o.id === id; })[0];
+      if (opp) {
+        var saved = jget(SAVED_KEY, []) || [];
+        if (!saved.some(function (s) { return s.id === id; })) saved.push(opp);
+        jset(SAVED_KEY, saved.slice(-50));
+        // saving also hides it from the live list
+        var sn2 = jget(SNOOZE_KEY, {}) || {};
+        sn2[id] = '9999-12-31';
+        jset(SNOOZE_KEY, sn2);
+      }
+    } else if (act === 'unsave') {
+      jset(SAVED_KEY, (jget(SAVED_KEY, []) || []).filter(function (s) { return s.id !== id; }));
+    }
+    renderAll();
+  });
+
+  /* ================= news scan (the only Claude call on this page) ================= */
+
+  function newsContext(d) {
+    var stack = (jget('stack:items', []) || []).map(function (s) { return s.name; }).filter(Boolean).slice(0, 12);
+    var t = taxState(d);
+    return [
+      'User profile (for relevance filtering only):',
+      '- Dutch ZZP freelancer (sole trader), files NL income tax, builds toward a mortgage (house-by-23 goal)' + (t ? ', expects ~' + eur(t.profit) + ' profit this year' : ''),
+      '- Lifts weights, tracks nutrition/sleep/bloodwork' + (stack.length ? '; supplements: ' + stack.join(', ') : ''),
+      '- Builds personal software with AI tools; cares about productivity research',
+      'Today: ' + todayStr(),
+    ].join('\n');
+  }
+
+  function renderNewsItems(items, at) {
+    var body = document.getElementById('newsBody');
+    if (!items || !items.length) {
+      body.innerHTML = '<div class="empty">Scanned ' + esc(new Date(at).toLocaleDateString()) + ' — nothing this week connects to your actual situation. No filler shown.</div>';
+      return;
+    }
+    body.className = '';
+    body.innerHTML = items.map(function (it) {
+      return '<div class="news-item">'
+        + '<div class="news-title">' + esc(it.title) + ' <span class="badge">' + esc(it.confidence || 'medium') + '</span></div>'
+        + '<div class="news-body"><strong>What changed:</strong> ' + esc(it.what_changed) + '<br>'
+        + '<strong>Why it matters to you:</strong> ' + esc(it.why_matters) + '<br>'
+        + '<strong>Suggested action:</strong> ' + esc(it.action) + '</div>'
+        + (it.source_url ? '<a class="news-link" href="' + esc(it.source_url) + '" target="_blank" rel="noopener">' + esc(it.source_url) + '</a>' : '')
+        + '</div>';
+    }).join('') + '<div class="foot-note" style="margin-top:8px">Scanned ' + esc(new Date(at).toLocaleDateString()) + ' · refreshes weekly</div>';
+  }
+
+  function renderNewsCached() {
+    var cached = jget(NEWS_KEY, null);
+    if (cached && cached.items) renderNewsItems(cached.items, cached.at);
+  }
+
+  function scanNews() {
+    var btn = document.getElementById('newsBtn');
+    var body = document.getElementById('newsBody');
+    if (!window.LifeOS || !LifeOS.ai) { body.innerHTML = '<div class="empty">AI service not loaded yet — try again in a second.</div>'; return; }
+    btn.disabled = true; btn.textContent = 'Scanning…';
+    var d = gather();
+    var week = mondayKey();
+    var prompt = 'Search the web for developments from the last 14 days that are SPECIFICALLY relevant to this user: '
+      + 'Dutch ZZP tax or regulation changes, NL mortgage or interest-rate changes, '
+      + 'notable AI/business tools for a solo developer, or solid new research on their supplements/training/sleep. '
+      + 'Return STRICT JSON only, no prose, no markdown fence: '
+      + '{"items":[{"title":"...","what_changed":"...","why_matters":"why it matters to THIS user","action":"concrete next step or \'no action needed\'","source_url":"https://...","confidence":"high|medium|low"}]} '
+      + 'Max 3 items. Only include items that connect to the profile in context. If nothing genuinely relevant, return {"items":[]}. '
+      + 'Never invent facts, never promise investment returns, never present anything as guaranteed financial advice.';
+    LifeOS.ai.chat({
+      prompt: prompt,
+      context: newsContext(d),
+      cacheKey: 'radar_news_' + week,
+      ttlMs: 7 * 24 * 60 * 60 * 1000,
+      timeoutMs: 90000,
+      webSearch: true,
+    }).then(function (res) {
+      var items = [];
+      try {
+        var m = String(res.reply || '').match(/\{[\s\S]*\}/);
+        if (m) items = (JSON.parse(m[0]).items || []).slice(0, 3);
+      } catch (e) {}
+      var rec = { week: week, at: new Date().toISOString(), items: items };
+      jset(NEWS_KEY, rec);
+      renderNewsItems(items, rec.at);
+    }).catch(function (err) {
+      body.innerHTML = '<div class="empty">Scan failed: ' + esc(err.message || err) + '. Works on the deployed app, not in local preview.</div>';
+    }).finally(function () {
+      btn.disabled = false; btn.textContent = 'Scan this week';
+    });
+  }
+  document.getElementById('newsBtn').addEventListener('click', scanNews);
+
+  /* ================= boot + test hooks ================= */
+
+  window.__radarDetect = detectAll;       // pass a synthetic gather()-shaped object to test detectors
+  window.__radarGather = gather;
+  window.__radarPeaks = energyPeaks;
+  window.__radarRender = renderAll;
+
+  function boot() {
+    renderAll();
+    // auto-refresh the news from cache only; the API call stays manual + weekly-cached
+  }
+  if (window.LifeOS && LifeOS.quality) boot();
+  else window.addEventListener('lifeos:ready', boot, { once: true });
+  // fallback if lifeos:ready already fired or core fails to load
+  setTimeout(function () { if (!document.getElementById('oppList').innerHTML) boot(); }, 1500);
+})();
+</script>
+</body>
+</html>

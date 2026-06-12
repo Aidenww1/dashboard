@@ -495,6 +495,16 @@
     };
   }
 
+  function sliceOpportunities() {
+    var s = get('radar:summary:v1', null);
+    if (!s) return { scanned: false, note: 'Opportunity Radar not opened yet (radar.html)' };
+    return {
+      generated_hours_ago: Math.round((Date.now() - new Date(s.generated_at).getTime()) / 3600000),
+      total_found: s.total_found,
+      top: s.shown,
+    };
+  }
+
   function sliceSkin() {
     var logs = get('skin:logs', []) || [];
     var prods = get('skin:products', []) || [];
@@ -555,6 +565,7 @@
       case 'body_progress': return sliceBodyProgress();
       case 'skin': return sliceSkin();
       case 'mail': return sliceMail();
+      case 'opportunities': return sliceOpportunities();
       case 'full_summary': return sliceFull();
       case 'today':
       default: return sliceToday();
