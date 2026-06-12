@@ -839,6 +839,18 @@ body { padding-bottom: 90px; }
         <div class="ls-quality" id="lsQuality"></div>
       </div>
 
+      <div class="ai-summary-card" id="readinessCard">
+        <div class="card-eyebrow">Readiness</div>
+        <div class="ls-row">
+          <div class="ls-num" id="rdNum">&mdash;</div>
+          <div class="ls-meta">
+            <div class="ls-drag" id="rdLabel"></div>
+            <div class="ls-action" id="rdAdvice"></div>
+          </div>
+        </div>
+        <div class="ls-quality" id="rdDebt"></div>
+      </div>
+
       <div class="ai-summary-card">
         <div class="card-eyebrow">AI Summary</div>
         <div class="ai-summary-text" id="aiSummaryText">Tap refresh to get your daily briefing.</div>
@@ -2247,6 +2259,18 @@ window.addEventListener('lifeos:event', function(e) {
     }).join('');
     var worst = q.worst ? (q.worst.label + (q.worst.daysAgo != null ? ' stale ' + q.worst.daysAgo + 'd' : ' never logged')) : 'all fresh';
     document.getElementById('lsQuality').textContent = 'Data quality ' + q.score + '% · ' + worst;
+    // Readiness card
+    try {
+      var rd = window.LifeOS.readiness();
+      var rn = document.getElementById('rdNum');
+      if (rn) {
+        rn.textContent = rd.score;
+        rn.style.color = rd.score >= 75 ? 'var(--accent,#34D399)' : rd.score >= 55 ? 'var(--warn,#FBBF24)' : 'var(--danger,#FF6B6B)';
+        document.getElementById('rdLabel').textContent = rd.label + (rd.parts ? ' · ' + rd.parts[0].detail : '');
+        document.getElementById('rdAdvice').textContent = rd.advice || '';
+        document.getElementById('rdDebt').textContent = rd.sleep_debt_hrs != null ? 'Sleep debt ' + rd.sleep_debt_hrs + 'h over last 7 nights (8h target)' : 'Log sleep nightly to track sleep debt.';
+      }
+    } catch (_) {}
     return true;
   }
   if (!render()) window.addEventListener('lifeos:ready', render);

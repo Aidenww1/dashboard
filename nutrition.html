@@ -700,6 +700,16 @@ body::before {
       <button id="caffCustomAdd" style="padding:8px 14px;border-radius:8px;background:var(--accent);border:none;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">Add</button>
     </div>
   </div>
+  <div class="card" id="cafCutoffCard">
+    <div class="nt-eyebrow">CAFFEINE CUTOFF</div>
+    <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+      <div id="cafCutoffTime" style="font-size:28px;font-weight:600;font-variant-numeric:tabular-nums">&mdash;</div>
+      <div style="flex:1">
+        <div id="cafCutoffStatus" style="font-size:13px;color:var(--text-secondary)"></div>
+        <div id="cafCutoffSub" style="font-size:11px;color:var(--text-tertiary);margin-top:2px"></div>
+      </div>
+    </div>
+  </div>
   <div class="card">
     <div class="nt-eyebrow">TODAY'S INTAKE</div>
     <div id="caffeineLog"></div>
@@ -2680,6 +2690,58 @@ document.getElementById('groceryShareBtn')?.addEventListener('click', async () =
 });
 
 renderGrocery();
+
+// ---- Caffeine cutoff: average logged bedtime minus 9 hours ----
+function renderCaffeineCutoff() {
+  const timeEl = document.getElementById('cafCutoffTime');
+  if (!timeEl) return;
+  const logs = (lsGet('sleep:logs') || []).filter(l => l && l.bedtime).slice(-14);
+  const statusEl = document.getElementById('cafCutoffStatus');
+  const subEl = document.getElementById('cafCutoffSub');
+  if (logs.length < 3) {
+    timeEl.textContent = '—';
+    statusEl.textContent = 'Not enough bedtime data yet.';
+    subEl.textContent = 'Log sleep with a bedtime on Health for 3+ nights to compute your cutoff.';
+    return;
+  }
+  // average bedtime; treat times before noon as past midnight (+24h)
+  const mins = logs.map(l => {
+    const [h, m] = l.bedtime.split(':').map(Number);
+    return (h < 12 ? h + 24 : h) * 60 + m;
+  });
+  const avg = Math.round(mins.reduce((a, b) => a + b, 0) / mins.length);
+  const cutoff = avg - 9 * 60; // bedtime minus 9h
+  const ch = Math.floor(cutoff / 60) % 24, cm = cutoff % 60;
+  const bedH = Math.floor(avg / 60) % 24, bedM = avg % 60;
+  const pad = n => String(n).padStart(2, '0');
+  timeEl.textContent = pad(ch) + ':' + pad(cm);
+  subEl.textContent = 'Average bedtime ' + pad(bedH) + ':' + pad(bedM) + ' (last ' + logs.length + ' nights) minus 9h half-life buffer.';
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const past = nowMin >= cutoff && nowMin < (avg % 1440);
+  if (past) {
+    timeEl.style.color = '#FF6B6B';
+    statusEl.textContent = 'Past cutoff — skip caffeine now to protect tonight’s sleep.';
+  } else {
+    timeEl.style.color = '#34D399';
+    statusEl.textContent = 'Caffeine is fine until ' + pad(ch) + ':' + pad(cm) + ' today.';
+  }
+  // in-page reminder at cutoff while the app is open
+  if (!past && 'Notification' in window && Notification.permission === 'granted') {
+    const msAhead = (cutoff - nowMin) * 60000;
+    if (msAhead > 0 && msAhead < 12 * 3600000 && !window.__cafCutoffTimer) {
+      window.__cafCutoffTimer = setTimeout(() => {
+        try {
+          if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+            navigator.serviceWorker.ready.then(reg => reg.showNotification('Caffeine cutoff', { body: 'Last call — anything after this hits tonight’s sleep.', tag: 'caffeine-cutoff' })).catch(() => {});
+          } else new Notification('Caffeine cutoff', { body: 'Last call — anything after this hits tonight’s sleep.' });
+        } catch (e) {}
+      }, msAhead);
+    }
+  }
+}
+renderCaffeineCutoff();
+document.querySelectorAll('.nt-tab[data-tab="caffeine"]').forEach(b => b.addEventListener('click', () => setTimeout(renderCaffeineCutoff, 50)));
 })();
 </script>
 

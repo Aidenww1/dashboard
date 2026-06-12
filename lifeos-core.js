@@ -273,6 +273,62 @@
     return result;
   }
 
+  /* ---------- readiness (deterministic) ---------- */
+
+  function readiness() {
+    var parts = [], total = 0;
+    function add(key, label, pts, max, detail) {
+      pts = Math.max(0, Math.min(max, Math.round(pts)));
+      parts.push({ key: key, label: label, pts: pts, max: max, detail: detail });
+      total += pts;
+    }
+
+    // Sleep last night (40)
+    var sl = sleepFor(todayStr()) || sleepFor(todayStr(-1));
+    if (sl && sl.duration) {
+      var h = sl.duration / 60;
+      var p = h < 4 ? 8 : h < 5 ? 16 : h < 6 ? 24 : h < 7 ? 32 : h <= 8.5 ? 40 : 34;
+      if (sl.score != null) p = Math.max(0, Math.min(40, p + Math.round((sl.score - 70) / 30 * 5)));
+      add('sleep', 'Last night', p, 40, Math.floor(h) + 'h ' + (sl.duration % 60) + 'm' + (sl.score != null ? ' · score ' + sl.score : ''));
+    } else add('sleep', 'Last night', 20, 40, 'No sleep logged');
+
+    // Sleep debt 7d (20)
+    var debt = sleepDebt7d(8);
+    if (debt != null) {
+      var dp = debt <= 0.5 ? 20 : debt <= 2 ? 17 : debt <= 4 ? 13 : debt <= 7 ? 8 : 4;
+      add('debt', 'Sleep debt', dp, 20, debt + 'h short vs 8h/night (7d)');
+    } else add('debt', 'Sleep debt', 10, 20, 'No 7d sleep data');
+
+    // Training load (15): rested yesterday = more ready today
+    var done = workoutDone();
+    var yest = !!done[todayStr(-1)], before = !!done[todayStr(-2)];
+    if (yest && before) add('load', 'Training load', 5, 15, 'Trained 2 days straight');
+    else if (yest) add('load', 'Training load', 9, 15, 'Trained yesterday');
+    else add('load', 'Training load', 15, 15, 'Rested yesterday');
+
+    // Mood trend (15): avg of last 3 logged moods (1-5)
+    var moods = moodLogs().slice(-3).map(function (m) { return m.mood; }).filter(function (v) { return v >= 1; });
+    if (moods.length) {
+      var avg = moods.reduce(function (a, b) { return a + b; }, 0) / moods.length;
+      add('mood', 'Mood trend', avg / 5 * 15, 15, avg.toFixed(1) + '/5 last ' + moods.length + ' logs');
+    } else add('mood', 'Mood trend', 8, 15, 'No mood logged');
+
+    // Logging consistency (10): sleep logged days of last 7
+    var logged = lastDates(7).filter(function (ds) { return !!sleepFor(ds); }).length;
+    add('consistency', 'Sleep logging', logged / 7 * 10, 10, logged + '/7 nights logged');
+
+    var worst = parts.slice().sort(function (a, b) { return a.pts / a.max - b.pts / b.max; })[0];
+    var ADVICE = {
+      sleep: 'Rough night. Keep today light and get to bed early.',
+      debt: 'Sleep debt is stacking up. Protect tonight: no late screens, fixed bedtime.',
+      load: 'Back-to-back training. Make today easy or rest.',
+      mood: 'Mood is low. One easy win this morning beats a heavy session.',
+      consistency: 'Log sleep nightly or readiness stays a guess.',
+    };
+    var label = total >= 75 ? 'Ready' : total >= 55 ? 'Moderate' : 'Low';
+    return { score: total, label: label, parts: parts, sleep_debt_hrs: debt, advice: ADVICE[worst.key] || '' };
+  }
+
   /* ---------- data quality ---------- */
 
   function quality() {
@@ -317,10 +373,11 @@
   function sliceToday() {
     var w = latestWeight(), nt = ntTotalsFor(ntDateKey()), tgt = ntTargets();
     var sl = sleepFor(todayStr()) || sleepFor(todayStr(-1));
-    var sc = score(), q = quality();
+    var sc = score(), q = quality(), rd = readiness();
     return {
       date: todayStr(),
       life_score: sc.total,
+      readiness: { score: rd.score, label: rd.label, sleep_debt_hrs: rd.sleep_debt_hrs, advice: rd.advice },
       biggest_drag: sc.drag ? sc.drag.label + ' (' + sc.drag.detail + ')' : null,
       data_quality_pct: q.score,
       weight_kg: w ? w.weight : null,
@@ -356,7 +413,8 @@
       var e = sleepFor(ds), m = moodLogs().find(function (x) { return x.date === ds; });
       return { date: ds, sleep_min: e ? e.duration : null, sleep_score: e && e.score != null ? e.score : null, mood: m ? m.mood : null };
     });
-    return { last7d: days, sleep_debt_hrs_7d: sleepDebt7d(8), sessions_7d: workouts7d() };
+    var rd = readiness();
+    return { last7d: days, sleep_debt_hrs_7d: sleepDebt7d(8), sessions_7d: workouts7d(), readiness: { score: rd.score, label: rd.label, advice: rd.advice, parts: rd.parts } };
   }
 
   function sliceHealth() {
@@ -593,6 +651,7 @@
   window.LifeOS = window.LifeOS || {};
   window.LifeOS.context = context;
   window.LifeOS.score = score;
+  window.LifeOS.readiness = readiness;
   window.LifeOS.quality = quality;
   window.LifeOS.log = log;
   window.LifeOS.search = search;

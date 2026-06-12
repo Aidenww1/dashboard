@@ -101,6 +101,12 @@ h1 { font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px;
     <div class="mood-row" id="moodRow"></div>
   </div>
 
+  <div class="section" id="correlSection">
+    <div class="section-title">What actually moves the needle</div>
+    <div class="stat-grid" style="grid-template-columns:1fr" id="correlGrid"></div>
+    <div class="ai-output" id="correlSummary" style="display:none;margin-top:10px"></div>
+  </div>
+
   <div class="ai-section">
     <button class="ai-btn" id="aiBtn">Get AI Weekly Review</button>
     <div class="ai-output" id="aiOutput"></div>
@@ -399,6 +405,123 @@ Focus sessions (Pomodoro): ${pomos} this week`;
   });
 });
 
+})();
+</script>
+
+<script>
+// ── Correlation report: deterministic Pearson over 60 days, Claude only phrases ──
+(function () {
+'use strict';
+function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+function dstr(off) {
+  const d = new Date(); d.setDate(d.getDate() - off);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// daily series over last 60 days, null = not logged
+function buildSeries() {
+  const sleep = lsGet('sleep:logs') || [];
+  const mood = lsGet('mind:mood:v1') || [];
+  const nt = lsGet('nt:logs') || [];
+  const done = lsGet('po_coach_workout_done') || {};
+  const items = lsGet('stack:items') || [];
+  const days = [];
+  for (let i = 0; i < 60; i++) {
+    const ds = dstr(i);
+    const se = sleep.find(e => e && e.date === ds);
+    const me = mood.find(e => e && e.date === ds);
+    const dayNt = nt.filter(l => l && String(l.dateKey).replace(/\//g, '-') === ds);
+    let supp = null;
+    if (items.length) {
+      const taken = lsGet('stack:taken:' + ds);
+      if (taken) supp = items.filter(it => taken[it.id]).length / items.length;
+    }
+    days.push({
+      sleepMin: se && se.duration ? se.duration : null,
+      sleepScore: se && se.score != null ? se.score : null,
+      mood: me && me.mood ? me.mood : null,
+      protein: dayNt.length ? dayNt.reduce((s, l) => s + (parseFloat(l.protein) || 0), 0) : null,
+      trained: done[ds] ? 1 : 0,
+      supp: supp,
+    });
+  }
+  return days;
+}
+
+function pearson(pairs) {
+  const n = pairs.length;
+  if (n < 10) return null;
+  const mx = pairs.reduce((s, p) => s + p[0], 0) / n;
+  const my = pairs.reduce((s, p) => s + p[1], 0) / n;
+  let num = 0, dx = 0, dy = 0;
+  pairs.forEach(p => { num += (p[0] - mx) * (p[1] - my); dx += (p[0] - mx) ** 2; dy += (p[1] - my) ** 2; });
+  if (!dx || !dy) return null;
+  return { r: num / Math.sqrt(dx * dy), n: n };
+}
+
+function collect(days, kx, ky, shift) {
+  // shift=1 pairs x on day d+1 (earlier) with y on day d (later): "x last night -> y today"
+  const pairs = [];
+  for (let i = 0; i < days.length - (shift || 0); i++) {
+    const x = days[i + (shift || 0)][kx], y = days[i][ky];
+    if (x != null && y != null) pairs.push([x, y]);
+  }
+  return pearson(pairs);
+}
+
+function run() {
+  const grid = document.getElementById('correlGrid');
+  if (!grid) return;
+  const days = buildSeries();
+  const tests = [
+    { label: 'Sleep duration → next-day mood', res: collect(days, 'sleepMin', 'mood', 1) },
+    { label: 'Sleep score → next-day mood', res: collect(days, 'sleepScore', 'mood', 1) },
+    { label: 'Training day ↔ same-day mood', res: collect(days, 'trained', 'mood', 0) },
+    { label: 'Protein intake ↔ same-day mood', res: collect(days, 'protein', 'mood', 0) },
+    { label: 'Supplement adherence ↔ mood', res: collect(days, 'supp', 'mood', 0) },
+    { label: 'Sleep duration → next-day training', res: collect(days, 'sleepMin', 'trained', 1) },
+  ];
+  const sig = tests.filter(t => t.res && Math.abs(t.res.r) >= 0.4);
+  if (!sig.length) {
+    const tested = tests.filter(t => t.res).length;
+    grid.innerHTML = '<div class="stat-card" style="font-size:13px;color:var(--text-tertiary);line-height:1.5">'
+      + (tested
+        ? 'No strong correlations yet (' + tested + ' pairs tested, threshold |r| ≥ 0.4, n ≥ 10). That is honest — better than inventing patterns. Keep logging.'
+        : 'Not enough overlapping data yet. Log sleep, mood and meals for ~2 weeks and correlations appear here.')
+      + '</div>';
+    return;
+  }
+  grid.innerHTML = sig.map(t => {
+    const r = t.res.r;
+    const dir = r > 0 ? 'higher together' : 'inverse';
+    const strength = Math.abs(r) >= 0.6 ? 'strong' : 'moderate';
+    const col = Math.abs(r) >= 0.6 ? '#34D399' : '#FBBF24';
+    return '<div class="stat-card" style="display:flex;justify-content:space-between;align-items:center;gap:10px">'
+      + '<div style="font-size:13px;color:var(--text-primary)">' + t.label
+      + '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">' + strength + ' · ' + dir + ' · n=' + t.res.n + '</div></div>'
+      + '<div style="font-size:18px;font-weight:600;color:' + col + ';font-variant-numeric:tabular-nums">r=' + r.toFixed(2) + '</div>'
+      + '</div>';
+  }).join('');
+
+  // Claude phrases the computed numbers (weekly cache); no math delegated to AI
+  if (window.LifeOS && window.LifeOS.ai) {
+    const weekKey = dstr(new Date().getDay());
+    const facts = sig.map(t => t.label + ': r=' + t.res.r.toFixed(2) + ' (n=' + t.res.n + ')').join('; ');
+    window.LifeOS.ai.chat({
+      prompt: 'Computed correlations from my logs: ' + facts,
+      context: 'You are a direct personal coach. Turn these precomputed correlation numbers into 2-3 plain sentences about what behavior is actually affecting the user, plus one concrete action. Correlation is not causation - say so briefly only if relevant. No motivation fluff. Do not invent numbers.',
+      cacheKey: 'correl_summary_' + weekKey,
+      ttlMs: window.LifeOS.ai.TTL.weekly,
+    }).then(d => {
+      const el = document.getElementById('correlSummary');
+      el.textContent = d.reply;
+      el.style.display = '';
+    }).catch(() => {});
+  }
+}
+if (window.LifeOS && window.LifeOS.ai) run();
+else window.addEventListener('lifeos:ready', run);
+if (document.readyState !== 'loading') setTimeout(run, 400); else document.addEventListener('DOMContentLoaded', () => setTimeout(run, 400));
 })();
 </script>
 </body>
