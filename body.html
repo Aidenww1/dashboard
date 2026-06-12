@@ -77,6 +77,17 @@ h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
 .pacing-meta{font-size:12px;color:var(--text-tertiary);margin-top:4px}
 .pacing-track{height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;margin-top:10px}
 .pacing-fill{height:100%;border-radius:2px;transition:width 0.4s ease}
+
+.pp-pill{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:var(--text-secondary)}
+.pp-pill.active{border-color:rgba(52,211,153,0.4);background:rgba(52,211,153,0.12);color:#34D399}
+.pp-pick{flex:1;text-align:center;padding:12px;border-radius:8px;border:1px dashed rgba(255,255,255,0.18);font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer}
+.pp-btn-primary{padding:11px 18px;border-radius:8px;border:none;background:#34D399;color:#0A0A0B;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;min-height:44px}
+.pp-btn-ghost{padding:11px 18px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;min-height:44px}
+.pp-thumb{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;aspect-ratio:3/4;background:var(--bg-inset)}
+.pp-thumb.selected{border-color:#34D399}
+.pp-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.pp-thumb .pp-badge{position:absolute;left:4px;bottom:4px;font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:rgba(0,0,0,0.65);color:#fff;border-radius:4px;padding:2px 5px}
+.pp-thumb .pp-date{position:absolute;right:4px;top:4px;font-size:9px;background:rgba(0,0,0,0.65);color:rgba(255,255,255,0.8);border-radius:4px;padding:2px 5px}
 </style>
 </head>
 <body>
@@ -132,6 +143,76 @@ h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
   <div class="section" id="measSection">
     <div class="section-title">Measurements</div>
     <div class="meas-grid" id="measGrid"></div>
+  </div>
+
+  <!-- ── PROGRESS PHOTOS: Analyze -> Report -> Log ── -->
+  <div class="section" id="photoSection">
+    <div class="section-title">Progress photos</div>
+    <div id="photoReminderCard" style="display:none"></div>
+
+    <div class="pacing-card" id="photoCaptureCard">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px">New photo</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="ppAngleRow">
+        <button class="pp-pill active" data-angle="front">Front</button>
+        <button class="pp-pill" data-angle="side">Side</button>
+        <button class="pp-pill" data-angle="back">Back</button>
+        <button class="pp-pill" data-flex id="ppFlexBtn">Flexed</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <label class="pp-pick">Camera<input type="file" accept="image/*" capture="environment" id="ppCamInput" style="display:none"></label>
+        <label class="pp-pick">Upload<input type="file" accept="image/*" id="ppGalInput" style="display:none"></label>
+      </div>
+      <img id="ppPreview" alt="progress photo preview" style="display:none;width:100%;max-width:320px;border-radius:12px;margin-bottom:10px">
+      <div id="ppTagRow" style="display:none;flex-direction:column;gap:8px;margin-bottom:10px">
+        <div style="display:flex;gap:8px">
+          <input type="number" id="ppWeight" placeholder="Weight kg" step="0.1" style="flex:1">
+          <input type="text" id="ppLighting" placeholder="Lighting / pose note (optional)" style="flex:2">
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-tertiary);cursor:pointer">
+          <input type="checkbox" id="ppPump" style="width:16px;height:16px;accent-color:#34D399"> Taken after training (pumped)
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="pp-btn-primary" id="ppAnalyzeBtn" style="display:none">Analyze</button>
+        <button class="pp-btn-ghost" id="ppSaveOnlyBtn" style="display:none">Save photo only</button>
+        <button class="pp-btn-ghost" id="ppDiscardBtn" style="display:none">Discard</button>
+      </div>
+      <div id="ppStatus" style="font-size:12px;color:var(--text-tertiary);margin-top:8px"></div>
+    </div>
+
+    <div class="pacing-card" id="ppReportCard" style="display:none">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px">Analysis report</div>
+      <div id="ppReportConfidence" style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px"></div>
+      <div id="ppReportBody" style="font-size:13px;color:var(--text-secondary);line-height:1.6"></div>
+      <textarea id="ppReportNote" placeholder="Your note (optional, saved with the report)" style="width:100%;box-sizing:border-box;margin-top:10px;min-height:54px;font-size:13px"></textarea>
+      <div style="font-size:11px;color:var(--text-tertiary);margin:10px 0">Logs to: Body progress timeline · Photo gallery · Coach context · Data quality</div>
+      <div style="display:flex;gap:8px">
+        <button class="pp-btn-primary" id="ppLogBtn">Log</button>
+        <button class="pp-btn-ghost" id="ppReportDiscardBtn">Discard</button>
+      </div>
+    </div>
+
+    <div class="pacing-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:var(--text-primary)">Gallery</div>
+        <div style="font-size:11px;color:var(--text-tertiary)">Tap two photos of the same angle to compare</div>
+      </div>
+      <div id="ppGallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px"></div>
+    </div>
+
+    <div class="pacing-card" id="ppCompareCard" style="display:none">
+      <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:8px">Compare</div>
+      <div id="ppCompareWarn" style="font-size:12px;color:#FBBF24;margin-bottom:8px"></div>
+      <div id="ppCompareWrap" style="position:relative;max-width:360px;border-radius:12px;overflow:hidden">
+        <img id="ppCompareB" style="display:block;width:100%">
+        <div id="ppCompareTopWrap" style="position:absolute;inset:0;overflow:hidden;width:50%">
+          <img id="ppCompareA" style="display:block;width:360px;max-width:none">
+        </div>
+        <div id="ppCompareLine" style="position:absolute;top:0;bottom:0;left:50%;width:2px;background:#34D399"></div>
+      </div>
+      <input type="range" id="ppCompareSlider" min="0" max="100" value="50" style="width:100%;max-width:360px;margin-top:8px;accent-color:#34D399">
+      <div style="display:flex;justify-content:space-between;max-width:360px;font-size:11px;color:var(--text-tertiary)"><span id="ppCompareLblA"></span><span id="ppCompareLblB"></span></div>
+    </div>
   </div>
 </main>
 <script src="tabbar.js"></script>
@@ -388,6 +469,298 @@ window.addEventListener('lifeos:event', function(e) {
   var d = e.detail; if (!d || !d.updated) return;
   if (d.type === 'body.weight') window.location.reload();
 });
+</script>
+
+<script>
+// ── Progress photos: capture -> Analyze -> Report -> Log ──
+(function () {
+'use strict';
+
+var PHOTOS_KEY = 'body:photos:v1';
+var REPORTS_KEY = 'body:photo_reports:v1';
+
+function lsGet(k, fb) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch (e) { return fb; } }
+function lsSet(k, v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch (e) { alert('Storage full — could not save photo. Delete old photos in the gallery.'); return false; }
+}
+function photos() { return lsGet(PHOTOS_KEY, []); }
+function reports() { return lsGet(REPORTS_KEY, []); }
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function gid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function escH(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function $(id) { return document.getElementById(id); }
+
+function resizeToDataUrl(file, maxPx, cb) {
+  var img = new Image(), url = URL.createObjectURL(file);
+  img.onload = function () {
+    URL.revokeObjectURL(url);
+    var s = Math.min(1, maxPx / Math.max(img.width, img.height));
+    var c = document.createElement('canvas');
+    c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    cb(c.toDataURL('image/jpeg', 0.8));
+  };
+  img.src = url;
+}
+
+// ---- capture state ----
+var curAngle = 'front', curFlexed = false, curDataUrl = null, curReport = null;
+
+document.querySelectorAll('#ppAngleRow [data-angle]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('#ppAngleRow [data-angle]').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    curAngle = btn.dataset.angle;
+  });
+});
+$('ppFlexBtn').addEventListener('click', function () {
+  curFlexed = !curFlexed;
+  $('ppFlexBtn').classList.toggle('active', curFlexed);
+});
+
+function onFile(file) {
+  if (!file) return;
+  resizeToDataUrl(file, 640, function (dataUrl) {
+    curDataUrl = dataUrl;
+    curReport = null;
+    $('ppPreview').src = dataUrl;
+    $('ppPreview').style.display = 'block';
+    $('ppTagRow').style.display = 'flex';
+    $('ppAnalyzeBtn').style.display = '';
+    $('ppSaveOnlyBtn').style.display = '';
+    $('ppDiscardBtn').style.display = '';
+    $('ppReportCard').style.display = 'none';
+    $('ppStatus').textContent = '';
+    var w = lsGet('po_coach_weights', []).slice(-1)[0];
+    if (w && !$('ppWeight').value) $('ppWeight').value = w.weight;
+  });
+}
+$('ppCamInput').addEventListener('change', function () { onFile(this.files[0]); });
+$('ppGalInput').addEventListener('change', function () { onFile(this.files[0]); });
+
+function resetCapture() {
+  curDataUrl = null; curReport = null;
+  $('ppPreview').style.display = 'none';
+  $('ppTagRow').style.display = 'none';
+  ['ppAnalyzeBtn', 'ppSaveOnlyBtn', 'ppDiscardBtn'].forEach(function (id) { $(id).style.display = 'none'; });
+  $('ppReportCard').style.display = 'none';
+  $('ppStatus').textContent = '';
+  $('ppCamInput').value = ''; $('ppGalInput').value = '';
+}
+$('ppDiscardBtn').addEventListener('click', resetCapture);
+$('ppReportDiscardBtn').addEventListener('click', resetCapture);
+
+function currentTags() {
+  return {
+    angle: curAngle,
+    flexed: curFlexed,
+    weightKg: parseFloat($('ppWeight').value) || null,
+    lighting: $('ppLighting').value.trim() || null,
+    pump: $('ppPump').checked,
+    tod: new Date().getHours() < 12 ? 'morning' : (new Date().getHours() < 18 ? 'afternoon' : 'evening'),
+  };
+}
+
+function prevSameAngle() {
+  var t = todayStr();
+  return photos().filter(function (p) { return p.angle === curAngle && p.date < t; })
+    .sort(function (a, b) { return b.date.localeCompare(a.date); })[0] || null;
+}
+
+// ---- Analyze ----
+$('ppAnalyzeBtn').addEventListener('click', function () {
+  if (!curDataUrl) return;
+  var btn = $('ppAnalyzeBtn');
+  btn.disabled = true;
+  $('ppStatus').textContent = 'Analyzing… (nothing is saved until you tap Log)';
+  var tags = currentTags();
+  var prev = prevSameAngle();
+  var goal = null;
+  try {
+    var goals = lsGet('gym:goals:v1', null);
+    if (goals && goals.targetWeight) goal = 'reach ' + goals.targetWeight + ' kg' + (goals.targetDate ? ' by ' + goals.targetDate : '');
+  } catch (e) {}
+  var wl = lsGet('po_coach_weights', []).slice(-10);
+  var trend = null;
+  if (wl.length >= 4) {
+    var rec = wl.slice(-3).reduce(function (s, e) { return s + e.weight; }, 0) / 3;
+    var old = wl.slice(0, 3).reduce(function (s, e) { return s + e.weight; }, 0) / 3;
+    trend = (rec - old >= 0 ? '+' : '') + (rec - old).toFixed(1) + ' kg';
+  }
+  var body = {
+    kind: 'body_progress',
+    image: curDataUrl.split(',')[1],
+    mimeType: 'image/jpeg',
+    tags: tags,
+    context: { goal: goal, weightTrend: trend, prevDate: prev ? prev.date : null, prevWeightKg: prev ? prev.weightKg : null },
+  };
+  if (prev) { body.prevImage = prev.dataUrl.split(',')[1]; body.prevMimeType = 'image/jpeg'; }
+  fetch('/api/visual-ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(60000),
+  }).then(function (r) {
+    return r.text().then(function (t) {
+      var d; try { d = JSON.parse(t); } catch (e) { throw new Error('AI service unreachable (' + r.status + ')'); }
+      if (!r.ok) throw new Error(d.error || 'Analysis failed');
+      return d;
+    });
+  })
+    .then(function (d) {
+      if (d.usage && window._trackAiTokens) window._trackAiTokens(d.usage.input_tokens || 0, d.usage.output_tokens || 0);
+      curReport = d.report;
+      renderReport(d.report);
+      $('ppStatus').textContent = '';
+    })
+    .catch(function (e) { $('ppStatus').textContent = 'Analysis failed: ' + e.message; })
+    .finally(function () { btn.disabled = false; });
+});
+
+function renderReport(rep) {
+  var conf = String(rep.confidence || 'low').toLowerCase();
+  var confEl = $('ppReportConfidence');
+  confEl.textContent = 'Confidence: ' + conf;
+  confEl.style.color = conf === 'high' ? '#34D399' : conf === 'medium' ? '#FBBF24' : '#FF6B6B';
+  function block(title, val) {
+    if (!val || (Array.isArray(val) && !val.length)) return '';
+    var bodyHtml = Array.isArray(val)
+      ? '<ul style="margin:4px 0 0;padding-left:18px">' + val.map(function (x) { return '<li>' + escH(x) + '</li>'; }).join('') + '</ul>'
+      : '<div style="margin-top:2px">' + escH(val) + '</div>';
+    return '<div style="margin-bottom:10px"><div style="font-size:10.5px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-tertiary)">' + title + '</div>' + bodyHtml + '</div>';
+  }
+  $('ppReportBody').innerHTML =
+    block('Summary', rep.summary)
+    + block('Comparison', rep.comparison)
+    + block('Visible changes', rep.changes)
+    + block('Data quality notes', rep.quality_notes)
+    + block('Possible explanations', rep.explanations)
+    + block('Goal', rep.goal_relation)
+    + block('Next action', rep.next_action)
+    + block('Would raise confidence', rep.data_wanted);
+  $('ppReportNote').value = '';
+  $('ppReportCard').style.display = '';
+  $('ppReportCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ---- Log / Save only ----
+function savePhoto(withReport) {
+  if (!curDataUrl) return;
+  var tags = currentTags();
+  var photo = {
+    id: gid(), dataUrl: curDataUrl, date: todayStr(),
+    angle: tags.angle, flexed: tags.flexed, weightKg: tags.weightKg,
+    lighting: tags.lighting, pump: tags.pump, tod: tags.tod,
+  };
+  var ps = photos(); ps.push(photo);
+  while (ps.length > 80) ps.shift();
+  if (!lsSet(PHOTOS_KEY, ps)) return;
+
+  if (withReport && curReport) {
+    var rs = reports();
+    rs.push({ id: gid(), photoId: photo.id, date: photo.date, angle: photo.angle, report: curReport, note: $('ppReportNote').value.trim() || null });
+    while (rs.length > 40) rs.shift();
+    lsSet(REPORTS_KEY, rs);
+  }
+  // mirror into the gym progress-photo store (synced to Supabase by gym.html)
+  try {
+    var pc = lsGet('po_coach_photos', []);
+    pc.push({ id: photo.id, dataUrl: photo.dataUrl, dateKey: photo.date, weight: photo.weightKg || null });
+    while (pc.length > 80) pc.shift();
+    localStorage.setItem('po_coach_photos', JSON.stringify(pc));
+  } catch (e) {}
+  try { window.dispatchEvent(new CustomEvent('lifeos:logged', { detail: { type: 'progress_photo' } })); } catch (e) {}
+  resetCapture();
+  renderGallery();
+  renderReminder();
+  $('ppStatus').textContent = withReport && curReport ? 'Logged: photo + analysis report.' : 'Photo saved (no analysis).';
+}
+$('ppLogBtn').addEventListener('click', function () { savePhoto(true); });
+$('ppSaveOnlyBtn').addEventListener('click', function () { savePhoto(false); });
+
+// ---- Gallery + comparison ----
+var selected = [];
+function renderGallery() {
+  var el = $('ppGallery');
+  var ps = photos().slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
+  if (!ps.length) {
+    el.innerHTML = '<div class="empty-note" style="grid-column:1/-1"><strong>No progress photos yet</strong>Take a front/side/back set now — comparison starts with your second photo.</div>';
+    return;
+  }
+  el.innerHTML = ps.map(function (p) {
+    return '<div class="pp-thumb' + (selected.indexOf(p.id) >= 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
+      + '<img src="' + p.dataUrl + '" alt="' + p.angle + ' ' + p.date + '" loading="lazy">'
+      + '<span class="pp-badge">' + p.angle + (p.flexed ? ' · flex' : '') + '</span>'
+      + '<span class="pp-date">' + p.date.slice(5) + '</span>'
+      + '</div>';
+  }).join('');
+  el.querySelectorAll('.pp-thumb').forEach(function (th) {
+    th.addEventListener('click', function () { toggleSelect(th.dataset.pid); });
+  });
+}
+function toggleSelect(pid) {
+  var i = selected.indexOf(pid);
+  if (i >= 0) selected.splice(i, 1);
+  else { selected.push(pid); if (selected.length > 2) selected.shift(); }
+  renderGallery();
+  renderCompare();
+}
+function renderCompare() {
+  var card = $('ppCompareCard');
+  if (selected.length !== 2) { card.style.display = 'none'; return; }
+  var ps = photos();
+  var pair = selected.map(function (id) { return ps.find(function (p) { return p.id === id; }); }).filter(Boolean);
+  if (pair.length !== 2) { card.style.display = 'none'; return; }
+  pair.sort(function (a, b) { return a.date.localeCompare(b.date); });
+  var a = pair[0], b = pair[1];
+  var warns = [];
+  if (a.angle !== b.angle) warns.push('Different angles — comparison is unreliable.');
+  if (a.flexed !== b.flexed) warns.push('One photo is flexed, the other relaxed.');
+  if (a.pump !== b.pump) warns.push('Pump state differs (one taken after training).');
+  if (a.tod !== b.tod) warns.push('Different time of day (water/bloat differs).');
+  if (a.weightKg && b.weightKg && Math.abs(a.weightKg - b.weightKg) > 3) warns.push('Weight differs ' + Math.abs(a.weightKg - b.weightKg).toFixed(1) + ' kg between photos.');
+  if (a.lighting !== b.lighting && (a.lighting || b.lighting)) warns.push('Lighting/pose notes differ.');
+  $('ppCompareWarn').innerHTML = warns.length ? warns.map(function (w) { return '⚠ ' + escH(w); }).join('<br>') : '';
+  $('ppCompareA').src = a.dataUrl;
+  $('ppCompareB').src = b.dataUrl;
+  $('ppCompareLblA').textContent = a.date + (a.weightKg ? ' · ' + a.weightKg + ' kg' : '');
+  $('ppCompareLblB').textContent = b.date + (b.weightKg ? ' · ' + b.weightKg + ' kg' : '');
+  $('ppCompareSlider').value = 50;
+  applySlider(50);
+  card.style.display = '';
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function applySlider(v) {
+  $('ppCompareTopWrap').style.width = v + '%';
+  $('ppCompareLine').style.left = v + '%';
+  var wrapW = $('ppCompareWrap').clientWidth || 360;
+  $('ppCompareA').style.width = wrapW + 'px';
+}
+$('ppCompareSlider').addEventListener('input', function () { applySlider(this.value); });
+
+// ---- missing-photo reminder ----
+function renderReminder() {
+  var card = $('photoReminderCard');
+  var ps = photos();
+  var last = ps.length ? ps.map(function (p) { return p.date; }).sort().pop() : null;
+  var days = last ? Math.floor((Date.now() - new Date(last + 'T12:00:00')) / 86400000) : null;
+  if (last && days < 14) { card.style.display = 'none'; return; }
+  var msg = last
+    ? 'Last progress photo is ' + days + ' days old. Your weight trend has no visual check — take a set this Sunday morning after weighing in.'
+    : 'No progress photos yet. Weight numbers without photos miss recomposition — take a front/side/back set now.';
+  card.innerHTML = '<div class="pacing-card" style="border-color:rgba(251,191,36,0.3)">'
+    + '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5">' + msg + '</div>'
+    + '<a href="reminders.html" style="display:inline-block;margin-top:8px;font-size:12px;color:#34D399;text-decoration:none">Set a weekly reminder →</a></div>';
+  card.style.display = '';
+}
+
+renderGallery();
+renderReminder();
+})();
 </script>
 </body>
 </html>

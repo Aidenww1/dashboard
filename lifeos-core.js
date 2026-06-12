@@ -299,6 +299,8 @@
     check('measurements', 'Measurements', bd, 30, 'Measurements verify what the scale claims.');
     var fi = finIncome().map(function (e) { return e.date; }).sort().pop();
     check('finance', 'Finance', fi, 35, 'Income data drives savings rate and afford checks.');
+    var pp = (get('body:photos:v1', []) || []).map(function (p) { return p.date; }).sort().pop();
+    check('photos', 'Progress photos', pp, 14, 'Visual checks keep weight-trend advice honest.');
 
     var freshCount = checks.filter(function (c) { return c.fresh; }).length;
     var stale = checks.filter(function (c) { return !c.fresh; });
@@ -386,6 +388,27 @@
     return { data_quality_pct: q.score, stale: q.stale };
   }
 
+  function sliceBodyProgress() {
+    var ps = get('body:photos:v1', []) || [];
+    var rs = get('body:photo_reports:v1', []) || [];
+    var last = ps.map(function (p) { return p.date; }).sort().pop() || null;
+    var recent30 = ps.filter(function (p) { return daysAgo(p.date) != null && daysAgo(p.date) <= 30; });
+    var angles = {};
+    recent30.forEach(function (p) { angles[p.angle] = (angles[p.angle] || 0) + 1; });
+    return {
+      photos_total: ps.length,
+      last_photo_date: last,
+      last_photo_age_days: last ? daysAgo(last) : null,
+      angles_last_30d: angles,
+      latest_reports: rs.slice(-3).map(function (r) {
+        return { date: r.date, angle: r.angle, confidence: r.report && r.report.confidence, summary: r.report && r.report.summary, next_action: r.report && r.report.next_action };
+      }),
+      weight_kg: (latestWeight() || {}).weight || null,
+      weight_trend_7d_kg: weightTrend7d(),
+      measurements_latest: bodyLogs().slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0] || null,
+    };
+  }
+
   function sliceFull() {
     return {
       today: sliceToday(),
@@ -406,6 +429,7 @@
       case 'finance': return sliceFinance();
       case 'productivity': return sliceProductivity();
       case 'missing_data': return sliceMissing();
+      case 'body_progress': return sliceBodyProgress();
       case 'full_summary': return sliceFull();
       case 'today':
       default: return sliceToday();
@@ -542,6 +566,11 @@
         if (k !== 'date' && k !== 'id' && k.toLowerCase().indexOf(q) >= 0)
           hit('Bloodwork', k, b[k] + '', '/health', b.date);
       });
+    });
+    (get('body:photo_reports:v1', []) || []).forEach(function (r) {
+      var txt = ((r.report && r.report.summary) || '') + ' ' + (r.note || '');
+      if (txt.toLowerCase().indexOf(q) >= 0)
+        hit('Photo report', (r.report && r.report.summary || '').slice(0, 60), r.angle + ' · ' + (r.report && r.report.confidence || ''), '/body', r.date);
     });
     var notes = get('dashboard:notes', '') || '';
     if (typeof notes === 'string' && notes.toLowerCase().indexOf(q) >= 0) {
