@@ -92,9 +92,34 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
       <button class="perm-btn" id="permBtn" style="display:none">Enable</button>
     </div>
     <button class="test-btn" id="testBtn">🔔 Send test notification</button>
+    <button class="test-btn" id="pushBtn" style="margin-top:8px">📲 Enable phone push (morning briefing)</button>
+    <div id="pushStatus" style="font-size:11px;color:var(--text-tertiary);margin-top:6px;line-height:1.45"></div>
   </div>
 
-  <div class="info-box">⚠ Browser notifications require the page to be open (or the PWA installed). They will not fire if the browser tab is closed, unless you install the dashboard as a PWA from your browser's address bar.</div>
+  <div class="info-box">⚠ Local notifications need the page open or the PWA installed. <b>Phone push</b> (the button above) delivers the morning briefing even with the app fully closed — once enabled and the server has VAPID keys set.</div>
+  <script>
+  (function () {
+    var btn = document.getElementById('pushBtn');
+    var status = document.getElementById('pushStatus');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      if (typeof window.enablePush !== 'function') { status.textContent = 'Push not ready — reload the page.'; return; }
+      btn.disabled = true; var old = btn.textContent; btn.textContent = 'Enabling…';
+      window.enablePush().then(function (r) {
+        var msg = {
+          ok: '✓ Subscribed. The 07:00 briefing will arrive as a push.',
+          denied: 'Notification permission denied — enable it in browser settings.',
+          unconfigured: 'Subscribed UI ready, but the server has no VAPID keys yet. Set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT in Vercel, then redeploy.',
+          unsupported: 'This browser does not support web push (iOS needs the installed PWA).',
+          error: 'Could not subscribe. Try again after deploying.',
+        };
+        status.textContent = msg[r] || r;
+        btn.textContent = r === 'ok' ? '✓ Push enabled' : old;
+        btn.disabled = r === 'ok';
+      });
+    });
+  })();
+  </script>
 
   <!-- Built-in reminders -->
   <div class="card">

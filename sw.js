@@ -1,4 +1,4 @@
-const CACHE = 'dashboard-v24';
+const CACHE = 'dashboard-v25';
 const SHARE_CACHE = 'share-target-v1';
 const PRECACHE = [
   '/', '/index.html', '/health.html', '/water.html', '/gym.html',
@@ -121,10 +121,29 @@ function showKindNotif(data) {
   });
 }
 
-// Push notifications (from a push service, if/when a server is wired up)
+// Push notifications. The server sends a no-payload "tickle"; we fetch the
+// latest briefing text from Supabase and show it (avoids payload encryption).
+const PUSH_SUPA = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+const PUSH_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
 self.addEventListener('push', e => {
-  const data = e.data ? e.data.json() : {};
-  e.waitUntil(showKindNotif(data));
+  e.waitUntil((async () => {
+    let data = {};
+    try { data = e.data ? e.data.json() : {}; } catch (_) { data = {}; }
+    if (!data.title && !data.body) {
+      try {
+        const r = await fetch(PUSH_SUPA + '/rest/v1/app_state?select=data&key=eq.push:briefing:v1&limit=1', {
+          headers: { apikey: PUSH_KEY, Authorization: 'Bearer ' + PUSH_KEY },
+        });
+        if (r.ok) {
+          const rows = await r.json();
+          const b = rows[0] && rows[0].data;
+          if (b && b.text) data = { kind: 'briefing', title: 'Morning briefing', body: String(b.text).slice(0, 220), url: '/index.html?qa=briefing' };
+        }
+      } catch (_) {}
+      if (!data.title) data = { kind: 'briefing', title: 'Life OS', body: 'Open for your morning briefing', url: '/index.html?qa=briefing' };
+    }
+    return showKindNotif(data);
+  })());
 });
 
 // Pages ask the SW to show an action notification while open / in background.

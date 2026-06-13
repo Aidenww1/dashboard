@@ -1,3 +1,5 @@
+import { sendPushToAll } from '../_webpush.js';
+
 export const config = { maxDuration: 60 };
 
 const SUPA_URL = process.env.SUPABASE_URL;
@@ -288,6 +290,17 @@ async function executeTool(name, input) {
           headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
           body: JSON.stringify(row),
         });
+        if (r.ok) {
+          // stash the briefing where the SW can read it, then push a tickle to subscribed devices
+          try {
+            await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
+              method: 'POST',
+              headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+              body: JSON.stringify({ key: 'push:briefing:v1', data: { text: input.text, at: new Date().toISOString(), date: new Date().toISOString().slice(0, 10) }, updated_at: new Date().toISOString() }),
+            });
+            await sendPushToAll();
+          } catch (e) { /* push failure must never fail the briefing */ }
+        }
         return r.ok ? { ok: true } : { error: await r.text() };
       }
 

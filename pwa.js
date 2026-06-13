@@ -56,6 +56,49 @@
     return Notification.requestPermission().then(function () { return go(); });
   };
 
+  /* ---------- web push (server-sent, works when app is closed) ---------- */
+  function urlB64ToUint8Array(base64) {
+    var padding = '='.repeat((4 - base64.length % 4) % 4);
+    var b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+    var raw = atob(b64);
+    var arr = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+  }
+  // Subscribe this device to server push. Returns 'ok' | 'denied' | 'unconfigured' | 'unsupported' | 'error'.
+  window.enablePush = function () {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return Promise.resolve('unsupported');
+    return window.requestNotifPermission().then(function (perm) {
+      if (perm !== 'granted') return 'denied';
+      return fetch('/api/push-subscribe').then(function (r) { return r.json(); }).then(function (cfg) {
+        if (!cfg || !cfg.publicKey) return 'unconfigured'; // VAPID keys not set in env yet
+        return navigator.serviceWorker.ready.then(function (reg) {
+          return reg.pushManager.getSubscription().then(function (existing) {
+            if (existing) return existing;
+            return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(cfg.publicKey) });
+          });
+        }).then(function (sub) {
+          return fetch('/api/push-subscribe', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription: sub.toJSON() }),
+          }).then(function (r) { return r.ok ? 'ok' : 'error'; });
+        });
+      });
+    }).catch(function () { return 'error'; });
+  };
+  window.disablePush = function () {
+    if (!('serviceWorker' in navigator)) return Promise.resolve(false);
+    return navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (sub) {
+        if (!sub) return false;
+        var endpoint = sub.endpoint;
+        return sub.unsubscribe().then(function () {
+          return fetch('/api/push-subscribe', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: endpoint }) }).then(function () { return true; });
+        });
+      });
+    }).catch(function () { return false; });
+  };
+
   // Legacy helper kept for existing callers.
   window.scheduleLocalNotif = function (title, body, delayMs) {
     if (Notification.permission !== 'granted') return;
