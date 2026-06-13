@@ -37,6 +37,7 @@ Now add the actions below **in this exact order**. Inside the task, each action 
 > For every metric below you add TWO actions: a **Read data** then an **HTTP Request**. Always add the HTTP Request immediately after that metric's Read — the plugin overwrites `%healthconnectresult` on each read, so reading everything first then posting would only send the last one.
 
 > Read data action path each time: **+** → **Plugins** → **Tasker Health Connect** → **Read data**.
+> Where a metric says **Aggregated = Yes**, use the plugin's aggregated form: either a separate **"Read aggregated data"** action, or the **Aggregated** toggle inside **Read data** — whichever your plugin version shows. Aggregated = the day's total (steps, calories, etc.); plain Read data = the individual/latest records.
 > HTTP Request action path each time: **+** → **Net** → **HTTP Request**, with Method **POST**, Header `Content-Type:application/json`, Body `%healthconnectresult`, and **Structure Output (JSON)** turned ON.
 
 ---
