@@ -121,6 +121,38 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
   })();
   </script>
 
+  <!-- Morning briefing -->
+  <div class="card" id="briefingCard">
+    <div class="section-title">Morning briefing</div>
+    <div class="reminder-row">
+      <div class="rem-icon">🌅</div>
+      <div class="rem-info">
+        <div class="rem-label">Daily briefing</div>
+        <div class="rem-sub">Readiness, food, training, orders, money — one summary each morning.</div>
+      </div>
+      <input type="time" class="time-input" id="briefingTime" value="07:00">
+      <label class="toggle">
+        <input type="checkbox" id="briefingToggle">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div id="briefingHint" style="font-size:11px;color:var(--text-tertiary);margin-top:8px;line-height:1.45">Shows on the dashboard, and fires as a notification the first time you open the app after this time. Enable phone push above for delivery when the app is closed.</div>
+  </div>
+  <script>
+  (function () {
+    var EN = 'briefing:enabled:v1', WT = 'briefing:waketime:v1';
+    var toggle = document.getElementById('briefingToggle');
+    var time = document.getElementById('briefingTime');
+    if (!toggle || !time) return;
+    toggle.checked = localStorage.getItem(EN) === '1';
+    time.value = localStorage.getItem(WT) || '07:00';
+    function paint() { time.style.opacity = toggle.checked ? '1' : '0.4'; }
+    paint();
+    toggle.addEventListener('change', function () { localStorage.setItem(EN, toggle.checked ? '1' : '0'); paint(); });
+    time.addEventListener('change', function () { localStorage.setItem(WT, time.value || '07:00'); });
+  })();
+  </script>
+
   <!-- Built-in reminders -->
   <div class="card">
     <div class="section-title">Daily reminders</div>
