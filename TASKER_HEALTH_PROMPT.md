@@ -78,6 +78,33 @@ ready for me to import.
 
 ---
 
+## Manual build (no AI — native Tasker can't read Health Connect, so a plugin is required)
+
+If your Tasker AI refuses (it only does native actions), build it by hand. ~15 min.
+
+0. **Install the plugin**: Play Store → "Tasker Health Connect" → install. Open it once, grant it Health Connect read permission for every record type you want. Also grant Tasker itself Health Connect access if prompted.
+
+1. **New task**: Tasks tab → + → name it `HC -> Life OS`.
+
+2. **Time window** (first action): + → Code → JavaScriptlet → paste:
+   ```
+   var now = new Date();
+   var startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(),0,0,0,0);
+   setLocal('start_ts', startOfDay.getTime().toString());
+   setLocal('end_ts', now.getTime().toString());
+   setLocal('week_ts', (now.getTime()-7*864e5).toString());
+   setLocal('month_ts', (now.getTime()-30*864e5).toString());
+   ```
+
+3. **Per metric, add these two actions in order** (do the HTTP Request right after each Read, because the plugin overwrites `%healthconnectresult`):
+   - + → Plugins → Tasker Health Connect → **Read data**: set Class of Health Record = the RecordClass from the table above, Aggregated = Yes/No per the table, Start timestamp = `%start_ts` (or `%week_ts` / `%month_ts` for weight/bodyfat/height), End timestamp = `%end_ts`.
+   - + → Net → **HTTP Request**: Method POST, URL `https://dashboard-pi-green-48.vercel.app/api/health/<metric>`, Headers `Content-Type:application/json`, Body `%healthconnectresult`, Structure Output ON.
+   Repeat for all 18 rows in the table above.
+
+4. **Profile**: Profiles tab → + → Time → every 15 min, 06:00–00:00 → link it to the `HC -> Life OS` task.
+
+5. **Test**: long-press the task → Run. Check Supabase tables (`heart_rate`, `steps`, …) for new rows. If a Read row is greyed out, the pull worked but there was no data for that window — fine.
+
 ## Notes
 - The metric path names (`heartrate`, `hrv`, …) must stay exactly as above — the server's `TABLE_MAP` keys are case-insensitive but spelled this way.
 - "Near-live" = every 15 min (and on-update if the plugin supports it). True instant push from a watch to a web backend isn't possible on this stack; 15-min is as fresh as it gets without a native background app.
