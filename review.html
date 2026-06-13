@@ -133,6 +133,18 @@ h1 { font-size:22px; font-weight:700; color:var(--text-primary); margin:0 0 4px;
     </div>
   </div>
 
+  <div class="section" id="auditSection">
+    <div class="section-title">Feature gap audit</div>
+    <div class="stat-card">
+      <div style="font-size:12px;color:var(--text-tertiary);line-height:1.5;margin-bottom:10px">After every phase: what app would you still open, what's still annoying, what data is missing, what could be proactive. The map below is measured from your real data; the audit reasons over it.</div>
+      <div id="auditMap" style="margin-bottom:12px"></div>
+      <div id="auditMeta" style="font-size:12px;color:var(--text-tertiary);margin-bottom:8px"></div>
+      <div id="auditBody" style="display:none"></div>
+      <button class="ai-btn" id="auditBtn" style="width:auto;padding:9px 18px">Run feature gap audit</button>
+      <button class="ai-btn" id="auditRerunBtn" style="width:auto;padding:9px 18px;display:none;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12)">Re-run audit</button>
+    </div>
+  </div>
+
   <div class="ai-section">
     <button class="ai-btn" id="aiBtn">Get AI Weekly Review</button>
     <div class="ai-output" id="aiOutput"></div>
@@ -1020,6 +1032,209 @@ if (document.readyState !== 'loading') setTimeout(run, 400); else document.addEv
   if (window.LifeOS && LifeOS.context) boot();
   else window.addEventListener('lifeos:ready', boot, { once: true });
   setTimeout(function () { try { if (!document.getElementById('trajBody').innerHTML && document.getElementById('trajEmpty').style.display !== 'block') boot(); } catch (e) {} }, 1500);
+})();
+</script>
+
+<script>
+// ===== FEATURE GAP AUDITOR (Phase 14) =====
+// Runs after every phase. Deterministic system map (coverage, staleness,
+// notifications, apps-not-replaced heuristic) is measured in code; the
+// 13 audit questions are answered by Claude reasoning over that map.
+(function featureGapAudit() {
+  'use strict';
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function jset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function mk() {
+    var d = new Date(), dow = d.getDay(), sinceMon = (dow + 6) % 7;
+    var m = new Date(d); m.setDate(d.getDate() - sinceMon); m.setHours(0, 0, 0, 0);
+    return m.getFullYear() + '-' + pad(m.getMonth() + 1) + '-' + pad(m.getDate());
+  }
+  var AUDIT_KEY = 'audit:report:v1'; // {monday:{json,at}} cap 8
+
+  // ---- deterministic system map ----
+  function nonEmpty(k) { var v = jget(k, null); return Array.isArray(v) ? v.length > 0 : (v && typeof v === 'object' ? Object.keys(v).length > 0 : !!v); }
+  function arrLen(k) { var v = jget(k, []); return Array.isArray(v) ? v.length : (v && typeof v === 'object' ? Object.keys(v).length : 0); }
+
+  // domain -> {keys to check, label, external app if missing}
+  var DOMAINS = [
+    { id: 'nutrition', label: 'Nutrition', keys: ['nt:logs'], app: 'Food / calorie tracker' },
+    { id: 'training', label: 'Training', keys: ['po_coach_workout_done', 'gym:sessions:v1', 'gym:history'], app: 'Gym / workout app' },
+    { id: 'recovery', label: 'Sleep & mood', keys: ['sleep:logs', 'mind:mood:v1'], app: 'Sleep / health app' },
+    { id: 'body', label: 'Body photos', keys: ['body:photos:v1'], app: 'Progress photo app' },
+    { id: 'skin', label: 'Skin', keys: ['skin:logs'], app: 'Skin tracking app' },
+    { id: 'bloodwork', label: 'Bloodwork', keys: ['blood:logs'], app: 'Lab results PDF / portal' },
+    { id: 'supplements', label: 'Supplements', keys: ['supps:stack'], app: 'Supplement reminder app' },
+    { id: 'finance', label: 'Finance', keys: ['ing:tx', 'fin:accounts:v1'], app: 'Banking / budgeting app' },
+    { id: 'mail', label: 'Mail & orders', keys: ['mail:summary:v1'], app: 'Gmail app' },
+    { id: 'opportunities', label: 'Opportunities', keys: ['radar:summary:v1'], app: '(none — radar only)' },
+    { id: 'focus', label: 'Deep work', keys: ['focus:logs:v1'], app: 'Focus / timer app' },
+    { id: 'habits', label: 'Habits', keys: ['habits:v1', 'habits:def', 'po_habits'], app: 'Habit tracker' },
+    { id: 'tasks', label: 'Tasks', keys: ['tasks:v1'], app: 'To-do app' },
+  ];
+
+  function gatherAudit() {
+    var q = {};
+    try { q = LifeOS.quality(); } catch (e) { q = { score: null, stale: [] }; }
+    var coverage = DOMAINS.map(function (d) {
+      var has = d.keys.some(nonEmpty);
+      var count = d.keys.reduce(function (s, k) { return s + arrLen(k); }, 0);
+      return { id: d.id, label: d.label, has: has, count: count };
+    });
+    var appsNotReplaced = DOMAINS.filter(function (d) { return !d.keys.some(nonEmpty) && d.app.indexOf('none') < 0; }).map(function (d) { return d.app; });
+    var rem = jget('reminders:v1', {}) || {};
+    var customRem = (rem.custom || []).filter(function (r) { return r.enabled; }).length;
+    var builtinRem = Object.values(rem.builtin || {}).filter(function (b) { return b && b.enabled; }).length;
+    return {
+      phases_done: 13,
+      data_quality_pct: q.score,
+      stale_data: (q.stale || []).map(function (s) { return s.label + (s.daysAgo != null ? ' (' + s.daysAgo + 'd)' : ' (never)'); }),
+      module_coverage: coverage.map(function (c) { return c.label + ': ' + (c.has ? c.count + ' entries' : 'EMPTY'); }),
+      apps_not_replaced_detected: appsNotReplaced,
+      reminders_enabled: customRem + builtinRem,
+      briefing_enabled: localStorage.getItem('briefing:enabled:v1') === '1',
+      notifications_permission: (typeof Notification !== 'undefined') ? Notification.permission : 'unsupported',
+    };
+  }
+
+  function renderMap() {
+    var el = document.getElementById('auditMap'); if (!el) return;
+    var m = gatherAudit();
+    var apps = m.apps_not_replaced_detected;
+    el.innerHTML =
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+      + '<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(224,118,88,.12);color:var(--accent)">Data quality ' + (m.data_quality_pct != null ? m.data_quality_pct + '%' : 'n/a') + '</span>'
+      + '<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.06);color:var(--text-secondary)">' + m.reminders_enabled + ' reminders on</span>'
+      + '<span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.06);color:var(--text-secondary)">Briefing ' + (m.briefing_enabled ? 'on' : 'off') + '</span>'
+      + '</div>'
+      + (apps.length
+        ? '<div style="font-size:12px;color:var(--text-secondary);line-height:1.6"><b style="color:var(--warning)">Apps still likely open</b> (empty modules): ' + apps.map(esc).join(', ') + '</div>'
+        : '<div style="font-size:12px;color:var(--success)">Every tracked module has data — no obvious app still needed.</div>');
+  }
+
+  // ---- AI audit over the map ----
+  var QUESTIONS = [
+    'What app would I still open after this phase?',
+    'What manual task still feels annoying?',
+    'What data is missing?',
+    'What decision still requires too much thinking?',
+    'What reminder would I still need elsewhere?',
+    'What could become proactive instead of reactive?',
+    'What UI feels slow, ugly, hidden, or illogical?',
+    'What feature could remove 5+ minutes of friction per week?',
+    'What risky action needs better confirmation?',
+    'What would make this feel more polished?',
+    'What data should Claude ask for next?',
+    'What should be scheduled in calendar/reminders?',
+    'What photo or visual flow still needs improvement?',
+  ];
+
+  function badge(text, kind) {
+    var colors = { High: '#FF6B6B', Medium: '#F2C063', Low: '#6BE3A4', Easy: '#6BE3A4', Hard: '#FF6B6B' };
+    var c = colors[text] || 'var(--text-secondary)';
+    return '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;border:1px solid ' + c + '55;color:' + c + ';white-space:nowrap">' + esc(kind) + ': ' + esc(text) + '</span>';
+  }
+
+  function renderList(title, items) {
+    if (!items || !items.length) return '';
+    return '<div style="margin-top:14px"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:6px">' + esc(title) + '</div>'
+      + items.map(function (s) { return '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;padding:3px 0 3px 12px;border-left:2px solid rgba(255,255,255,.08);margin-bottom:3px">' + esc(s) + '</div>'; }).join('')
+      + '</div>';
+  }
+
+  function renderAudit() {
+    var meta = document.getElementById('auditMeta');
+    var body = document.getElementById('auditBody');
+    var btn = document.getElementById('auditBtn');
+    var rerun = document.getElementById('auditRerunBtn');
+    if (!btn) return;
+    var all = jget(AUDIT_KEY, {}) || {};
+    var rec = all[mk()];
+    if (rec && rec.json) {
+      var a = rec.json;
+      meta.textContent = 'Audited ' + new Date(rec.at).toLocaleDateString() + ' · week of ' + mk();
+      var html = '';
+      if (a.next_best_improvement) {
+        html += '<div style="background:rgba(224,118,88,.1);border:1px solid rgba(224,118,88,.3);border-radius:12px;padding:12px 14px;margin-bottom:12px"><div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:4px">Next best improvement</div><div style="font-size:13px;color:var(--text-primary);line-height:1.5">' + esc(a.next_best_improvement) + '</div></div>';
+      }
+      if (a.missing_features && a.missing_features.length) {
+        html += '<div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:8px">Missing features</div>';
+        html += a.missing_features.map(function (f) {
+          return '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:12px 14px;margin-bottom:8px">'
+            + '<div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:4px">' + esc(f.feature || '') + '</div>'
+            + '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px">' + esc(f.why || '') + '</div>'
+            + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' + badge(f.priority || '?', 'Priority') + badge(f.complexity || '?', 'Effort') + (f.suggested_phase ? '<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:12px;background:rgba(255,255,255,.06);color:var(--text-secondary)">' + esc(f.suggested_phase) + '</span>' : '') + '</div>'
+            + (f.acceptance ? '<div style="font-size:11px;color:var(--text-tertiary);line-height:1.45">Done when: ' + esc(f.acceptance) + '</div>' : '')
+            + '</div>';
+        }).join('');
+      }
+      html += renderList('UI problems', a.ui_problems);
+      html += renderList('Data problems', a.data_problems);
+      html += renderList('Automation opportunities', a.automation_opportunities);
+      html += renderList('Apps still not replaced', a.apps_not_replaced);
+      html += renderList('Calendar / reminder suggestions', a.calendar_reminder_suggestions);
+      html += renderList('Data quality improvements', a.data_quality_improvements);
+      html += renderList('Visual intelligence improvements', a.visual_intelligence_improvements);
+      body.innerHTML = html;
+      body.style.display = 'block';
+      btn.style.display = 'none';
+      rerun.style.display = '';
+    } else {
+      meta.textContent = 'Not run for the week of ' + mk() + ' yet.';
+      body.style.display = 'none';
+      btn.style.display = '';
+      rerun.style.display = 'none';
+    }
+  }
+
+  function runAudit(force) {
+    var btn = document.getElementById('auditBtn');
+    var rerun = document.getElementById('auditRerunBtn');
+    var body = document.getElementById('auditBody');
+    if (!window.LifeOS || !LifeOS.ai) { alert('AI service not loaded yet.'); return; }
+    var active = force ? rerun : btn;
+    active.disabled = true; active.textContent = 'Auditing…';
+    var map = gatherAudit();
+    var prompt = 'You are the Feature Gap Auditor for a personal Life OS that has completed 13 build phases (tracking, nutrition, training, recovery, bloodwork, supplements, skin, finance, Gmail, productivity, opportunity radar, proactive coach, data resilience, phone-replacement layer). '
+      + 'Reason over the measured system map and answer these audit questions:\n' + QUESTIONS.map(function (q, i) { return (i + 1) + '. ' + q; }).join('\n')
+      + '\n\nReply with ONLY strict JSON, no prose, this exact shape: '
+      + '{"missing_features":[{"feature":"","why":"","priority":"High|Medium|Low","complexity":"Easy|Medium|Hard","suggested_phase":"","acceptance":""}],'
+      + '"ui_problems":[],"data_problems":[],"automation_opportunities":[],"apps_not_replaced":[],"next_best_improvement":"","calendar_reminder_suggestions":[],"data_quality_improvements":[],"visual_intelligence_improvements":[]}. '
+      + 'Ground every item in the map; do not invent modules that exist. Max 6 missing_features, ranked highest-leverage first. Be specific and concrete.';
+    var opts = { prompt: prompt, context: 'Measured system map (real, from local data):\n' + JSON.stringify(map), timeoutMs: 60000 };
+    if (!force) { opts.cacheKey = 'feature_audit_' + mk(); opts.ttlMs = 7 * 24 * 60 * 60 * 1000; }
+    LifeOS.ai.chat(opts).then(function (d) {
+      var m = String(d.reply || '').match(/\{[\s\S]*\}/);
+      var json = null;
+      try { json = m ? JSON.parse(m[0]) : null; } catch (e) {}
+      if (!json) throw new Error('Could not parse audit JSON');
+      var all = jget(AUDIT_KEY, {}) || {};
+      all[mk()] = { json: json, at: new Date().toISOString() };
+      var keys = Object.keys(all).sort();
+      while (keys.length > 8) { delete all[keys.shift()]; }
+      jset(AUDIT_KEY, all);
+      renderAudit();
+    }).catch(function (e) {
+      body.style.display = 'block';
+      body.innerHTML = '<div style="font-size:12px;color:var(--danger)">Audit failed: ' + esc(e.message || e) + '. Works on the deployed app, not in local preview.</div>';
+      active.disabled = false; active.textContent = force ? 'Re-run audit' : 'Run feature gap audit';
+    });
+  }
+
+  window.__auditGather = gatherAudit; // test hooks
+  window.__auditRender = renderAudit;
+
+  function boot() {
+    var b = document.getElementById('auditBtn'); if (!b) return;
+    b.addEventListener('click', function () { runAudit(false); });
+    document.getElementById('auditRerunBtn').addEventListener('click', function () { runAudit(true); });
+    renderMap();
+    renderAudit();
+  }
+  if (window.LifeOS && LifeOS.quality) boot();
+  else window.addEventListener('lifeos:ready', boot, { once: true });
+  setTimeout(function () { try { if (document.getElementById('auditMap') && !document.getElementById('auditMap').innerHTML) boot(); } catch (e) {} }, 1500);
 })();
 </script>
 </body>
