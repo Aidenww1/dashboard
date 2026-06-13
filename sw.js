@@ -1,4 +1,4 @@
-const CACHE = 'dashboard-v25';
+const CACHE = 'dashboard-v26';
 const SHARE_CACHE = 'share-target-v1';
 const PRECACHE = [
   '/', '/index.html', '/health.html', '/water.html', '/gym.html',

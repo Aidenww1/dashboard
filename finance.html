@@ -4349,7 +4349,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     if (!meta) {
       bar.innerHTML =
         '<input type="file" id="ingFile" accept=".csv" style="display:none">'
-        + '<button class="gc-connect-btn" id="ingImportBtn">Import ING CSV</button>';
+        + '<button class="gc-connect-btn" id="ingImportBtn">Import bank CSV</button>';
       document.getElementById('ingImportBtn').onclick = function() { document.getElementById('ingFile').click(); };
       document.getElementById('ingFile').onchange = ingHandleFile;
       return;
@@ -4384,71 +4384,147 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     reader.readAsText(file, 'UTF-8');
   }
 
-  function ingParseCsvLine(line) {
+  function ingParseCsvLine(line, delim) {
+    delim = delim || ';';
     const fields = [];
     let cur = '', inQ = false;
     for (let i = 0; i < line.length; i++) {
       const c = line[i];
-      if (c === '"') { inQ = !inQ; }
-      else if (c === ';' && !inQ) { fields.push(cur); cur = ''; }
+      if (c === '"') {
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; } // escaped quote
+        else inQ = !inQ;
+      } else if (c === delim && !inQ) { fields.push(cur); cur = ''; }
       else { cur += c; }
     }
     fields.push(cur);
     return fields;
   }
 
-  function ingParseAndStage(text) {
-    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-    if (lines.length < 2) { ingShowError('File appears empty or not a valid ING CSV.'); return; }
+  // Pick the delimiter that splits the header into the most columns.
+  function ingDetectDelim(headerLine) {
+    let best = ';', bestN = 0;
+    [';', ',', '\t', '|'].forEach(function(d) {
+      const n = ingParseCsvLine(headerLine, d).length;
+      if (n > bestN) { bestN = n; best = d; }
+    });
+    return best;
+  }
 
-    const header = ingParseCsvLine(lines[0]).map(function(h) { return h.trim().toLowerCase(); });
-    // Dutch: Datum / Naam/Omschrijving / Rekening / Af Bij / Bedrag / Mededelingen
-    // English: Date / Name / Account / Debit/credit / Amount (EUR) / Notifications
-    const iDatum  = header.findIndex(function(h) { return h === 'datum' || h === 'date'; });
-    const iNaam   = header.findIndex(function(h) { return h.indexOf('naam') >= 0 || h.indexOf('name') >= 0; });
-    const iRek    = header.findIndex(function(h) { return (h.indexOf('rekening') >= 0 || h === 'account') && h.indexOf('tegen') < 0 && h.indexOf('counter') < 0; });
-    const iAfBij  = header.findIndex(function(h) { return (h.indexOf('af') >= 0 && h.indexOf('bij') >= 0) || h.indexOf('debit/credit') >= 0 || h === 'debit/credit'; });
-    const iBedrag = header.findIndex(function(h) { return h.indexOf('bedrag') >= 0 || h.indexOf('amount') >= 0; });
-    const iMemo   = header.findIndex(function(h) { return h.indexOf('mededeling') >= 0 || h.indexOf('notification') >= 0; });
+  function ingPad2(n) { return String(n).padStart(2, '0'); }
+
+  // Accepts YYYYMMDD, YYYY-MM-DD (or / .), DD-MM-YYYY, DD-MM-YY, ISO datetime.
+  // Ambiguous DD/MM vs MM/DD defaults to DD/MM (European); swaps only when the
+  // first field is clearly > 12.
+  function ingParseDate(s) {
+    s = String(s || '').trim();
+    let m;
+    if (/^\d{8}$/.test(s)) return s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8);
+    if ((m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) return m[1] + '-' + ingPad2(m[2]) + '-' + ingPad2(m[3]);
+    if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/))) {
+      let d = +m[1], mo = +m[2];
+      if (d <= 12 && mo > 12) { const t = d; d = mo; mo = t; } // first field is the month
+      return m[3] + '-' + ingPad2(mo) + '-' + ingPad2(d);
+    }
+    if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})$/))) {
+      let d = +m[1], mo = +m[2];
+      if (d <= 12 && mo > 12) { const t = d; d = mo; mo = t; }
+      return (2000 + +m[3]) + '-' + ingPad2(mo) + '-' + ingPad2(d);
+    }
+    return '';
+  }
+
+  // Handles 1.234,56 / 1,234.56 / 1234.56 / 1234,56, currency symbols, spaces,
+  // parentheses negatives, and trailing-minus.
+  function ingParseAmount(raw) {
+    if (raw == null) return NaN;
+    let s = String(raw).trim();
+    if (!s) return NaN;
+    let neg = false;
+    if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+    if (/^-/.test(s) || /-\s*$/.test(s)) neg = true;
+    s = s.replace(/[^0-9.,]/g, '');
+    if (!s) return NaN;
+    const lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+    if (lastComma > -1 && lastDot > -1) {
+      if (lastComma > lastDot) { s = s.replace(/\./g, '').replace(',', '.'); } // EU: , is decimal
+      else { s = s.replace(/,/g, ''); }                                        // US: , is thousands
+    } else if (lastComma > -1) {
+      s = /,\d{1,2}$/.test(s) ? s.replace(',', '.') : s.replace(/,/g, ''); // decimal vs thousands
+    }
+    let n = parseFloat(s);
+    if (isNaN(n)) return NaN;
+    return neg ? -Math.abs(n) : Math.abs(n) * (n < 0 ? -1 : 1);
+  }
+
+  // Pure parser: text -> { error } | { iban, transactions }. No DOM, no writes.
+  function ingParseTxns(text) {
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(function(l) { return l.trim() !== ''; });
+    if (lines.length < 2) return { error: 'File looks empty. Export a CSV of transactions from your bank and try again.' };
+
+    const delim = ingDetectDelim(lines[0]);
+    const header = ingParseCsvLine(lines[0], delim).map(function(h) { return h.trim().toLowerCase().replace(/^"|"$/g, ''); });
+
+    const has = function(h, words) { return words.some(function(w) { return h.indexOf(w) >= 0; }); };
+    const iDatum  = header.findIndex(function(h) { return has(h, ['datum', 'date', 'boekingsdatum', 'transactiedatum']); });
+    const iNaam   = header.findIndex(function(h) { return has(h, ['naam', 'name', 'payee', 'begunstigde', 'beneficiary']); });
+    const iOmschr = header.findIndex(function(h) { return has(h, ['omschrijving', 'description', 'details', 'memo', 'narrative', 'reference', 'mededeling', 'notification']); });
+    const iRek    = header.findIndex(function(h) { return (has(h, ['rekening', 'account', 'iban']) && h.indexOf('tegen') < 0 && h.indexOf('counter') < 0); });
+    const iAfBij  = header.findIndex(function(h) { return (h.indexOf('af') >= 0 && h.indexOf('bij') >= 0) || h.indexOf('debit/credit') >= 0 || h === 'debit/credit' || h === 'dc' || h === 'type'; });
+    const iBedrag = header.findIndex(function(h) { return has(h, ['bedrag', 'amount', 'value', 'montant', 'betrag']) && h.indexOf('saldo') < 0 && h.indexOf('balance') < 0; });
+    const iDebit  = header.findIndex(function(h) { return h === 'debit' || h === 'debet' || h.indexOf('uit') === 0 || h === 'withdrawal'; });
+    const iCredit = header.findIndex(function(h) { return h === 'credit' || h.indexOf('bij') === 0 || h === 'deposit'; });
     const iCode   = header.findIndex(function(h) { return h === 'code'; });
 
-    if (iDatum < 0 || iBedrag < 0) {
-      ingShowError('Not a recognised ING CSV. Expected: Datum/Date and Bedrag/Amount columns.');
-      return;
+    const hasSplitCols = iDebit >= 0 && iCredit >= 0;
+    if (iDatum < 0 || (iBedrag < 0 && !hasSplitCols)) {
+      return { error: 'Could not find Date and Amount columns. Most bank CSV exports work — check the file has a header row.' };
     }
 
     const transactions = [];
     let iban = '';
 
     for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      const r = ingParseCsvLine(line);
+      const r = ingParseCsvLine(lines[i], delim);
       if (r.length < 2) continue;
+      const cell = function(idx) { return idx >= 0 && idx < r.length ? r[idx].trim().replace(/^"|"$/g, '') : ''; };
 
-      const dateStr = r[iDatum] ? r[iDatum].trim() : '';
-      if (!dateStr || dateStr.length < 8) continue;
+      const date = ingParseDate(cell(iDatum));
+      if (!date) continue;
 
-      if (!iban && iRek >= 0 && r[iRek]) iban = r[iRek].trim();
+      if (!iban && iRek >= 0 && cell(iRek)) iban = cell(iRek);
 
-      const afBij  = iAfBij  >= 0 ? r[iAfBij].trim()                    : 'Af';
-      const naam   = iNaam   >= 0 ? r[iNaam].trim()                     : '';
-      const memo   = iMemo   >= 0 ? r[iMemo].trim()                     : '';
-      const code   = iCode   >= 0 ? r[iCode].trim()                     : '';
-      const bedrag = iBedrag >= 0 ? r[iBedrag].trim().replace(',', '.') : '0';
-      const amount = parseFloat(bedrag) || 0;
-      // Dutch: "Bij" = credit, "Af" = debit; English: "Credit" / "Debit"
-      const isCredit = afBij === 'Bij' || afBij.toLowerCase() === 'credit';
-      const signed = isCredit ? amount : -amount;
-      const date   = dateStr.slice(0, 4) + '-' + dateStr.slice(4, 6) + '-' + dateStr.slice(6, 8);
+      let signed;
+      if (hasSplitCols) {
+        const dv = ingParseAmount(cell(iDebit)), cv = ingParseAmount(cell(iCredit));
+        signed = (isNaN(cv) ? 0 : Math.abs(cv)) - (isNaN(dv) ? 0 : Math.abs(dv));
+      } else {
+        const amt = ingParseAmount(cell(iBedrag));
+        if (isNaN(amt)) continue;
+        if (iAfBij >= 0) {
+          const dc = cell(iAfBij).toLowerCase();
+          const isCredit = dc === 'bij' || dc === 'credit' || dc === 'c' || dc === 'cr';
+          signed = isCredit ? Math.abs(amt) : -Math.abs(amt);
+        } else {
+          signed = amt; // single signed-amount column
+        }
+      }
 
-      transactions.push({ date: date, amount: signed, currency: 'EUR', description: naam || memo.slice(0, 80), code: code });
+      const naam = cell(iNaam);
+      const memo = cell(iOmschr);
+      transactions.push({ date: date, amount: signed, currency: 'EUR', description: (naam || memo || 'Transaction').slice(0, 80), code: cell(iCode) });
     }
 
-    if (!transactions.length) { ingShowError('No transactions found. Is this an ING CSV export?'); return; }
+    if (!transactions.length) return { error: 'No transactions parsed. Make sure rows have a date and an amount.' };
     transactions.sort(function(a, b) { return b.date.localeCompare(a.date); });
-    ingShowConfirm(iban, transactions);
+    return { iban: iban, transactions: transactions };
   }
+
+  function ingParseAndStage(text) {
+    const res = ingParseTxns(text);
+    if (res.error) { ingShowError(res.error); return; }
+    ingShowConfirm(res.iban, res.transactions);
+  }
+  window.__ingParseTxns = ingParseTxns; // test hook (pure, no writes)
 
   function ingShowError(msg) {
     const bar = ingBar();
