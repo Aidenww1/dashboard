@@ -5022,9 +5022,12 @@ function getLogs() {
   try { const raw = localStorage.getItem('po_coach_workout_done'); return raw ? JSON.parse(raw) : {}; } catch { return {}; }
 }
 
+const PR_SUPPRESS_KEY = 'gym:prs:suppressed:v1'; // ["exId|e1rm", ...] deleted bad PRs that must not come back
+
 // ---- PR calculation ----
 function computePRs() {
   const prs = load(PR_KEY) || {};
+  const suppressed = load(PR_SUPPRESS_KEY) || [];
   const logs = getLogs();
   const exercises = getExercises();
   const exMap = {};
@@ -5041,6 +5044,7 @@ function computePRs() {
       if (!w || !r) return;
       const e1rm = Math.round(w * (1 + r / 30)); // Brzycki approximation
       const key = set.id;
+      if (suppressed.indexOf(key + '|' + w + '|' + r) >= 0) return; // user deleted this PR — never re-add
       if (!prs[key] || e1rm > (prs[key].e1rm || 0)) {
         prs[key] = { e1rm, weight: w, reps: r, date, name: ex.name, isNew: date === new Date().toISOString().slice(0,10) };
         updated = true;
@@ -5051,23 +5055,45 @@ function computePRs() {
   return prs;
 }
 
+// Delete a PR the user marks as bogus + suppress the exact value so the
+// scanner can't resurrect it. The next-best real set becomes the PR.
+function deletePR(key) {
+  const prs = load(PR_KEY) || {};
+  const p = prs[key];
+  if (!p) return;
+  const suppressed = load(PR_SUPPRESS_KEY) || [];
+  const sig = key + '|' + p.weight + '|' + p.reps;
+  if (suppressed.indexOf(sig) < 0) suppressed.push(sig);
+  save(PR_SUPPRESS_KEY, suppressed);
+  delete prs[key];
+  save(PR_KEY, prs);
+  renderPRBoard();
+}
+
 function renderPRBoard() {
   const grid = document.getElementById('prGrid');
   const prs = computePRs();
-  const entries = Object.values(prs).sort((a,b) => b.e1rm - a.e1rm);
+  const entries = Object.keys(prs).map(k => Object.assign({ key: k }, prs[k])).sort((a,b) => b.e1rm - a.e1rm);
   if (!entries.length) {
     grid.innerHTML = '<p style="color:rgba(255,255,255,0.3);font-size:13px;padding:8px 0">Log sets to see your personal records here.</p>';
     return;
   }
   const units = (getGymState() || {}).units || 'kg';
   grid.innerHTML = entries.slice(0, 30).map(p => `
-    <div class="pr-card">
+    <div class="pr-card" style="position:relative">
+      <button class="pr-del" data-key="${p.key}" title="Delete this PR" aria-label="Delete PR" style="position:absolute;top:6px;right:6px;background:transparent;border:none;color:rgba(255,255,255,0.28);font-size:16px;line-height:1;cursor:pointer;padding:2px 4px">×</button>
       <div class="pr-exercise">${p.name}${p.isNew ? '<span class="pr-new-badge">NEW PR</span>' : ''}</div>
       <div class="pr-val">${p.e1rm}${units}</div>
       <div class="pr-meta">1RM est. · ${p.weight}${units} × ${p.reps} reps</div>
       <div class="pr-meta">${fmtPRDate(p.date)}</div>
     </div>
   `).join('');
+  grid.querySelectorAll('.pr-del').forEach(btn => btn.addEventListener('click', () => {
+    const p = prs[btn.dataset.key];
+    if (p && confirm('Delete this PR? ' + p.name + ' — ' + p.weight + units + ' × ' + p.reps + ' reps. It will not come back, and your next-best set becomes the record.')) {
+      deletePR(btn.dataset.key);
+    }
+  }));
 }
 
 function fmtPRDate(ds) {
