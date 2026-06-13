@@ -86,6 +86,44 @@ Legend: ⛔ blocker · 🔴 high · 🟡 medium · 🟢 polish · 💤 deferred-
 For each module, confirm it meets the spec's "feature complete" bar: mobile-OK, 5-sec understandable, reduces app-switching, empty/loading/error states, in Today + search + command bar, updates Data Quality, suggests reminders, Analyze→Report→Log for photos, audit run.
 - [ ] 🟡 Nutrition · Training · Recovery · Health/Bloodwork/Supplements/Skin · Finance · Gmail · Productivity · Radar · Coach · Body progress — run each against the checklist, fix the misses.
 
+## P0/P1 — Things the first pass missed (real, not polish)
+- [ ] ⛔ **Photo storage will overflow localStorage.** Body/skin progress photos in `localStorage` (~5-10MB quota) will hard-fail after a few months of weekly sets. Move photos to **IndexedDB** (local) and/or **Supabase Storage** (synced, RLS-protected). This is a data-loss bug waiting to happen, not a nice-to-have.
+- [ ] 🔴 **Google OAuth verification.** Gmail/Calendar use sensitive scopes. An unverified app stuck in "testing" expires refresh tokens ~weekly (constant re-login) and shows a scary consent screen. Either complete Google's verification (CASA assessment for restricted scopes — real cost/effort) or accept weekly re-auth. Decide + document.
+- [ ] 🔴 **Provider limits & cost caps.** Supabase free tier pauses after inactivity + 500MB cap; Anthropic API spend has no budget guard; Vercel Hobby caps (functions/crons/bandwidth). Add usage monitoring + a hard AI-spend cap + a plan for when limits hit.
+- [ ] 🔴 **Multi-device sync = last-write-wins → silent data loss.** Two devices editing `app_state` clobber each other. Need per-key timestamps/merge (or move to proper rows with updated_at conflict resolution). Matters now that PC + laptop + phone all write.
+- [ ] 🔴 **Timezone / DST correctness.** Crons run in UTC; briefing wake-time, date-keys, streaks, "today" windows are local. DST shifts and travel will mis-bucket days, break streaks, fire briefings at the wrong hour. Centralize date handling + test around DST.
+- [ ] 🟡 **localStorage schema migrations.** Keys evolve (`:v1` bumps) with no migration framework; a shape change silently breaks old data. Add versioned migrations on load.
+- [ ] 🟡 **Strip EXIF/GPS from uploaded photos** before store/analyze (don't leak home location in image metadata).
+- [ ] 🟡 **Backup encryption.** Cloud backups + photos are plaintext sensitive data in Supabase. Consider client-side encryption for the backup blob and stored photos.
+- [ ] 🟡 **Historical / bulk import.** Getting past data in (old weights, workouts, transactions) — a bulk import/paste flow so the app isn't starting from zero.
+- [ ] 🟢 **Backup round-trip from ZIP.** Restore currently reads the JSON; confirm you can fully rebuild from the exported ZIP too.
+
+## Legal & compliance (EU / single user, but still)
+- [ ] 🔴 **Medical disclaimer** on bloodwork/supplements/skin ("not medical advice, consult a professional") — the spec already forbids diagnosis; surface the disclaimer in UI.
+- [ ] 🟡 **Financial disclaimer** on can-I-afford/mortgage/investing ("not financial advice").
+- [ ] 🟡 **GDPR basics**: health data is special-category. Even single-user, document data location, retention, and a one-tap "delete everything" (right to erasure) — also good hygiene.
+- [ ] 🟢 Anthropic / Google / Supabase ToS compliance check for personal use at this scale.
+
+## Ops, reliability & quality
+- [ ] 🔴 **Error monitoring** (client + serverless). Right now failures are silent; you'd never know an AI call, sync, or cron is broken. Add Sentry or equivalent + a visible "something failed" surface.
+- [ ] 🟡 **Graceful degradation** when Anthropic/Supabase/Google are down or rate-limited (clear states, retries with backoff, never a blank screen).
+- [ ] 🟡 **Secrets/key rotation** plan + checklist (VAPID, Supabase, Anthropic, Google).
+- [ ] 🟡 **AI quality evals**: a small regression set for the deterministic-vs-AI boundary so prompt/model changes don't silently degrade coaching/classification.
+- [ ] 🟡 **Anthropic model migration** handling (model IDs deprecate; centralize + monitor).
+- [ ] 🟢 In-app changelog / "what's new" after each deploy.
+- [ ] 🟢 SW update UX: prompt "new version, reload" instead of silent/stale (the stale-cache issue hit us during dev).
+
+## Settings & account
+- [ ] 🟡 **One real Settings hub**: units, calorie/protein/sleep targets, wake time, integrations (Gmail/Calendar/VAPID/activity), privacy, export, danger-zone wipe. Currently scattered across pages.
+- [ ] 🟡 **Account recovery** for the single Supabase account (password reset / re-auth on a new device).
+- [ ] 🟢 Per-module preferences (e.g. which cards show on Today, ordering).
+
+## Platform-native polish (true "phone replacement")
+- [ ] 🟢 **Android home-screen widgets** (readiness / today / supplements) — PWAs can't do native widgets; would need a thin TWA or companion. Evaluate.
+- [ ] 🟢 **TWA / Play Store presence** so it feels like a real installed app (optional; PWA install already covers most).
+- [ ] 🟢 Notification **quiet hours** + per-type toggles + timezone-correct scheduling.
+- [ ] 🟢 App shortcuts/quick actions already exist — add a share-to-Life-OS from more contexts; richer notification actions.
+
 ## Deferred by spec (don't build unless asked)
 - [ ] 💤 Samsung Health sync (revisit when reads are reliable; manual-first holds).
 - [ ] 💤 Voice logging.
