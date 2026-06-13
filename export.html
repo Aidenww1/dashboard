@@ -58,10 +58,20 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
   <!-- Full export -->
   <div class="card">
     <div class="section-title">Full backup</div>
-    <button class="full-btn" id="exportAllBtn">⬇ Download everything (JSON)</button>
+    <button class="full-btn" id="exportZipBtn">⬇ Download everything (ZIP: JSON + CSV per table)</button>
+    <button class="full-btn" id="exportAllBtn" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--text-primary)">⬇ Download everything (single JSON)</button>
     <button class="full-btn" id="importBtn" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--text-primary)">⬆ Restore from backup (JSON)</button>
     <input type="file" id="importFile" accept=".json" style="display:none">
     <div id="statusMsg"></div>
+  </div>
+
+  <!-- Cloud backups -->
+  <div class="card">
+    <div class="section-title">Cloud backups</div>
+    <div style="font-size:12px;color:var(--text-tertiary);line-height:1.5;margin-bottom:8px">Once a day a snapshot of your data (minus photos and AI caches) is pushed to your Supabase, into 14 rolling daily slots. Restoring overwrites local data — your current state is auto-downloaded as JSON first.</div>
+    <div id="cloudList" style="font-size:12px"></div>
+    <button class="full-btn" id="cloudRefreshBtn" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:var(--text-primary)">↻ Load cloud backups</button>
+    <div id="cloudStatus" style="font-size:12px;min-height:18px;padding:4px 0;color:var(--text-tertiary)"></div>
   </div>
 
   <!-- Per-module CSV exports -->
@@ -421,6 +431,214 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
 
   updateStats();
   buildModuleGrid();
+
+  // Expose CSV generators for the ZIP exporter below
+  window.__exportCsvModules = MODULES.map(m => ({ id: m.id, toCSV: m.toCSV }));
+})();
+</script>
+<script>
+// ===== PHASE 12: DATA & RESILIENCE — ZIP export + cloud backup restore =====
+(function dataResilience() {
+  'use strict';
+  function jget(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  /* ---------- minimal ZIP writer (store-only, no compression) ---------- */
+
+  var CRC_TABLE = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c >>> 0;
+    }
+    return t;
+  })();
+  function crc32(bytes) {
+    var c = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+  function dosDateTime(d) {
+    return {
+      time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1),
+      date: (((d.getFullYear() - 1980) & 0x7F) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(),
+    };
+  }
+  // files: [{name, text}] -> Blob (ZIP, method 0 = stored, UTF-8 names)
+  function buildZip(files) {
+    var enc = new TextEncoder();
+    var chunks = [], central = [], offset = 0;
+    var now = dosDateTime(new Date());
+    function u16(v) { return new Uint8Array([v & 0xFF, (v >> 8) & 0xFF]); }
+    function u32(v) { return new Uint8Array([v & 0xFF, (v >> 8) & 0xFF, (v >> 16) & 0xFF, (v >>> 24) & 0xFF]); }
+    files.forEach(function (f) {
+      var nameB = enc.encode(f.name);
+      var data = enc.encode(f.text);
+      var crc = crc32(data);
+      var local = [
+        u32(0x04034B50), u16(20), u16(0x0800), u16(0), u16(now.time), u16(now.date),
+        u32(crc), u32(data.length), u32(data.length), u16(nameB.length), u16(0),
+      ];
+      local.forEach(function (b) { chunks.push(b); });
+      chunks.push(nameB, data);
+      var localSize = 30 + nameB.length + data.length;
+      central.push({ nameB: nameB, crc: crc, size: data.length, offset: offset });
+      offset += localSize;
+    });
+    var cdStart = offset, cdSize = 0;
+    central.forEach(function (e) {
+      var rec = [
+        u32(0x02014B50), u16(20), u16(20), u16(0x0800), u16(0), u16(now.time), u16(now.date),
+        u32(e.crc), u32(e.size), u32(e.size), u16(e.nameB.length), u16(0), u16(0), u16(0), u16(0),
+        u32(0), u32(e.offset),
+      ];
+      rec.forEach(function (b) { chunks.push(b); });
+      chunks.push(e.nameB);
+      cdSize += 46 + e.nameB.length;
+    });
+    [u32(0x06054B50), u16(0), u16(0), u16(central.length), u16(central.length), u32(cdSize), u32(cdStart), u16(0)]
+      .forEach(function (b) { chunks.push(b); });
+    return new Blob(chunks, { type: 'application/zip' });
+  }
+  window.__buildZip = buildZip; // test hook
+
+  /* ---------- ZIP export: JSON per key + CSV per module + reports ---------- */
+
+  function safeName(key) { return key.replace(/[^a-zA-Z0-9._-]/g, '_'); }
+
+  function collectZipFiles() {
+    var files = [];
+    var all = {};
+    Object.keys(localStorage).forEach(function (k) {
+      try { all[k] = JSON.parse(localStorage.getItem(k)); } catch (e) { all[k] = localStorage.getItem(k); }
+    });
+    files.push({ name: 'everything.json', text: JSON.stringify(all, null, 2) });
+    Object.keys(all).forEach(function (k) {
+      files.push({ name: 'json/' + safeName(k) + '.json', text: JSON.stringify(all[k], null, 2) });
+    });
+    (window.__exportCsvModules || []).forEach(function (m) {
+      try { var csv = m.toCSV(); if (csv) files.push({ name: 'csv/' + m.id + '.csv', text: csv }); } catch (e) {}
+    });
+    // bloodwork CSV
+    try {
+      var bl = jget('blood:logs', []) || [];
+      if (bl.length) {
+        files.push({ name: 'csv/bloodwork.csv', text: 'date,phase,markers_json\n' + bl.map(function (e) {
+          return [e.date, e.phase || '', JSON.stringify(e.markers || e.values || {}).replace(/"/g, '""')].map(function (v) { return '"' + v + '"'; }).join(',');
+        }).join('\n') });
+      }
+    } catch (e) {}
+    // body photo metadata CSV (no image payload)
+    try {
+      var ps = jget('body:photos:v1', []) || [];
+      if (ps.length) {
+        files.push({ name: 'csv/body_photos_metadata.csv', text: 'date,angle,flexed,tags\n' + ps.map(function (p) {
+          return [p.date || '', p.angle || '', p.flexed ? 'yes' : 'no', (p.tags || []).join('|')].join(',');
+        }).join('\n') });
+      }
+    } catch (e) {}
+    // weekly reports as readable text
+    try {
+      var reps = jget('coach:report:v1', {}) || {};
+      Object.keys(reps).forEach(function (wk) {
+        files.push({ name: 'reports/weekly_' + wk + '.txt', text: reps[wk].text || '' });
+      });
+    } catch (e) {}
+    files.push({ name: 'README.txt', text: 'Life OS export · ' + new Date().toISOString() + '\n\neverything.json  full restorable backup (import on the Export page)\njson/            one file per storage key\ncsv/             readable per-module tables\nreports/         AI weekly reports\n\nPhotos are inside everything.json and json/body_photos_v1.json as data URLs.' });
+    return files;
+  }
+
+  document.getElementById('exportZipBtn').addEventListener('click', function () {
+    var files = collectZipFiles();
+    var blob = buildZip(files);
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lifeos_export_' + todayStr() + '.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    var s = document.getElementById('statusMsg');
+    if (s) s.innerHTML = '<div style="color:var(--success);padding:6px 0;font-size:12px">ZIP with ' + files.length + ' files downloaded.</div>';
+  });
+
+  /* ---------- cloud backups: list + restore (push lives in lifeos-core) ---------- */
+
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var HEADERS = { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' };
+
+  function setCloudStatus(msg, bad) {
+    var el = document.getElementById('cloudStatus');
+    el.textContent = msg;
+    el.style.color = bad ? 'var(--danger, #FF6B6B)' : 'var(--text-tertiary)';
+  }
+
+  function listBackups() {
+    setCloudStatus('Loading…');
+    return fetch(SUPA_URL + '/rest/v1/app_state?select=key,updated_at,data->at,data->date,data->keys,data->bytes&key=like.backup:slot*&order=updated_at.desc', { headers: HEADERS })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  }
+
+  function renderBackups(rows) {
+    var list = document.getElementById('cloudList');
+    if (!rows.length) {
+      list.innerHTML = '<div style="color:var(--text-tertiary);padding:6px 0">No cloud backups yet. The first one is pushed automatically on the next app open of the day (needs 20+ keys of real data).</div>';
+      return;
+    }
+    list.innerHTML = rows.map(function (r) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.05);padding:7px 0">'
+        + '<span>' + esc(r.date || '?') + ' · ' + esc(r.keys != null ? r.keys + ' keys' : '') + (r.bytes ? ' · ' + Math.round(r.bytes / 1024) + ' KB' : '') + '</span>'
+        + '<button data-restore="' + esc(r.key) + '" data-date="' + esc(r.date || '?') + '" style="padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:var(--text-primary);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Restore</button>'
+        + '</div>';
+    }).join('');
+    list.querySelectorAll('[data-restore]').forEach(function (btn) {
+      btn.addEventListener('click', function () { restoreBackup(btn.getAttribute('data-restore'), btn.getAttribute('data-date')); });
+    });
+  }
+
+  document.getElementById('cloudRefreshBtn').addEventListener('click', function () {
+    listBackups().then(function (rows) {
+      renderBackups(rows);
+      setCloudStatus(rows.length + ' backup slot' + (rows.length === 1 ? '' : 's') + ' found.');
+    }).catch(function (e) { setCloudStatus('Could not load backups: ' + (e.message || e), true); });
+  });
+
+  function downloadCurrentState() {
+    var all = {};
+    Object.keys(localStorage).forEach(function (k) {
+      try { all[k] = JSON.parse(localStorage.getItem(k)); } catch (e) { all[k] = localStorage.getItem(k); }
+    });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' }));
+    a.download = 'pre_restore_state_' + Date.now() + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function restoreBackup(key, date) {
+    if (!confirm('Restore the cloud backup from ' + date + '? Local data for the keys in that backup will be OVERWRITTEN.')) return;
+    if (!confirm('Last check: your current state will first download as a JSON file, then the restore runs and the page reloads. Continue?')) return;
+    setCloudStatus('Restoring…');
+    fetch(SUPA_URL + '/rest/v1/app_state?select=data&key=eq.' + encodeURIComponent(key) + '&limit=1', { headers: HEADERS })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (rows) {
+        var snap = rows[0] && rows[0].data && rows[0].data.snapshot;
+        if (!snap || typeof snap !== 'object' || !Object.keys(snap).length) throw new Error('Backup slot is empty');
+        downloadCurrentState();
+        Object.keys(snap).forEach(function (k) {
+          try { localStorage.setItem(k, typeof snap[k] === 'string' ? snap[k] : JSON.stringify(snap[k])); } catch (e) {}
+        });
+        setCloudStatus('Restored ' + Object.keys(snap).length + ' keys from ' + date + '. Reloading…');
+        setTimeout(function () { location.reload(); }, 1200);
+      })
+      .catch(function (e) { setCloudStatus('Restore failed: ' + (e.message || e), true); });
+  }
+
+  window.__cloudRenderBackups = renderBackups; // test hook
 })();
 </script>
 

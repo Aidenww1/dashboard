@@ -736,3 +736,68 @@
   window.LifeOS.todayStr = todayStr;
   try { window.dispatchEvent(new CustomEvent('lifeos:ready')); } catch (_) {}
 })();
+
+/* ============================================================
+   Phase 12 — daily cloud backup of localStorage.
+   Once per day, on the first page open, a snapshot (minus photo
+   payloads and AI caches) is upserted into one of 14 rolling
+   app_state slots: key 'backup:slotNN', NN = dayIndex % 14.
+   Guards: needs 20+ keys AND 50+ KB of real data, so an empty
+   browser (fresh device, preview, post-wipe) can never overwrite
+   a real backup slot. Failed pushes retry on reconnect.
+   ============================================================ */
+(function dailyCloudBackup() {
+  'use strict';
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var MARKER = 'backup:last:v1';
+  var EXCLUDE = ['ai:cache:v1', 'mail:cache:v1', 'mail:aiclass:v1', MARKER];
+  var MAX_KEY_BYTES = 200 * 1024; // photo stores etc. — too heavy for a daily row
+
+  function todayKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function buildSnapshot() {
+    var snap = {}, excluded = [], keys = 0, bytes = 0;
+    Object.keys(localStorage).forEach(function (k) {
+      if (EXCLUDE.indexOf(k) >= 0) { excluded.push(k); return; }
+      var raw = localStorage.getItem(k) || '';
+      if (raw.length > MAX_KEY_BYTES) { excluded.push(k + ' (' + Math.round(raw.length / 1024) + 'KB)'); return; }
+      try { snap[k] = JSON.parse(raw); } catch (e) { snap[k] = raw; }
+      keys++; bytes += raw.length;
+    });
+    return { snap: snap, excluded: excluded, keys: keys, bytes: bytes };
+  }
+
+  function push() {
+    try {
+      if (!navigator.onLine) return;
+      if (localStorage.getItem(MARKER) === todayKey()) return;
+      var b = buildSnapshot();
+      if (b.keys < 20 || b.bytes < 50 * 1024) return; // not a real dataset — never risk a slot
+      var slot = 'backup:slot' + String(Math.floor(Date.now() / 86400000) % 14).padStart(2, '0');
+      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
+        method: 'POST',
+        headers: {
+          apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify({
+          key: slot,
+          data: { at: new Date().toISOString(), date: todayKey(), keys: b.keys, bytes: b.bytes, excluded: b.excluded, snapshot: b.snap },
+          updated_at: new Date().toISOString(),
+        }),
+      }).then(function (r) {
+        if (r.ok) try { localStorage.setItem(MARKER, todayKey()); } catch (e) {}
+      }).catch(function () { /* marker not set -> retried on reconnect / next open */ });
+    } catch (e) {}
+  }
+
+  window.__cloudBackupPush = push;            // test hooks
+  window.__cloudBackupSnapshot = buildSnapshot;
+
+  setTimeout(push, 8000); // off the critical path of page load
+  window.addEventListener('online', function () { setTimeout(push, 3000); });
+})();
