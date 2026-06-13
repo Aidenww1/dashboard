@@ -249,9 +249,20 @@
     } catch { return []; }
   }
 
+  // A row is "real" only if Health Connect actually returned values. Empty
+  // reads ({} or {longValues:{},doubleValues:{}}) must never become "today".
+  function rowHasData(row) {
+    const d = row && row.data;
+    if (!d || typeof d !== 'object') return false;
+    if (Object.keys(d.longValues || {}).length || Object.keys(d.doubleValues || {}).length) return true;
+    if (Array.isArray(d.samples) && d.samples.length) return true;
+    return Object.keys(d).some(k => !['longValues', 'doubleValues', 'dataOrigins', 'samples'].includes(k));
+  }
+
   function latestByDate(rows, extractFn) {
     const byDate = {};
     for (const row of rows) {
+      if (!rowHasData(row)) continue; // skip empty reads
       const date = row.created_at.slice(0, 10);
       if (!byDate[date] || row.created_at > byDate[date].created_at) {
         byDate[date] = { date, created_at: row.created_at, ...extractFn(row) };
@@ -287,7 +298,7 @@
         fetchMetric('steps'),
         fetchMetric('totalcalories'),
         fetchMetric('sleep'),
-        fetchMetric('restingheartrate'),
+        fetchMetric('heartrate'),
         fetchMetric('distance'),
         fetchMetric('floorsclimbed'),
       ]);
@@ -300,8 +311,13 @@
         const ms = lv(r).SleepSession_sleep_duration_total || 0;
         return { hours: +(ms / 3600000).toFixed(2), start: new Date(r.created_at).getTime() - ms };
       });
-      const heartRate = hrRows
-        .map(r => ({ time: new Date(r.created_at).getTime(), bpm: Math.round(dv(r).RestingHeartRate_bpm_avg || 0) }))
+      const heartRate = hrRows.filter(rowHasData)
+        .map(r => {
+          const d = r.data || {}, dvv = d.doubleValues || {}, lvv = d.longValues || {};
+          let bpm = dvv.HeartRate_bpm_avg || lvv.HeartRate_bpm_avg || dvv.RestingHeartRate_bpm_avg || 0;
+          if (!bpm && Array.isArray(d.samples) && d.samples.length) bpm = d.samples[d.samples.length - 1].beatsPerMinute || 0;
+          return { time: new Date(r.created_at).getTime(), bpm: Math.round(bpm) };
+        })
         .filter(r => r.bpm > 0);
       const distance = latestByDate(distRows, r => ({
         km: +((dv(r).Distance_distance_total || 0) / 1000).toFixed(2),

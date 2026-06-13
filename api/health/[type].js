@@ -45,6 +45,21 @@ export default async function handler(req, res) {
   }
   if (!body) body = {};
 
+  // Skip empty reads (Health Connect returned nothing for the window). The
+  // plugin sends {} or {longValues:{},doubleValues:{},dataOrigins:[]} when a
+  // read is greyed-out — storing those makes "today" show 0 on the dashboard.
+  function hasData(b) {
+    if (!b || typeof b !== 'object') return false;
+    const lv = b.longValues || {}, dv = b.doubleValues || {};
+    if (Object.keys(lv).length || Object.keys(dv).length) return true;
+    if (Array.isArray(b.records) && b.records.length) return true;
+    if (Array.isArray(b.samples) && b.samples.length) return true;
+    const meta = ['longValues', 'doubleValues', 'dataOrigins', 'records', 'samples'];
+    return Object.keys(b).some(k => !meta.includes(k) && b[k] != null
+      && !(typeof b[k] === 'object' && Object.keys(b[k]).length === 0));
+  }
+  if (!hasData(body)) return res.json({ ok: true, skipped: 'empty' });
+
   try {
     const r = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
       method: 'POST',
