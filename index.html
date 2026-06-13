@@ -2682,7 +2682,8 @@ window.addEventListener('lifeos:event', function(e) {
     document.getElementById('actTopApp').textContent = app ? 'Most: ' + app.app + ' (' + fmt(app.seconds) + ')' : '';
     document.getElementById('actTopDomain').textContent = dom ? 'Web: ' + dom.domain + ' (' + fmt(dom.seconds) + ')' : '';
     var ageH = s.generated_at ? Math.round((Date.now() - new Date(s.generated_at).getTime()) / 3600000) : null;
-    document.getElementById('actStale').textContent = ageH != null ? (ageH < 1 ? 'updated just now' : 'updated ' + ageH + 'h ago') : '';
+    var devs = (s.devices || []).map(function (d) { return d.device + ' ' + fmt(d.active_seconds); }).join(' · ');
+    document.getElementById('actStale').textContent = (devs ? devs + ' — ' : '') + (ageH != null ? (ageH < 1 ? 'updated just now' : 'updated ' + ageH + 'h ago') : '');
   }
   window.__activityCardRender = render;
   render();

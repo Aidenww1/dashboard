@@ -549,6 +549,7 @@
       date: s.date,
       generated_hours_ago: s.generated_at ? Math.round((Date.now() - new Date(s.generated_at).getTime()) / 3600000) : null,
       active_minutes: Math.round((s.active_seconds || 0) / 60),
+      devices: (s.devices || []).map(function (d) { return { device: d.device, minutes: Math.round((d.active_seconds || 0) / 60) }; }),
       top_apps: (s.top_apps || []).slice(0, 6).map(function (a) { return { app: a.app, minutes: Math.round(a.seconds / 60) }; }),
       top_domains: (s.top_domains || []).slice(0, 6).map(function (d) { return { domain: d.domain, minutes: Math.round(d.seconds / 60) }; }),
     };
@@ -1004,16 +1005,47 @@
   'use strict';
   var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
   var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+
+  function todayLocal() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // Merge today's per-device summaries into one combined view. Pure.
+  function mergeDevices(datas) {
+    var today = todayLocal();
+    var apps = {}, domains = {}, devices = [], total = 0;
+    (datas || []).forEach(function (d) {
+      if (!d || d.date !== today) return; // only today; skip stale devices
+      total += d.active_seconds || 0;
+      devices.push({ device: d.device || 'device', active_seconds: d.active_seconds || 0 });
+      (d.top_apps || []).forEach(function (a) { apps[a.app] = (apps[a.app] || 0) + (a.seconds || 0); });
+      (d.top_domains || []).forEach(function (x) { domains[x.domain] = (domains[x.domain] || 0) + (x.seconds || 0); });
+    });
+    if (!devices.length) return null;
+    function top(m, key) {
+      return Object.keys(m).map(function (k) { var o = { seconds: Math.round(m[k]) }; o[key] = k; return o; })
+        .sort(function (a, b) { return b.seconds - a.seconds; }).slice(0, 10);
+    }
+    return {
+      date: today, generated_at: new Date().toISOString(),
+      active_seconds: Math.round(total),
+      top_apps: top(apps, 'app'), top_domains: top(domains, 'domain'),
+      devices: devices.sort(function (a, b) { return b.active_seconds - a.active_seconds; }),
+    };
+  }
+  window.__activityMerge = mergeDevices; // test hook
+
   function pull() {
     if (!navigator.onLine) return;
-    fetch(SUPA_URL + '/rest/v1/app_state?select=data&key=eq.activity:summary:v1&limit=1', {
+    fetch(SUPA_URL + '/rest/v1/app_state?select=key,data&key=like.activity:dev:*', {
       headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY },
     }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
-      var d = rows[0] && rows[0].data;
-      if (!d) return;
+      var merged = mergeDevices((rows || []).map(function (r) { return r.data; }));
+      if (!merged) return;
       try {
-        if (localStorage.getItem('activity:summary:v1') !== JSON.stringify(d)) {
-          localStorage.setItem('activity:summary:v1', JSON.stringify(d));
+        if (localStorage.getItem('activity:summary:v1') !== JSON.stringify(merged)) {
+          localStorage.setItem('activity:summary:v1', JSON.stringify(merged));
           window.dispatchEvent(new CustomEvent('lifeos:activity'));
         }
       } catch (e) {}

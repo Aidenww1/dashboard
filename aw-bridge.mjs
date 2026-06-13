@@ -34,9 +34,14 @@
    Activity data is sensitive even as a summary.
    ============================================================ */
 
+import os from 'node:os';
+
 const AW = process.env.AW_URL || 'http://localhost:5600';
 const SUPA_URL = process.env.SUPABASE_URL || 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
 const SUPA_KEY = process.env.SUPABASE_KEY || 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+// Per-device label so PC / laptop / phone don't overwrite each other.
+const DEVICE = (process.env.AW_DEVICE || os.hostname() || 'device').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() || 'device';
+const STATE_KEY = 'activity:dev:' + DEVICE + ':v1';
 
 async function getJSON(url) {
   const r = await fetch(url);
@@ -87,6 +92,7 @@ async function main() {
   const activeSeconds = Math.round(win.reduce((s, e) => s + (e.duration || 0), 0));
 
   const summary = {
+    device: DEVICE,
     date: start.slice(0, 10),
     generated_at: new Date().toISOString(),
     active_seconds: activeSeconds,
@@ -100,10 +106,10 @@ async function main() {
       apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY,
       'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates',
     },
-    body: JSON.stringify({ key: 'activity:summary:v1', data: summary, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ key: STATE_KEY, data: summary, updated_at: new Date().toISOString() }),
   });
   if (!res.ok) { console.error('Push failed: ' + res.status + ' ' + await res.text()); process.exit(1); }
-  console.log(`Pushed: ${Math.round(activeSeconds / 60)}m active, ${topApps.length} apps, ${topDomains.length} domains (${summary.date})`);
+  console.log(`Pushed [${DEVICE}]: ${Math.round(activeSeconds / 60)}m active, ${topApps.length} apps, ${topDomains.length} domains (${summary.date})`);
 }
 
 // --loop keeps it running and pushes every AW_INTERVAL_MIN minutes (default 30),
