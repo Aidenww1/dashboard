@@ -542,6 +542,18 @@
     };
   }
 
+  function sliceActivity() {
+    var s = get('activity:summary:v1', null);
+    if (!s) return { tracked: false, note: 'Screen-time tracking not set up (run the ActivityWatch bridge, aw-bridge.mjs)' };
+    return {
+      date: s.date,
+      generated_hours_ago: s.generated_at ? Math.round((Date.now() - new Date(s.generated_at).getTime()) / 3600000) : null,
+      active_minutes: Math.round((s.active_seconds || 0) / 60),
+      top_apps: (s.top_apps || []).slice(0, 6).map(function (a) { return { app: a.app, minutes: Math.round(a.seconds / 60) }; }),
+      top_domains: (s.top_domains || []).slice(0, 6).map(function (d) { return { domain: d.domain, minutes: Math.round(d.seconds / 60) }; }),
+    };
+  }
+
   function sliceFull() {
     return {
       today: sliceToday(),
@@ -653,6 +665,7 @@
       case 'skin': return sliceSkin();
       case 'mail': return sliceMail();
       case 'opportunities': return sliceOpportunities();
+      case 'activity': return sliceActivity();
       case 'full_summary': return sliceFull();
       case 'today':
       default: return sliceToday();
@@ -979,4 +992,33 @@
 
   setTimeout(push, 8000); // off the critical path of page load
   window.addEventListener('online', function () { setTimeout(push, 3000); });
+})();
+
+/* ============================================================
+   Activity pull — read the ActivityWatch summary (pushed by the
+   local aw-bridge.mjs) from Supabase into localStorage so the
+   'activity' slice, dashboard card and operator can use it.
+   Read-only; no raw history ever touches the client.
+   ============================================================ */
+(function activityPull() {
+  'use strict';
+  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  function pull() {
+    if (!navigator.onLine) return;
+    fetch(SUPA_URL + '/rest/v1/app_state?select=data&key=eq.activity:summary:v1&limit=1', {
+      headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY },
+    }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+      var d = rows[0] && rows[0].data;
+      if (!d) return;
+      try {
+        if (localStorage.getItem('activity:summary:v1') !== JSON.stringify(d)) {
+          localStorage.setItem('activity:summary:v1', JSON.stringify(d));
+          window.dispatchEvent(new CustomEvent('lifeos:activity'));
+        }
+      } catch (e) {}
+    }).catch(function () {});
+  }
+  window.__activityPull = pull; // test hook
+  setTimeout(pull, 4000);
 })();

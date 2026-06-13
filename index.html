@@ -888,6 +888,18 @@ body { padding-bottom: 90px; }
         </div>
       </div>
 
+      <div class="ai-summary-card" id="activityCard" style="display:none">
+        <div class="card-eyebrow">Screen time today</div>
+        <div class="ls-row">
+          <div class="ls-num" id="actMins">&mdash;</div>
+          <div class="ls-meta">
+            <div class="ls-drag" id="actTopApp"></div>
+            <div class="ls-action" id="actTopDomain"></div>
+          </div>
+        </div>
+        <div class="ls-quality" id="actStale"></div>
+      </div>
+
       <div class="ai-summary-card">
         <div class="card-eyebrow">AI Summary</div>
         <div class="ai-summary-text" id="aiSummaryText">Tap refresh to get your daily briefing.</div>
@@ -2650,6 +2662,31 @@ window.addEventListener('lifeos:event', function(e) {
   window.__briefingRender = render;
   if (window.LifeOS && LifeOS.briefing) render();
   else window.addEventListener('lifeos:ready', render, { once: true });
+})();
+</script>
+
+<script>
+// ===== SCREEN-TIME CARD (ActivityWatch bridge) =====
+(function activityCard() {
+  'use strict';
+  function jget(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function fmt(sec) { var m = Math.round((sec || 0) / 60); return m >= 60 ? (Math.floor(m / 60) + 'h ' + (m % 60) + 'm') : (m + 'm'); }
+  function render() {
+    var card = document.getElementById('activityCard'); if (!card) return;
+    var s = jget('activity:summary:v1');
+    if (!s || !s.active_seconds) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    document.getElementById('actMins').textContent = fmt(s.active_seconds);
+    var app = (s.top_apps || [])[0];
+    var dom = (s.top_domains || [])[0];
+    document.getElementById('actTopApp').textContent = app ? 'Most: ' + app.app + ' (' + fmt(app.seconds) + ')' : '';
+    document.getElementById('actTopDomain').textContent = dom ? 'Web: ' + dom.domain + ' (' + fmt(dom.seconds) + ')' : '';
+    var ageH = s.generated_at ? Math.round((Date.now() - new Date(s.generated_at).getTime()) / 3600000) : null;
+    document.getElementById('actStale').textContent = ageH != null ? (ageH < 1 ? 'updated just now' : 'updated ' + ageH + 'h ago') : '';
+  }
+  window.__activityCardRender = render;
+  render();
+  window.addEventListener('lifeos:activity', render);
 })();
 </script>
 

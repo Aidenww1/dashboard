@@ -203,6 +203,7 @@
     [/photo|physique|body|muscle|lean|fat/i, ['body_progress']],
     [/plan|today|schedule|focus|deep work|task|goal/i, ['productivity']],
     [/data|track|log|quality|stale/i, ['missing_data']],
+    [/screen time|screentime|browsing|time on|app usage|distract|productive online|what did i do|websites?|youtube/i, ['activity', 'productivity']],
   ];
 
   function pickSlices(q) {
