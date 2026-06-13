@@ -1,8 +1,9 @@
 {
-  "name": "Life Dashboard",
-  "short_name": "Dashboard",
-  "description": "Your all-in-one life tracking dashboard",
+  "name": "Life OS",
+  "short_name": "Life OS",
+  "description": "Your all-in-one life tracking, planning and coaching dashboard",
   "start_url": "/index.html",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#050506",
   "theme_color": "#050506",
@@ -16,9 +17,27 @@
     }
   ],
   "shortcuts": [
-    { "name": "Habits", "url": "/habits.html", "description": "Check in your habits" },
-    { "name": "Nutrition", "url": "/nutrition.html", "description": "Log your food" },
-    { "name": "Gym", "url": "/gym.html", "description": "Log your workout" },
-    { "name": "Finance", "url": "/finance.html", "description": "Track spending" }
-  ]
+    { "name": "Log weight", "short_name": "Weight", "url": "/index.html?qa=log-weight", "description": "Quick-log your weight" },
+    { "name": "Log meal", "short_name": "Meal", "url": "/index.html?qa=log-meal", "description": "Quick-log a meal" },
+    { "name": "Start focus", "short_name": "Focus", "url": "/index.html?qa=focus", "description": "Start a deep-work session" },
+    { "name": "Ask Claude", "short_name": "Ask", "url": "/index.html?qa=ask", "description": "Ask anything about your life data" },
+    { "name": "Check orders", "short_name": "Orders", "url": "/mail.html?qa=orders", "description": "See active orders and deliveries" },
+    { "name": "Clean inbox", "short_name": "Inbox", "url": "/mail.html?qa=cleanup", "description": "Run the inbox cleanup plan" },
+    { "name": "Progress photo", "short_name": "Progress", "url": "/body.html?qa=photo", "description": "Take a body progress photo" },
+    { "name": "Skin photo", "short_name": "Skin", "url": "/skin.html?qa=photo", "description": "Take a skin check photo" },
+    { "name": "Analyze photo", "short_name": "Analyze", "url": "/body.html?qa=analyze", "description": "Analyze a progress photo" }
+  ],
+  "share_target": {
+    "action": "/share.html",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        { "name": "media", "accept": ["image/*"] }
+      ]
+    }
+  }
 }

@@ -32,7 +32,7 @@
   // ---- LifeOS layer: AI service, context core, command bar ----
   // Loaded sequentially so command.js can rely on both globals.
   (function loadLifeOS() {
-    const chain = ['claude.js', 'lifeos-core.js', 'command.js']
+    const chain = ['claude.js', 'lifeos-core.js', 'command.js', 'pwa.js']
       .filter(src => !document.querySelector('script[src="' + src + '"]'));
     function next() {
       const src = chain.shift();

@@ -839,6 +839,14 @@ body { padding-bottom: 90px; }
         <div class="ls-quality" id="lsQuality"></div>
       </div>
 
+      <div class="ai-summary-card" id="briefingCard" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="card-eyebrow" style="margin-bottom:0">Morning Briefing</div>
+          <button id="briefingNotifyBtn" style="padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🔔 Notify</button>
+        </div>
+        <div id="briefingLines"></div>
+      </div>
+
       <div class="ai-summary-card" id="readinessCard">
         <div class="card-eyebrow">Readiness</div>
         <div class="ls-row">
@@ -2602,6 +2610,46 @@ window.addEventListener('lifeos:event', function(e) {
   if (window.LifeOS && LifeOS.readiness) run();
   else window.addEventListener('lifeos:ready', run, { once: true });
   setTimeout(function () { try { if (window.LifeOS && LifeOS.readiness && !jget(STATE_KEY, null)) run(); } catch (e) {} }, 1500);
+})();
+</script>
+
+<script>
+// ===== MORNING BRIEFING CARD (Phase 13) =====
+// Deterministic: renders LifeOS.briefing() lines. The Notify button (or a
+// daily auto-fire from pwa.js) sends the same text as a push notification.
+(function briefingCard() {
+  'use strict';
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function render() {
+    if (!window.LifeOS || !LifeOS.briefing) return;
+    var card = document.getElementById('briefingCard');
+    var list = document.getElementById('briefingLines');
+    if (!card || !list) return;
+    var b;
+    try { b = LifeOS.briefing(); } catch (e) { return; }
+    if (!b || !b.lines || !b.lines.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = b.lines.map(function (l) {
+      return '<div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">'
+        + '<span style="font-size:14px;width:20px;text-align:center;flex-shrink:0">' + esc(l.icon) + '</span>'
+        + '<span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,0.4);width:92px;flex-shrink:0">' + esc(l.label) + '</span>'
+        + '<span style="font-size:13px;color:var(--text-primary,#FAFAFA);line-height:1.4">' + esc(l.value) + '</span>'
+        + '</div>';
+    }).join('');
+    var btn = document.getElementById('briefingNotifyBtn');
+    if (btn && !btn.__wired) {
+      btn.__wired = true;
+      btn.addEventListener('click', function () {
+        if (window.LifeOSNotify) {
+          window.LifeOSNotify({ kind: 'briefing', title: 'Morning briefing', body: b.push, url: '/index.html?qa=briefing', requireInteraction: true })
+            .then(function (ok) { btn.textContent = ok ? '✓ Sent' : '🔔 Allow notifications'; });
+        }
+      });
+    }
+  }
+  window.__briefingRender = render;
+  if (window.LifeOS && LifeOS.briefing) render();
+  else window.addEventListener('lifeos:ready', render, { once: true });
 })();
 </script>
 

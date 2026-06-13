@@ -243,9 +243,107 @@
     body.scrollTop = body.scrollHeight;
   }
 
+  /* ---------- universal router (Phase 13) ----------
+     Common asks resolve deterministically (instant, no tokens) and either
+     answer inline or navigate to the right page. Anything unmatched falls
+     through to the AI coach. */
+  function lsGet(k, fb) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; } catch (_) { return fb; } }
+
+  var MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  function parseDateKey(q) {
+    var iso = q.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return iso[0];
+    var m = q.match(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i)
+         || q.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})/i);
+    if (!m) return null;
+    var mon, day;
+    if (/^\d/.test(m[1])) { day = +m[1]; mon = MONTHS.indexOf(m[2].toLowerCase().slice(0, 3)); }
+    else { mon = MONTHS.indexOf(m[1].toLowerCase().slice(0, 3)); day = +m[2]; }
+    if (mon < 0 || !day) return null;
+    var now = new Date(), yr = now.getFullYear();
+    var d = new Date(yr, mon, day);
+    if (d > now) d = new Date(yr - 1, mon, day); // a date in the future means last year
+    return d.getFullYear() + '-' + String(mon + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  }
+
+  var ROUTES = [
+    // weight on a specific date — deterministic lookup
+    [/(weigh|weight).*(on|at)\b|what.*weigh/i, function (q) {
+      var dk = parseDateKey(q);
+      if (!dk) return null;
+      var logs = lsGet('po_coach_weights', []) || [];
+      var hit = logs.find(function (e) { return e.dateKey === dk; });
+      return { answer: hit ? 'On ' + dk + ' you weighed ' + hit.weight + ' kg.' : 'No weight logged for ' + dk + '. Body page logs it.' };
+    }],
+    // orders / deliveries
+    [/did.*(order|package|parcel).*(arriv|deliver|come)|my orders|check orders|track.*(order|package)/i, function () {
+      var s = lsGet('mail:summary:v1', null);
+      if (!s) return { navigate: '/mail.html?qa=orders', note: 'Opening orders (Gmail not synced yet)…' };
+      var msg = (s.orders_active || 0) + ' active order(s)';
+      if (s.delivery_issues) msg += ', ' + s.delivery_issues + ' with a delivery issue';
+      return { answer: msg + '. Tap to open the order tracker.', navigate: '/mail.html?qa=orders', delay: 1800 };
+    }],
+    // clean inbox / clear newsletters
+    [/clear.*(newsletter|promo)|clean.*(inbox|mail)|unsubscribe|inbox cleanup/i, function () {
+      return { navigate: '/mail.html?qa=cleanup', note: 'Opening the inbox cleanup plan…' };
+    }],
+    // plan my day
+    [/plan (my|the|todays?|today)/i, function () {
+      return { navigate: '/calendar.html?qa=plan', note: 'Opening your day planner…' };
+    }],
+    // what needs attention / priorities
+    [/needs? attention|what.*important|my priorities|what should i (do|focus)/i, function () {
+      if (!window.LifeOS || !LifeOS.briefing) return null;
+      var b = LifeOS.briefing();
+      var pick = b.lines.filter(function (l) { return /Money|Orders|Email|Opportunity|Coach|Supplements|Log next/.test(l.label); });
+      if (!pick.length) pick = b.lines.slice(0, 4);
+      return { answer: 'What needs attention:\n' + pick.map(function (l) { return '• ' + l.label + ': ' + l.value; }).join('\n') };
+    }],
+    // what should I track next / missing data
+    [/what.*track next|missing data|what.*should i log/i, function () {
+      if (!window.LifeOS || !LifeOS.quality) return null;
+      var q = LifeOS.quality();
+      if (!q.stale || !q.stale.length) return { answer: 'Data quality ' + q.score + '%. Nothing stale right now.' };
+      return { answer: 'Most stale: ' + q.stale.slice(0, 3).map(function (s) { return s.label + (s.daysAgo != null ? ' (' + s.daysAgo + 'd)' : ' (never)'); }).join(', ') + '. Reminders page can schedule check-ins.', navigate: '/reminders.html', delay: 2600 };
+    }],
+    // add reminders for missing data
+    [/add reminder|reminders for missing|schedule check/i, function () {
+      return { navigate: '/reminders.html', note: 'Opening reminders + suggested check-ins…' };
+    }],
+  ];
+
+  function route(q) {
+    for (var i = 0; i < ROUTES.length; i++) {
+      if (ROUTES[i][0].test(q)) {
+        try { var r = ROUTES[i][1](q); if (r) return r; } catch (_) {}
+      }
+    }
+    return null;
+  }
+
   function ask(question) {
     els();
-    if (!window.LifeOS || !window.LifeOS.ai) { body.innerHTML = '<div class="lo-cmd-msg lo-cmd-err">AI service not loaded.</div>'; return; }
+    if (!window.LifeOS) { body.innerHTML = '<div class="lo-cmd-msg lo-cmd-err">Core not loaded.</div>'; return; }
+    // deterministic router first — instant, no tokens
+    var r = route(question);
+    if (r) {
+      if (!activeThread) activeThread = { id: Date.now().toString(36), title: question.slice(0, 60), at: new Date().toISOString(), messages: [] };
+      chatMode = true;
+      activeThread.messages.push({ role: 'user', content: question });
+      if (r.answer) {
+        activeThread.messages.push({ role: 'assistant', content: r.answer });
+        activeThread.at = new Date().toISOString();
+        saveThread(activeThread);
+        renderChat(false);
+        if (r.navigate) setTimeout(function () { location.href = r.navigate; }, r.delay || 1600);
+      } else if (r.navigate) {
+        activeThread.messages.push({ role: 'assistant', content: r.note || 'Opening…' });
+        renderChat(false);
+        setTimeout(function () { location.href = r.navigate; }, r.delay || 900);
+      }
+      return;
+    }
+    if (!window.LifeOS.ai) { body.innerHTML = '<div class="lo-cmd-msg lo-cmd-err">AI service not loaded.</div>'; return; }
     if (!activeThread) {
       activeThread = { id: Date.now().toString(36), title: question.slice(0, 60), at: new Date().toISOString(), messages: [] };
     }
@@ -294,4 +392,17 @@
   open = function () { resetChat(); _open(); };
   fab.removeEventListener('click', _open);
   fab.addEventListener('click', open);
+
+  /* ---------- external hooks (Phase 13 quick actions) ---------- */
+  window.LifeOSCmd = {
+    open: function () { open(); },
+    prefill: function (text) { els(); if (input) { input.value = text || ''; renderSearch(); input.focus(); } },
+    ask: function (q) {
+      open();
+      els();
+      if (!q) { try { var pf = sessionStorage.getItem('cmd:prefill'); if (pf) { sessionStorage.removeItem('cmd:prefill'); q = pf.replace(/^\?\s*/, ''); } } catch (_) {} }
+      if (q) { ask(q); }
+      else if (input) { input.value = '? '; input.focus(); }
+    },
+  };
 })();

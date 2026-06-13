@@ -553,6 +553,64 @@
     };
   }
 
+  /* ---------- morning briefing (deterministic) ----------
+     One assembled object for the wake-time push + the index card.
+     Pure code: no AI. Skips lines it has no data for. */
+  function briefing() {
+    var rd = readiness();
+    var lines = [];
+    lines.push({ icon: '🔋', label: 'Readiness', value: rd.score + '/100 · ' + rd.label });
+
+    var goals = goalsFor(todayStr()).filter(function (g) { return !g.done; });
+    if (goals.length) lines.push({ icon: '🎯', label: 'Top goal', value: goals[0].text });
+    var openTasks = tasksAll().filter(function (t) { return !t.done; });
+    if (openTasks.length) lines.push({ icon: '✅', label: 'Tasks', value: openTasks.length + ' open · ' + openTasks[0].title });
+
+    var st = suppsToday();
+    if (st && st.due && st.due.length) lines.push({ icon: '💊', label: 'Supplements', value: st.due.length + ' due · ' + st.due.join(', ') });
+
+    var nt = ntTotalsFor(ntDateKey()), tg = ntTargets();
+    var kcalLeft = Math.max(0, tg.calories - nt.calories), proLeft = Math.max(0, tg.protein - nt.protein);
+    lines.push({ icon: '🍽', label: 'Food left', value: kcalLeft + ' kcal · ' + proLeft + 'g protein' });
+
+    var trainedToday = !!workoutDone()[todayStr()];
+    var trainMsg = trainedToday ? 'Trained today' : rd.score >= 70 ? 'Good to train hard' : rd.score >= 50 ? 'Train light / technique' : 'Rest or mobility';
+    lines.push({ icon: '🏋', label: 'Training', value: trainMsg + ' · ' + workouts7d() + ' this week' });
+
+    var mail = get('mail:summary:v1', null);
+    if (mail) {
+      if (mail.orders_active) lines.push({ icon: '📦', label: 'Orders', value: mail.orders_active + ' active' + (mail.delivery_issues ? ' · ' + mail.delivery_issues + ' issue(s)' : '') });
+      if (mail.needs_reply) lines.push({ icon: '✉️', label: 'Email', value: mail.needs_reply + ' need reply' });
+    }
+
+    var fin = financeSnapshot();
+    if (fin.savings_rate_pct != null && fin.savings_rate_pct < 10) {
+      lines.push({ icon: '⚠️', label: 'Money', value: 'Savings rate ' + fin.savings_rate_pct + '% — below 10% target' });
+    }
+
+    var opp = get('radar:summary:v1', null);
+    if (opp && opp.shown && opp.shown.length) {
+      var o = opp.shown[0];
+      lines.push({ icon: '💡', label: 'Opportunity', value: o.title || o.label || o.headline || 'See Radar' });
+    }
+
+    var q = quality();
+    if (q.stale && q.stale.length) lines.push({ icon: '📊', label: 'Log next', value: q.stale[0].label + (q.stale[0].daysAgo != null ? ' (' + q.stale[0].daysAgo + 'd old)' : '') });
+
+    var ci = get('coach:insight:v1', null);
+    if (ci && ci.insight && !ci.dismissed) {
+      var ins = typeof ci.insight === 'string' ? ci.insight : (ci.insight.title || ci.insight.text || '');
+      if (ins) lines.push({ icon: '🧭', label: 'Coach', value: ins });
+    }
+
+    var push = rd.score + '/100 readiness. '
+      + (st && st.due && st.due.length ? st.due.length + ' supps due. ' : '')
+      + proLeft + 'g protein left. ' + trainMsg + '.'
+      + (mail && mail.needs_reply ? ' ' + mail.needs_reply + ' emails to reply.' : '');
+
+    return { date: todayStr(), readiness: rd.score, lines: lines, push: push.slice(0, 200) };
+  }
+
   function context(slice) {
     switch (slice) {
       case 'nutrition': return sliceNutrition();
@@ -733,6 +791,7 @@
   window.LifeOS.quality = quality;
   window.LifeOS.log = log;
   window.LifeOS.search = search;
+  window.LifeOS.briefing = briefing;
   window.LifeOS.todayStr = todayStr;
   try { window.dispatchEvent(new CustomEvent('lifeos:ready')); } catch (_) {}
 })();
