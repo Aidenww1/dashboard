@@ -813,7 +813,97 @@
     return out.slice(0, 20);
   }
 
+  /* ============================================================
+     OPERATOR LAYER (backlog 15) — the AI's hands.
+     Claude proposes actions as JSON; command.js previews them and
+     asks for confirmation; runAction() executes here, on the SAME
+     localStorage stores the UI reads (no Supabase split-brain).
+     v1 actions are all additive/safe; no deletes, no money moves,
+     no email sends. Those stay manual until a confirm-flow exists.
+     ============================================================ */
+  var ACTION_CATALOG = [
+    { name: 'log_weight', args: 'kg', desc: 'Log body weight in kg' },
+    { name: 'log_sleep', args: 'hours', desc: 'Log last night sleep in hours' },
+    { name: 'log_mood', args: 'mood (1-5)', desc: 'Log mood' },
+    { name: 'log_meal', args: 'name, calories, protein, carbs, fat', desc: 'Log a meal (estimate macros)' },
+    { name: 'log_water', args: 'count', desc: 'Add glasses of water' },
+    { name: 'mark_supplement', args: 'name', desc: 'Mark a supplement in the stack as taken today' },
+    { name: 'add_task', args: 'title, due (YYYY-MM-DD or null)', desc: 'Add a task' },
+    { name: 'add_goal', args: 'text', desc: 'Add a goal for today' },
+    { name: 'add_note', args: 'text', desc: 'Save a quick note' },
+    { name: 'add_reminder', args: 'label, time (HH:MM), days (array 0-6, optional)', desc: 'Create a daily reminder' },
+    { name: 'set_briefing', args: 'enabled (bool), time (HH:MM, optional)', desc: 'Turn the morning briefing on/off and set wake time' },
+    { name: 'navigate', args: 'page (one of: index, health, gym, finance, nutrition, mail, calendar, radar, reminders, skin, body, review, water, export)', desc: 'Open a page' },
+  ];
+
+  var PAGE_HREF = {
+    index: '/index.html', today: '/index.html', dashboard: '/index.html',
+    health: '/health.html', gym: '/gym.html', training: '/gym.html', finance: '/finance.html', money: '/finance.html',
+    nutrition: '/nutrition.html', food: '/nutrition.html', mail: '/mail.html', gmail: '/mail.html',
+    calendar: '/calendar.html', radar: '/radar.html', opportunities: '/radar.html', reminders: '/reminders.html',
+    skin: '/skin.html', body: '/body.html', review: '/review.html', water: '/water.html', export: '/export.html',
+  };
+
+  function actionPreview(a) {
+    var x = a.args || {};
+    switch (a.name) {
+      case 'log_weight': return 'Log weight ' + x.kg + ' kg';
+      case 'log_sleep': return 'Log sleep ' + x.hours + ' h';
+      case 'log_mood': return 'Log mood ' + x.mood + '/5';
+      case 'log_meal': return 'Log meal: ' + x.name + ' (' + (x.calories || 0) + ' kcal, ' + (x.protein || 0) + 'g P)';
+      case 'log_water': return 'Add ' + (x.count || 1) + ' water';
+      case 'mark_supplement': return 'Mark "' + x.name + '" taken';
+      case 'add_task': return 'Add task: ' + x.title + (x.due ? ' (due ' + x.due + ')' : '');
+      case 'add_goal': return 'Add goal: ' + x.text;
+      case 'add_note': return 'Save note: ' + String(x.text || '').slice(0, 50);
+      case 'add_reminder': return 'Reminder: ' + x.label + ' at ' + x.time;
+      case 'set_briefing': return 'Morning briefing ' + (x.enabled === false ? 'off' : 'on') + (x.time ? ' at ' + x.time : '');
+      case 'navigate': return 'Open ' + x.page;
+      default: return a.name;
+    }
+  }
+
+  function runAction(a) {
+    var x = (a && a.args) || {};
+    try {
+      switch (a.name) {
+        case 'log_weight': return log({ type: 'weight', kg: x.kg });
+        case 'log_sleep': return log({ type: 'sleep', hours: x.hours });
+        case 'log_mood': return log({ type: 'mood', mood: x.mood });
+        case 'log_meal': return log({ type: 'meal', name: x.name, calories: x.calories, protein: x.protein, carbs: x.carbs, fat: x.fat });
+        case 'log_water': return log({ type: 'water', count: x.count || 1 });
+        case 'mark_supplement': return log({ type: 'supplement', name: x.name });
+        case 'add_task': return log({ type: 'task', title: x.title, due: x.due || null });
+        case 'add_goal': return log({ type: 'goal', text: x.text });
+        case 'add_note': return log({ type: 'note', text: x.text });
+        case 'add_reminder': {
+          if (!x.label || !x.time) return { ok: false, message: 'Reminder needs label + time' };
+          var rem = get('reminders:v1', {}) || {};
+          rem.custom = rem.custom || [];
+          rem.custom.push({ id: 'op_' + Date.now().toString(36), label: x.label, time: x.time, days: Array.isArray(x.days) ? x.days : [1, 2, 3, 4, 5, 6, 0], enabled: true, sub: 'Added by Claude' });
+          set('reminders:v1', rem);
+          return { ok: true, message: 'Reminder "' + x.label + '" at ' + x.time + ' added' };
+        }
+        case 'set_briefing': {
+          try { localStorage.setItem('briefing:enabled:v1', x.enabled === false ? '0' : '1'); } catch (e) {}
+          if (x.time) try { localStorage.setItem('briefing:waketime:v1', x.time); } catch (e) {}
+          return { ok: true, message: 'Morning briefing ' + (x.enabled === false ? 'disabled' : 'enabled') + (x.time ? ' at ' + x.time : '') };
+        }
+        case 'navigate': {
+          var href = PAGE_HREF[String(x.page || '').toLowerCase()];
+          if (!href) return { ok: false, message: 'Unknown page: ' + x.page };
+          setTimeout(function () { location.href = href; }, 300);
+          return { ok: true, message: 'Opening ' + x.page + '…' };
+        }
+        default: return { ok: false, message: 'Unknown action: ' + a.name };
+      }
+    } catch (e) { return { ok: false, message: 'Action failed: ' + e.message }; }
+  }
+
   window.LifeOS = window.LifeOS || {};
+  window.LifeOS.actionCatalog = ACTION_CATALOG;
+  window.LifeOS.actionPreview = actionPreview;
+  window.LifeOS.runAction = runAction;
   window.LifeOS.context = context;
   window.LifeOS.score = score;
   window.LifeOS.readiness = readiness;

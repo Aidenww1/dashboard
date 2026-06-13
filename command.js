@@ -17,7 +17,6 @@
     '#loCmdFab{position:fixed;right:16px;bottom:84px;z-index:9990;width:48px;height:48px;border-radius:50%;',
     'background:var(--accent,#34D399);color:#0A0A0B;border:none;font-size:22px;font-weight:600;cursor:pointer;',
     'box-shadow:0 4px 16px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center}',
-    '@media(min-width:1024px){#loCmdFab{display:none}}',
     '#loCmdOverlay{position:fixed;inset:0;z-index:9991;background:rgba(0,0,0,0.6);display:none;align-items:flex-start;justify-content:center;padding:10vh 16px 16px}',
     '#loCmdOverlay.open{display:flex}',
     '#loCmdPanel{width:100%;max-width:560px;background:#141416;border:1px solid rgba(255,255,255,0.12);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;max-height:70vh}',
@@ -219,7 +218,56 @@
     pickSlices(q).forEach(function (s) {
       try { parts[s] = window.LifeOS.context(s); } catch (_) {}
     });
-    return 'You are the user\'s life coach inside their personal Life OS. Answer from the data below; be specific with numbers; if the data does not contain the answer, say what is missing and which page logs it. Life context slices: ' + JSON.stringify(parts);
+    var ops = '';
+    if (window.LifeOS && LifeOS.actionCatalog) {
+      var cat = LifeOS.actionCatalog.map(function (a) { return a.name + '(' + a.args + ')'; }).join('; ');
+      ops = ' You are also an OPERATOR, not only a coach: you can perform actions. When the user asks you to DO something (log, plan, remind, mark, set, open a page), append at the very END of your reply one fenced block exactly like ```json\n{"actions":[{"name":"log_weight","args":{"kg":82.4}}]}\n``` listing the actions. The app shows the user a confirmation and runs them — so NEVER claim you already did it; say you have prepared it for confirmation. Use ONLY these action names and arg shapes: ' + cat + '. If the user only wants information, do NOT include the block.';
+    }
+    return 'You are the user\'s direct personal operator inside their Life OS. Answer from the data below; be specific with numbers; if the data does not contain the answer, say what is missing and which page logs it.' + ops + ' Life context slices: ' + JSON.stringify(parts);
+  }
+
+  // Pull a {"actions":[...]} proposal out of a reply; return clean text + actions.
+  function parseActions(reply) {
+    reply = String(reply || '');
+    var jsonStr = null, matchStr = null;
+    var fence = reply.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence && /"actions"/.test(fence[1])) { jsonStr = fence[1]; matchStr = fence[0]; }
+    if (!jsonStr) {
+      var bare = reply.match(/\{[\s\S]*?"actions"[\s\S]*?\}\s*\}?/);
+      if (bare) { jsonStr = bare[0]; matchStr = bare[0]; }
+    }
+    if (!jsonStr) return { text: reply, actions: null };
+    try {
+      var obj = JSON.parse(jsonStr);
+      if (obj && Array.isArray(obj.actions) && obj.actions.length) {
+        var clean = reply.replace(matchStr, '').trim();
+        return { text: clean || 'Prepared the actions below — confirm to run.', actions: obj.actions };
+      }
+    } catch (_) {}
+    return { text: reply, actions: null };
+  }
+
+  function renderActionConfirm(actions) {
+    els();
+    var wrap = document.createElement('div');
+    var html = '<div class="lo-cmd-section">Proposed actions — confirm to run</div>';
+    html += actions.map(function (a) {
+      var label = (window.LifeOS && LifeOS.actionPreview) ? LifeOS.actionPreview(a) : a.name;
+      return '<div class="lo-cmd-confirm"><span>' + esc(label) + '</span></div>';
+    }).join('');
+    html += '<button class="lo-cmd-save" id="loActRun">Run ' + actions.length + ' action' + (actions.length > 1 ? 's' : '') + '</button>';
+    html += '<button class="lo-cmd-save" id="loActCancel" style="background:rgba(255,255,255,0.08);color:#B4B4B8">Cancel</button>';
+    wrap.innerHTML = html;
+    body.appendChild(wrap);
+    body.scrollTop = body.scrollHeight;
+    document.getElementById('loActRun').addEventListener('click', function () {
+      if (!window.LifeOS || !LifeOS.runAction) return;
+      var msgs = actions.map(function (a) { var r = LifeOS.runAction(a); return (r.ok ? '✓ ' : '✕ ') + r.message; });
+      wrap.innerHTML = '<div class="lo-cmd-msg">' + msgs.map(function (s) {
+        return '<div class="' + (s.charAt(0) === '✓' ? 'lo-cmd-ok' : 'lo-cmd-err') + '">' + esc(s) + '</div>';
+      }).join('') + '</div>';
+    });
+    document.getElementById('loActCancel').addEventListener('click', function () { wrap.remove(); });
   }
 
   function loadThreads() { var s; try { s = JSON.parse(localStorage.getItem(CHAT_KEY)); } catch (_) {} return (s && s.threads) || []; }
@@ -355,10 +403,12 @@
       context: buildContext(activeThread.messages.map(function (m) { return m.content; }).join(' ')),
       timeoutMs: 45000,
     }).then(function (d) {
-      activeThread.messages.push({ role: 'assistant', content: d.reply || '(no reply)' });
+      var parsed = parseActions(d.reply || '(no reply)');
+      activeThread.messages.push({ role: 'assistant', content: parsed.text });
       activeThread.at = new Date().toISOString();
       saveThread(activeThread);
       renderChat(false);
+      if (parsed.actions) renderActionConfirm(parsed.actions);
     }).catch(function (e) {
       activeThread.messages.pop(); // don't persist the unanswered turn
       renderChat(false);
@@ -394,6 +444,7 @@
   fab.addEventListener('click', open);
 
   /* ---------- external hooks (Phase 13 quick actions) ---------- */
+  window.__opParseActions = parseActions; // test hook
   window.LifeOSCmd = {
     open: function () { open(); },
     prefill: function (text) { els(); if (input) { input.value = text || ''; renderSearch(); input.focus(); } },
