@@ -2653,5 +2653,51 @@ window.addEventListener('lifeos:event', function(e) {
 })();
 </script>
 
+<script>
+// ===== FIRST-RUN ONBOARDING (backlog 7) =====
+// Shows once, only for a genuinely fresh install (no logged data). Never seeds
+// any store — each step just routes the user into a real logging flow.
+(function onboarding() {
+  'use strict';
+  var DONE = 'onboarding:done:v1';
+  function jhas(k) { try { var v = localStorage.getItem(k); return v && v !== '[]' && v !== '{}'; } catch (e) { return false; } }
+  function hasData() { return ['nt:logs', 'po_coach_weights', 'sleep:logs', 'ing:tx', 'supps:stack', 'tasks:v1'].some(jhas); }
+  function start() {
+    if (localStorage.getItem(DONE) === '1') return;
+    if (hasData()) { try { localStorage.setItem(DONE, '1'); } catch (e) {} return; } // existing user
+    var steps = [
+      { ico: '⚖️', title: 'Log your weight', sub: 'One number to start your trend', act: function () { if (window.LifeOSCmd) { window.LifeOSCmd.open(); window.LifeOSCmd.prefill('weight '); } } },
+      { ico: '🍽', title: 'Log a meal', sub: 'Snap or type what you ate', act: function () { location.href = '/nutrition.html'; } },
+      { ico: '🌅', title: 'Turn on the morning briefing', sub: 'Readiness, food, money — each morning', act: function () { location.href = '/reminders.html'; } },
+    ];
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(5,5,6,0.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:20px';
+    var card = '<div style="width:100%;max-width:420px;background:#141416;border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:22px 20px;box-shadow:0 20px 60px rgba(0,0,0,0.6)">'
+      + '<div style="font-size:20px;font-weight:800;color:#FAFAFA;margin-bottom:4px">Welcome to Life OS</div>'
+      + '<div style="font-size:13px;color:#B8B6B0;line-height:1.5;margin-bottom:16px">Your whole life in one app. Start with one of these — everything else builds from your data.</div>'
+      + steps.map(function (s, i) {
+          return '<button data-i="' + i + '" class="ob-step" style="width:100%;display:flex;align-items:center;gap:12px;padding:13px;margin-bottom:8px;border-radius:14px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#FAFAFA;font-family:inherit;cursor:pointer;text-align:left">'
+            + '<span style="font-size:22px">' + s.ico + '</span>'
+            + '<span style="flex:1"><span style="display:block;font-size:14px;font-weight:700">' + s.title + '</span>'
+            + '<span style="display:block;font-size:12px;color:#76746E">' + s.sub + '</span></span>'
+            + '<span style="color:#76746E;font-size:18px">›</span></button>';
+        }).join('')
+      + '<button id="obSkip" style="width:100%;margin-top:6px;padding:11px;border-radius:12px;border:none;background:transparent;color:#76746E;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Skip for now</button>'
+      + '</div>';
+    ov.innerHTML = card;
+    document.body.appendChild(ov);
+    function finish() { try { localStorage.setItem(DONE, '1'); } catch (e) {} ov.remove(); }
+    ov.querySelectorAll('.ob-step').forEach(function (b) {
+      b.addEventListener('click', function () { var s = steps[+b.dataset.i]; finish(); if (s) s.act(); });
+    });
+    ov.querySelector('#obSkip').addEventListener('click', finish);
+    ov.addEventListener('click', function (e) { if (e.target === ov) finish(); });
+  }
+  window.__onboardingStart = start; // test hook
+  if (window.LifeOS) setTimeout(start, 800);
+  else window.addEventListener('lifeos:ready', function () { setTimeout(start, 800); }, { once: true });
+})();
+</script>
+
 </body>
 </html>

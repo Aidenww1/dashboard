@@ -80,6 +80,39 @@
 .tab-icon   { width: 22px; height: 22px; flex-shrink: 0; }
 .tab-icon svg { width: 100%; height: 100%; display: block; }
 
+/* More sheet */
+.tab-sheet-backdrop {
+  position: fixed; inset: 0; z-index: 199;
+  background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+.tab-sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+.tab-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 201;
+  background: rgba(16,16,18,0.98);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-top: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px 18px 0 0;
+  padding: 14px 16px max(20px, env(safe-area-inset-bottom)) 16px;
+  transform: translateY(110%); transition: transform .24s cubic-bezier(.2,.8,.2,1);
+  max-width: 880px; margin: 0 auto;
+}
+.tab-sheet.open { transform: translateY(0); }
+.tab-sheet-grab { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.18); margin: 0 auto 14px; }
+.tab-sheet-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tab-sheet-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px 4px; border-radius: 12px; text-decoration: none;
+  color: #B8B6B0; font-size: 11px; font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent; background: transparent; border: none;
+}
+.tab-sheet-item:hover { background: rgba(255,255,255,0.05); }
+.tab-sheet-item.active { color: var(--accent, #34D399); background: rgba(224,118,88,0.1); }
+.tab-sheet-item .tab-icon { width: 24px; height: 24px; }
+@media (min-width: 700px) { .tab-sheet-grid { grid-template-columns: repeat(6, 1fr); } }
+
 /* Grid utilities, mobile fixes, and container widening live in design.css */
 @media (min-width: 900px) {
   .tabbar { padding-left: 16px; padding-right: 16px; }
@@ -101,17 +134,50 @@
   const inner = document.createElement('div');
   inner.className = 'tabbar-inner';
 
-  TABS.forEach(function (t) {
+  // Four primary tabs on the bar; everything else lives in the More sheet.
+  const PRIMARY = ['index.html', 'health.html', 'gym.html', 'finance.html'];
+  const primaryTabs = PRIMARY.map(function (h) { return TABS.find(function (t) { return t.href === h; }); }).filter(Boolean);
+  const activeInPrimary = PRIMARY.indexOf(page) >= 0;
+  const moreIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+
+  primaryTabs.forEach(function (t) {
     const a = document.createElement('a');
     a.href = t.href;
     a.className = 'tab' + (t.href === page ? ' active' : '');
     if (t.href === page) a.setAttribute('aria-current', 'page');
-    a.innerHTML =
-      '<span class="tab-icon">' + t.icon + '</span>' +
-      '<span>' + t.label + '</span>';
+    a.innerHTML = '<span class="tab-icon">' + t.icon + '</span><span>' + t.label + '</span>';
     inner.appendChild(a);
   });
 
+  const moreBtn = document.createElement('button');
+  moreBtn.type = 'button';
+  moreBtn.className = 'tab' + (activeInPrimary ? '' : ' active');
+  moreBtn.setAttribute('aria-label', 'More tabs');
+  moreBtn.innerHTML = '<span class="tab-icon">' + moreIcon + '</span><span>More</span>';
+  inner.appendChild(moreBtn);
+
   nav.appendChild(inner);
   document.body.appendChild(nav);
+
+  // ---- More sheet: full grid of every destination ----
+  const backdrop = document.createElement('div');
+  backdrop.className = 'tab-sheet-backdrop';
+  const sheet = document.createElement('div');
+  sheet.className = 'tab-sheet';
+  sheet.setAttribute('role', 'menu');
+  let grid = '<div class="tab-sheet-grab"></div><div class="tab-sheet-grid">';
+  TABS.forEach(function (t) {
+    grid += '<a class="tab-sheet-item' + (t.href === page ? ' active' : '') + '" href="' + t.href + '">' +
+      '<span class="tab-icon">' + t.icon + '</span><span>' + t.label + '</span></a>';
+  });
+  grid += '</div>';
+  sheet.innerHTML = grid;
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+
+  function openSheet() { backdrop.classList.add('open'); sheet.classList.add('open'); }
+  function closeSheet() { backdrop.classList.remove('open'); sheet.classList.remove('open'); }
+  moreBtn.addEventListener('click', function () { sheet.classList.contains('open') ? closeSheet() : openSheet(); });
+  backdrop.addEventListener('click', closeSheet);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
 })();

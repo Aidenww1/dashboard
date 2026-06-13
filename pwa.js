@@ -143,10 +143,35 @@
         if (card) setTimeout(function () { card.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 300);
         break;
       }
-      // page-specific (orders/cleanup/photo/analyze): the target page listens
-      // for the lifeos:qa event; landing on the page is the baseline.
+      // page-specific (orders/cleanup/photo/analyze) handled by qaScrollTo below
     }
+    qaScrollTo(qa);
     stripParam('qa');
+  }
+
+  // For page-specific quick actions, scroll to + highlight the relevant section
+  // (auto-opening the camera is blocked post-navigation: no user activation).
+  var QA_SCROLL = {
+    mail: { orders: '#sections', cleanup: '#cleanCard' },
+    body: { photo: '#ppCamInput', analyze: '#ppCamInput' },
+    skin: { photo: '#logPhoto' },
+  };
+  function qaScrollTo(qa) {
+    var map = QA_SCROLL[pageKey()];
+    if (!map || !map[qa]) return;
+    var tries = 25;
+    (function go() {
+      var el = document.querySelector(map[qa]);
+      if (!el) { if (--tries > 0) return setTimeout(go, 150); return; }
+      var target = el.closest('.card, .section, section, label') || el;
+      try { target.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+      try {
+        var prev = target.style.boxShadow;
+        target.style.transition = 'box-shadow .3s';
+        target.style.boxShadow = '0 0 0 2px var(--accent, #E07658)';
+        setTimeout(function () { target.style.boxShadow = prev; }, 1600);
+      } catch (_) {}
+    })();
   }
 
   function handleNotifAction() {

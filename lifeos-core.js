@@ -553,6 +553,31 @@
     };
   }
 
+  /* ---------- deload detection from RPE trend (deterministic) ----------
+     Reads per-set RPE logged in po_coach_v1. If the last ~10 days run hot
+     (avg RPE high or several sets at RPE 9+), suggest a deload week. */
+  function deloadSignal() {
+    var st = get('po_coach_v1', null);
+    if (!st || !st.logs) return { due: false };
+    var now = Date.now(), recent = [];
+    Object.keys(st.logs).forEach(function (exId) {
+      (st.logs[exId] || []).forEach(function (s) {
+        if (s == null || s.rpe == null) return;
+        var t = new Date(s.date).getTime();
+        if (!t) return;
+        if ((now - t) / 86400000 <= 10) recent.push(s.rpe);
+      });
+    });
+    if (recent.length < 5) return { due: false, sets: recent.length };
+    var avg = recent.reduce(function (a, b) { return a + b; }, 0) / recent.length;
+    var hard = recent.filter(function (r) { return r >= 9; }).length;
+    if (avg >= 8.7 || hard >= 5) {
+      return { due: true, avg: Math.round(avg * 10) / 10, hard: hard, sets: recent.length,
+        reason: 'Avg RPE ' + (Math.round(avg * 10) / 10) + ' over ' + recent.length + ' sets/10d' + (hard ? ', ' + hard + ' at RPE 9+' : '') + ' — consider a deload week.' };
+    }
+    return { due: false, avg: Math.round(avg * 10) / 10, sets: recent.length };
+  }
+
   /* ---------- morning briefing (deterministic) ----------
      One assembled object for the wake-time push + the index card.
      Pure code: no AI. Skips lines it has no data for. */
@@ -574,8 +599,9 @@
     lines.push({ icon: '🍽', label: 'Food left', value: kcalLeft + ' kcal · ' + proLeft + 'g protein' });
 
     var trainedToday = !!workoutDone()[todayStr()];
-    var trainMsg = trainedToday ? 'Trained today' : rd.score >= 70 ? 'Good to train hard' : rd.score >= 50 ? 'Train light / technique' : 'Rest or mobility';
-    lines.push({ icon: '🏋', label: 'Training', value: trainMsg + ' · ' + workouts7d() + ' this week' });
+    var dl = deloadSignal();
+    var trainMsg = dl.due ? 'Deload week recommended' : trainedToday ? 'Trained today' : rd.score >= 70 ? 'Good to train hard' : rd.score >= 50 ? 'Train light / technique' : 'Rest or mobility';
+    lines.push({ icon: dl.due ? '🪫' : '🏋', label: 'Training', value: trainMsg + ' · ' + workouts7d() + ' this week' + (dl.due ? ' · ' + dl.reason : '') });
 
     var mail = get('mail:summary:v1', null);
     if (mail) {
@@ -584,8 +610,11 @@
     }
 
     var fin = financeSnapshot();
-    if (fin.savings_rate_pct != null && fin.savings_rate_pct < 10) {
-      lines.push({ icon: '⚠️', label: 'Money', value: 'Savings rate ' + fin.savings_rate_pct + '% — below 10% target' });
+    var sr = fin.savings_rate_pct, srLast = fin.savings_rate_last_month_actual_pct;
+    if (sr != null && sr < 10) {
+      lines.push({ icon: '⚠️', label: 'Money', value: 'Savings rate ' + sr + '% — below 10% target' });
+    } else if (sr != null && srLast != null && sr < srLast - 5) {
+      lines.push({ icon: '📉', label: 'Money', value: 'Savings rate down to ' + sr + '% (was ' + srLast + '% last month)' });
     }
 
     var opp = get('radar:summary:v1', null);
@@ -792,6 +821,7 @@
   window.LifeOS.log = log;
   window.LifeOS.search = search;
   window.LifeOS.briefing = briefing;
+  window.LifeOS.deloadSignal = deloadSignal;
   window.LifeOS.todayStr = todayStr;
   try { window.dispatchEvent(new CustomEvent('lifeos:ready')); } catch (_) {}
 })();
