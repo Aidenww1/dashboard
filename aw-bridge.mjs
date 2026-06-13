@@ -60,7 +60,10 @@ async function main() {
   catch (e) { console.error('Cannot reach ActivityWatch at ' + AW + '. Is it running? ' + e.message); process.exit(1); }
 
   const ids = Object.keys(buckets);
-  const winId = ids.find(i => /aw-watcher-window/i.test(i) || (buckets[i] && buckets[i].type === 'currentwindow'));
+  // Desktop window watcher OR Android app-usage watcher (both emit data.app,
+  // type 'currentwindow'/'app.android.usage'); web watcher emits data.url.
+  const winId = ids.find(i => /aw-watcher-window|aw-watcher-android|android/i.test(i)
+    || (buckets[i] && /currentwindow|app\.android/i.test(buckets[i].type || '')));
   const webId = ids.find(i => /aw-watcher-web/i.test(i));
   if (!winId && !webId) {
     console.error('Connected to ActivityWatch but found no window/web buckets yet. Buckets: ' + (ids.join(', ') || '(none)') + '. Use the PC a bit / install the browser watcher, then retry.');
