@@ -136,6 +136,85 @@
     }
   });
 
+  /* ---------- shared-photo intake (backlog 1) ----------
+     share.html stashed a photo in the share cache + recorded share:handoff:v1
+     {dest,...} then sent the user here. Stage that file into this page's
+     existing file input and fire 'change', so the page's own
+     Analyze -> Report -> Log flow runs untouched. */
+  function shareToast(msg) {
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#141416;border:1px solid rgba(107,227,164,.4);color:#6BE3A4;padding:10px 18px;border-radius:24px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 8px 30px rgba(0,0,0,.5)';
+    document.body.appendChild(t);
+    setTimeout(function () { t.style.transition = 'opacity .3s'; t.style.opacity = '0'; setTimeout(function () { t.remove(); }, 300); }, 2600);
+  }
+
+  // current page -> { dest, input id, auto-analyzes on change?, what to say }
+  var SHARE_MAP = {
+    'nutrition': { dest: 'meal',       input: 'aiGalInput',    auto: true,  toast: 'Shared photo loading — estimating macros…' },
+    'body':      { dest: 'progress',   input: 'ppGalInput',    auto: true,  toast: 'Shared photo loaded — analyzing…' },
+    'skin':      { dest: 'skin',       input: 'logPhoto',      auto: false, toast: 'Shared photo loaded — tap Analyze/Log to continue.' },
+    'finance':   { dest: 'receipt',    input: 'bizReceiptFile', auto: false, toast: 'Receipt loaded — tap Scan to read it.' },
+    'health':    { dest: 'bloodwork',  input: 'labImageUpload', auto: false, toast: 'Lab image loaded — tap Analyze to read it.' },
+  };
+
+  window.LifeOSShare = {
+    pending: function () { try { return JSON.parse(localStorage.getItem('share:handoff:v1')); } catch (_) { return null; } },
+    clear: function () {
+      try { localStorage.removeItem('share:handoff:v1'); } catch (_) {}
+      if ('caches' in window) caches.open('share-target-v1').then(function (c) { c.delete('/__share/meta'); c.delete('/__share/file'); }).catch(function () {});
+    },
+    file: function () {
+      if (!('caches' in window)) return Promise.resolve(null);
+      return caches.open('share-target-v1').then(function (c) {
+        return c.match('/__share/meta').then(function (mr) {
+          if (!mr) return null;
+          return mr.json().then(function (m) {
+            return c.match('/__share/file').then(function (fr) {
+              if (!fr) return null;
+              return fr.blob().then(function (b) { return new File([b], m.fileName || 'shared.jpg', { type: m.fileType || b.type || 'image/jpeg' }); });
+            });
+          });
+        });
+      }).catch(function () { return null; });
+    },
+  };
+
+  function pageKey() {
+    var p = location.pathname.replace(/\/$/, '').replace(/\.html$/, '');
+    return p.split('/').pop() || 'index';
+  }
+
+  function maybeShareIntake() {
+    var cfg = SHARE_MAP[pageKey()];
+    if (!cfg) return;
+    var h = LifeOSShare.pending();
+    if (!h || h.dest !== cfg.dest || !h.hasFile) return;
+    // only consume a fresh handoff (arrived via share.html), then clear it
+    var sharedParam = false;
+    try { sharedParam = new URL(location.href).searchParams.get('shared') === '1'; } catch (_) {}
+    if (!sharedParam && (Date.now() - (h.at || 0) > 120000)) return;
+    LifeOSShare.file().then(function (f) {
+      if (!f) { LifeOSShare.clear(); return; }
+      var input = document.getElementById(cfg.input);
+      if (!input) { return; } // page not ready / element renamed — leave handoff for a retry
+      try {
+        var dt = new DataTransfer();
+        dt.items.add(f);
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (e) {
+        // Safari/iOS forbids setting input.files — fall back to a hint
+        shareToast('Shared photo ready — pick it from the file button (iOS limitation).');
+        return;
+      }
+      try { (document.getElementById(cfg.input).closest('.card,.section,section') || input).scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+      shareToast(cfg.toast);
+      LifeOSShare.clear();
+      try { stripParam('shared'); } catch (_) {}
+    });
+  }
+
   /* ---------- daily morning briefing ---------- */
   // Fires once per day, on the first open after the configured wake time.
   // No server cron: honest "first open of the morning" delivery.
@@ -159,9 +238,14 @@
   }
   window.__maybeBriefing = maybeBriefing; // test hook
 
+  window.__shareIntake = maybeShareIntake; // test hook
+
   function init() {
     handleQuickAction();
     handleNotifAction();
+    // run after the page's own scripts have bound their file-input handlers
+    if (document.readyState === 'complete') setTimeout(maybeShareIntake, 400);
+    else window.addEventListener('load', function () { setTimeout(maybeShareIntake, 400); });
     setTimeout(maybeBriefing, 6000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
