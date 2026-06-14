@@ -99,8 +99,8 @@ For each module, confirm it meets the spec's "feature complete" bar: mobile-OK, 
 - [ ] 🟢 **Backup round-trip from ZIP.** Restore currently reads the JSON; confirm you can fully rebuild from the exported ZIP too.
 
 ## Legal & compliance (EU / single user, but still)
-- [ ] 🔴 **Medical disclaimer** on bloodwork/supplements/skin ("not medical advice, consult a professional") — the spec already forbids diagnosis; surface the disclaimer in UI.
-- [ ] 🟡 **Financial disclaimer** on can-I-afford/mortgage/investing ("not financial advice").
+- [x] 🔴 **Medical disclaimer** on bloodwork/supplements/skin ("not medical advice, consult a professional"). DONE — health.html page-foot disclaimer (c4b2362).
+- [x] 🟡 **Financial disclaimer** on can-I-afford/mortgage/investing ("not financial advice"). DONE — finance.html page-foot disclaimer (c4b2362).
 - [ ] 🟡 **GDPR basics**: health data is special-category. Even single-user, document data location, retention, and a one-tap "delete everything" (right to erasure) — also good hygiene.
 - [ ] 🟢 Anthropic / Google / Supabase ToS compliance check for personal use at this scale.
 
@@ -111,7 +111,7 @@ For each module, confirm it meets the spec's "feature complete" bar: mobile-OK, 
 - [ ] 🟡 **AI quality evals**: a small regression set for the deterministic-vs-AI boundary so prompt/model changes don't silently degrade coaching/classification.
 - [ ] 🟡 **Anthropic model migration** handling (model IDs deprecate; centralize + monitor).
 - [ ] 🟢 In-app changelog / "what's new" after each deploy.
-- [ ] 🟢 SW update UX: prompt "new version, reload" instead of silent/stale (the stale-cache issue hit us during dev).
+- [x] 🟢 SW update UX: prompt "new version, reload" instead of silent/stale (the stale-cache issue hit us during dev). DONE — pwa.js controllerchange toast (c4b2362).
 
 ## Settings & account
 - [ ] 🟡 **One real Settings hub**: units, calorie/protein/sleep targets, wake time, integrations (Gmail/Calendar/VAPID/activity), privacy, export, danger-zone wipe. Currently scattered across pages.
