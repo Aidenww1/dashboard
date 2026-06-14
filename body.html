@@ -217,6 +217,7 @@ h1{font-size:22px;font-weight:700;color:var(--text-primary);margin:0 0 4px}
 </main>
 <script src="tabbar.js"></script>
 <script src="topbar.js"></script>
+<script src="photo-store.js"></script>
 <script>
 (function () {
 'use strict';
@@ -598,12 +599,15 @@ $('ppAnalyzeBtn').addEventListener('click', function () {
     tags: tags,
     context: { goal: goal, weightTrend: trend, prevDate: prev ? prev.date : null, prevWeightKg: prev ? prev.weightKg : null },
   };
-  if (prev) { body.prevImage = prev.dataUrl.split(',')[1]; body.prevMimeType = 'image/jpeg'; }
-  fetch('/api/visual-ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(60000),
+  // Prev image lives in IndexedDB now — fetch it before posting.
+  (prev ? (prev.dataUrl ? Promise.resolve(prev.dataUrl) : LifeOSPhotos.get(prev.id)) : Promise.resolve(null)).then(function (prevUrl) {
+    if (prevUrl) { body.prevImage = prevUrl.split(',')[1]; body.prevMimeType = 'image/jpeg'; }
+    return fetch('/api/visual-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60000),
+    });
   }).then(function (r) {
     return r.text().then(function (t) {
       var d; try { d = JSON.parse(t); } catch (e) { throw new Error('AI service unreachable (' + r.status + ')'); }
@@ -651,33 +655,44 @@ function renderReport(rep) {
 function savePhoto(withReport) {
   if (!curDataUrl) return;
   var tags = currentTags();
+  var img = curDataUrl;                 // capture before resetCapture nulls it
+  var rep = withReport ? curReport : null;
+  var repNote = $('ppReportNote').value.trim() || null;
   var photo = {
-    id: gid(), dataUrl: curDataUrl, date: todayStr(),
+    id: gid(), date: todayStr(),
     angle: tags.angle, flexed: tags.flexed, weightKg: tags.weightKg,
     lighting: tags.lighting, pump: tags.pump, tod: tags.tod,
   };
-  var ps = photos(); ps.push(photo);
-  while (ps.length > 80) ps.shift();
-  if (!lsSet(PHOTOS_KEY, ps)) return;
+  // Image bytes -> IndexedDB; only this metadata stays in localStorage. Commit
+  // the metadata after the image write succeeds so we never reference a missing
+  // blob. Evicted photos (>80) get their IDB blob deleted too.
+  LifeOSPhotos.put(photo.id, img).then(function () {
+    var ps = photos(); ps.push(photo);
+    while (ps.length > 80) { var d = ps.shift(); if (d && d.id) LifeOSPhotos.del(d.id); }
+    if (!lsSet(PHOTOS_KEY, ps)) return;
 
-  if (withReport && curReport) {
-    var rs = reports();
-    rs.push({ id: gid(), photoId: photo.id, date: photo.date, angle: photo.angle, report: curReport, note: $('ppReportNote').value.trim() || null });
-    while (rs.length > 40) rs.shift();
-    lsSet(REPORTS_KEY, rs);
-  }
-  // mirror into the gym progress-photo store (synced to Supabase by gym.html)
-  try {
-    var pc = lsGet('po_coach_photos', []);
-    pc.push({ id: photo.id, dataUrl: photo.dataUrl, dateKey: photo.date, weight: photo.weightKg || null });
-    while (pc.length > 80) pc.shift();
-    localStorage.setItem('po_coach_photos', JSON.stringify(pc));
-  } catch (e) {}
-  try { window.dispatchEvent(new CustomEvent('lifeos:logged', { detail: { type: 'progress_photo' } })); } catch (e) {}
-  resetCapture();
-  renderGallery();
-  renderReminder();
-  $('ppStatus').textContent = withReport && curReport ? 'Logged: photo + analysis report.' : 'Photo saved (no analysis).';
+    if (rep) {
+      var rs = reports();
+      rs.push({ id: gid(), photoId: photo.id, date: photo.date, angle: photo.angle, report: rep, note: repNote });
+      while (rs.length > 40) rs.shift();
+      lsSet(REPORTS_KEY, rs);
+    }
+    // mirror into the gym progress-photo store (synced to Supabase by gym.html;
+    // that copy still carries the dataUrl for upload)
+    try {
+      var pc = lsGet('po_coach_photos', []);
+      pc.push({ id: photo.id, dataUrl: img, dateKey: photo.date, weight: photo.weightKg || null });
+      while (pc.length > 80) pc.shift();
+      localStorage.setItem('po_coach_photos', JSON.stringify(pc));
+    } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('lifeos:logged', { detail: { type: 'progress_photo' } })); } catch (e) {}
+    resetCapture();
+    renderGallery();
+    renderReminder();
+    $('ppStatus').textContent = rep ? 'Logged: photo + analysis report.' : 'Photo saved (no analysis).';
+  }).catch(function () {
+    $('ppStatus').textContent = 'Could not save photo (storage error).';
+  });
 }
 $('ppLogBtn').addEventListener('click', function () { savePhoto(true); });
 $('ppSaveOnlyBtn').addEventListener('click', function () { savePhoto(false); });
@@ -693,13 +708,20 @@ function renderGallery() {
   }
   el.innerHTML = ps.map(function (p) {
     return '<div class="pp-thumb' + (selected.indexOf(p.id) >= 0 ? ' selected' : '') + '" data-pid="' + p.id + '">'
-      + '<img src="' + p.dataUrl + '" alt="' + p.angle + ' ' + p.date + '" loading="lazy">'
+      + '<img ' + (p.dataUrl ? 'src="' + p.dataUrl + '" ' : '') + 'data-pid="' + p.id + '" alt="' + p.angle + ' ' + p.date + '" loading="lazy">'
       + '<span class="pp-badge">' + p.angle + (p.flexed ? ' · flex' : '') + '</span>'
       + '<span class="pp-date">' + p.date.slice(5) + '</span>'
       + '</div>';
   }).join('');
   el.querySelectorAll('.pp-thumb').forEach(function (th) {
     th.addEventListener('click', function () { toggleSelect(th.dataset.pid); });
+  });
+  // Image bytes live in IndexedDB now — load them in after the markup is up.
+  LifeOSPhotos.getMany(ps.map(function (p) { return p.id; })).then(function (map) {
+    el.querySelectorAll('img[data-pid]').forEach(function (img) {
+      var u = map[img.getAttribute('data-pid')];
+      if (u) img.src = u;
+    });
   });
 }
 function toggleSelect(pid) {
@@ -725,8 +747,10 @@ function renderCompare() {
   if (a.weightKg && b.weightKg && Math.abs(a.weightKg - b.weightKg) > 3) warns.push('Weight differs ' + Math.abs(a.weightKg - b.weightKg).toFixed(1) + ' kg between photos.');
   if (a.lighting !== b.lighting && (a.lighting || b.lighting)) warns.push('Lighting/pose notes differ.');
   $('ppCompareWarn').innerHTML = warns.length ? warns.map(function (w) { return '⚠ ' + escH(w); }).join('<br>') : '';
-  $('ppCompareA').src = a.dataUrl;
-  $('ppCompareB').src = b.dataUrl;
+  LifeOSPhotos.getMany([a.id, b.id]).then(function (map) {
+    $('ppCompareA').src = a.dataUrl || map[a.id] || '';
+    $('ppCompareB').src = b.dataUrl || map[b.id] || '';
+  });
   $('ppCompareLblA').textContent = a.date + (a.weightKg ? ' · ' + a.weightKg + ' kg' : '');
   $('ppCompareLblB').textContent = b.date + (b.weightKg ? ' · ' + b.weightKg + ' kg' : '');
   $('ppCompareSlider').value = 50;
@@ -758,6 +782,20 @@ function renderReminder() {
   card.style.display = '';
 }
 
+// One-time migration: lift any base64 still living in body:photos:v1 into
+// IndexedDB and strip it from localStorage (frees the quota). Idempotent —
+// once stripped there's nothing left to move. po_coach_photos is left alone
+// (gym.html owns it + syncs it to Supabase).
+function migratePhotos() {
+  if (!window.LifeOSPhotos) return;
+  var ps = photos(), puts = [], changed = false;
+  ps.forEach(function (p) {
+    if (p && p.dataUrl) { puts.push(LifeOSPhotos.put(p.id, p.dataUrl)); delete p.dataUrl; changed = true; }
+  });
+  if (changed) Promise.all(puts).then(function () { lsSet(PHOTOS_KEY, ps); renderGallery(); }).catch(function () {});
+}
+
+migratePhotos();
 renderGallery();
 renderReminder();
 })();
