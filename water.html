@@ -1103,83 +1103,12 @@ html, body {
 })();
 </script>
 
+<script src="cloudsync.js"></script>
 <script>
-(function waterSync() {
-  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
-  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
-  var APP_KEY  = 'water-app';
-  var SYNC_KEYS = ['po_water_v1'];
-  var _origSet = localStorage.setItem.bind(localStorage);
-  var pushTimer = null;
-  var lastJson = null;
-
-  localStorage.setItem = function(k, v) {
-    _origSet(k, v);
-    if (SYNC_KEYS.indexOf(k) !== -1) schedulePush();
-  };
-
-  function collect() {
-    var out = {};
-    for (var i = 0; i < SYNC_KEYS.length; i++) {
-      var v = localStorage.getItem(SYNC_KEYS[i]);
-      if (v != null) try { out[SYNC_KEYS[i]] = JSON.parse(v); } catch (_) {}
-    }
-    return out;
-  }
-
-  function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 400); }
-
-  function pushNow() {
-    var data = collect();
-    var json = JSON.stringify(data);
-    if (json === lastJson) return;
-    lastJson = json;
-    try {
-      fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
-        method: 'POST',
-        headers: {
-          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
-          'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates',
-        },
-        body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }),
-        keepalive: true,
-      }).catch(function() {});
-    } catch (_) {}
-  }
-
-  function applyRemote(remote) {
-    if (!remote || typeof remote !== 'object') return;
-    var changed = false;
-    for (var i = 0; i < SYNC_KEYS.length; i++) {
-      var k = SYNC_KEYS[i];
-      if (k in remote) {
-        var incoming = JSON.stringify(remote[k]);
-        if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch (_) {} }
-      }
-    }
-    if (changed && window._waterRenderAll) try { window._waterRenderAll(); } catch (_) {}
-  }
-
-  (async function init() {
-    var url = SUPA_URL + '/rest/v1/app_state?select=data,updated_at&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1';
-    try {
-      var r = await fetch(url, { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } });
-      if (r.ok) {
-        var rows = await r.json();
-        if (rows[0] && rows[0].data) {
-          lastJson = JSON.stringify(rows[0].data);
-          applyRemote(rows[0].data);
-        } else if (Object.keys(collect()).length > 0) {
-          schedulePush();
-        }
-      }
-    } catch (_) {}
-  })();
-
-  window.addEventListener('pagehide', pushNow);
-  window.addEventListener('beforeunload', pushNow);
-  document.addEventListener('visibilitychange', function() { if (document.hidden) pushNow(); });
-})();
+// Per-key timestamp-merged sync (replaces whole-bundle last-write-wins).
+LifeOSSync.register('water-app',
+  ['po_water_v1'],
+  { onApply: function () { if (window._waterRenderAll) window._waterRenderAll(); } });
 </script>
 
 <style>

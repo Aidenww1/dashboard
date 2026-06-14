@@ -232,56 +232,12 @@ window._libRenderAll = function() { renderAll(); renderCourses(); };
 
 </script>
 
+<script src="cloudsync.js"></script>
 <script>
-(function libSync() {
-  var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
-  var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
-  var APP_KEY  = 'library-app';
-  var SYNC_KEYS = ['library:books:v1', 'library:courses:v1'];
-
-  var pushTimer = null;
-  var suppressSync = false;
-  var lastSyncedJson = null;
-  var _origSet = localStorage.setItem.bind(localStorage);
-
-  localStorage.setItem = function(k, v) {
-    _origSet(k, v);
-    if (!suppressSync && SYNC_KEYS.indexOf(k) !== -1) { clearTimeout(pushTimer); pushTimer = setTimeout(pushNow, 500); }
-  };
-
-  function collectState() {
-    var out = {};
-    SYNC_KEYS.forEach(function(k) { var v = localStorage.getItem(k); if (v != null) { try { out[k] = JSON.parse(v); } catch (_) { out[k] = v; } } });
-    return out;
-  }
-
-  function pushNow() {
-    var data = collectState(); var json = JSON.stringify(data);
-    if (json === lastSyncedJson) return;
-    fetch(SUPA_URL + '/rest/v1/app_state', { method: 'POST', headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }) }).then(function() { lastSyncedJson = json; }).catch(function() {});
-  }
-
-  function flushOnUnload() {
-    var data = collectState(); var json = JSON.stringify(data);
-    if (json === lastSyncedJson) return;
-    try { fetch(SUPA_URL + '/rest/v1/app_state', { method: 'POST', headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ key: APP_KEY, data: data, updated_at: new Date().toISOString() }), keepalive: true }).catch(function() {}); lastSyncedJson = json; } catch (_) {}
-  }
-
-  window.addEventListener('pagehide', flushOnUnload);
-  window.addEventListener('beforeunload', flushOnUnload);
-  document.addEventListener('visibilitychange', function() { if (document.hidden) flushOnUnload(); });
-
-  fetch(SUPA_URL + '/rest/v1/app_state?select=data&key=eq.' + encodeURIComponent(APP_KEY) + '&limit=1', { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } })
-  .then(function(r) { return r.json(); })
-  .then(function(rows) {
-    if (!rows || !rows[0] || !rows[0].data) return;
-    suppressSync = true;
-    var changed = false;
-    try { SYNC_KEYS.forEach(function(k) { if (!(k in rows[0].data)) return; var inc = JSON.stringify(rows[0].data[k]); if (localStorage.getItem(k) !== inc) { _origSet(k, inc); changed = true; } }); } finally { suppressSync = false; }
-    lastSyncedJson = JSON.stringify(collectState());
-    if (changed) { try { if (typeof window._libRenderAll === 'function') window._libRenderAll(); } catch (_) {} }
-  }).catch(function() {});
-})();
+// Per-key timestamp-merged sync (replaces whole-bundle last-write-wins).
+LifeOSSync.register('library-app',
+  ['library:books:v1', 'library:courses:v1'],
+  { onApply: function () { if (window._libRenderAll) window._libRenderAll(); } });
 </script>
 
 </body>
