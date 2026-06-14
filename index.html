@@ -900,6 +900,18 @@ body { padding-bottom: 90px; }
         <div class="ls-quality" id="actStale"></div>
       </div>
 
+      <div class="ai-summary-card" id="wearableCard" style="display:none">
+        <div class="card-eyebrow">Watch today</div>
+        <div class="ls-row">
+          <div class="ls-num" id="wearSteps">&mdash;</div>
+          <div class="ls-meta">
+            <div class="ls-drag" id="wearSleep"></div>
+            <div class="ls-action" id="wearHR"></div>
+          </div>
+        </div>
+        <div class="ls-quality" id="wearStale"></div>
+      </div>
+
       <div class="ai-summary-card">
         <div class="card-eyebrow">AI Summary</div>
         <div class="ai-summary-text" id="aiSummaryText">Tap refresh to get your daily briefing.</div>
@@ -2688,6 +2700,29 @@ window.addEventListener('lifeos:event', function(e) {
   window.__activityCardRender = render;
   render();
   window.addEventListener('lifeos:activity', render);
+})();
+</script>
+
+<script>
+// ===== WATCH CARD (Health Connect via Tasker -> Supabase) =====
+(function wearableCard() {
+  'use strict';
+  function jget(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function fmtMin(m) { return m >= 60 ? (Math.floor(m / 60) + 'h ' + (m % 60) + 'm') : (m + 'm'); }
+  function render() {
+    var card = document.getElementById('wearableCard'); if (!card) return;
+    var w = jget('wearable:today:v1');
+    if (!w || !w.syncTime || (w.steps == null && !w.sleepMin && !w.restingHR)) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    document.getElementById('wearSteps').textContent = w.steps != null ? w.steps.toLocaleString() + ' steps' : '—';
+    document.getElementById('wearSleep').textContent = w.sleepMin ? 'Sleep ' + fmtMin(w.sleepMin) : '';
+    document.getElementById('wearHR').textContent = w.restingHR ? 'Resting HR ' + w.restingHR + ' bpm' + (w.hrAvg ? ' · avg ' + w.hrAvg : '') : '';
+    var ageH = Math.round((Date.now() - w.syncTime) / 3600000);
+    document.getElementById('wearStale').textContent = ageH < 1 ? 'synced just now' : 'synced ' + ageH + 'h ago';
+  }
+  window.__wearableCardRender = render;
+  render();
+  window.addEventListener('lifeos:wearable', render);
 })();
 </script>
 

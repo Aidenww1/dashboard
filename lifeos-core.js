@@ -90,7 +90,15 @@
     return +(recent - older).toFixed(1);
   }
   function sleepFor(date) {
-    return sleepLogs().find(function (e) { return e && e.date === date; }) || null;
+    var e = sleepLogs().find(function (e) { return e && e.date === date; });
+    if (e) return e;
+    // Fall back to wearable-synced sleep (Health Connect via Tasker) when no
+    // manual entry exists for the date. Manual logs always win.
+    try {
+      var w = get('wearable:today:v1', null);
+      if (w && w.sleepDate === date && w.sleepMin) return { date: date, duration: w.sleepMin, source: 'watch' };
+    } catch (_) {}
+    return null;
   }
   function sleepDebt7d(targetHrs) {
     var tgt = (targetHrs || 8) * 60, debt = 0, counted = 0;
@@ -555,6 +563,18 @@
     };
   }
 
+  function sliceWearable() {
+    var w = get('wearable:today:v1', null);
+    if (!w || !w.syncTime) return { tracked: false, note: 'No wearable data yet (set up Tasker Health Connect sync; see the Watch page)' };
+    return {
+      synced_hours_ago: Math.round((Date.now() - w.syncTime) / 3600000),
+      steps_today: w.steps != null ? w.steps : null,
+      sleep_last_night_min: w.sleepMin || null,
+      resting_hr: w.restingHR || null,
+      avg_hr: w.hrAvg || null,
+    };
+  }
+
   function sliceFull() {
     return {
       today: sliceToday(),
@@ -667,6 +687,7 @@
       case 'mail': return sliceMail();
       case 'opportunities': return sliceOpportunities();
       case 'activity': return sliceActivity();
+      case 'wearable': return sliceWearable();
       case 'full_summary': return sliceFull();
       case 'today':
       default: return sliceToday();
@@ -1053,4 +1074,113 @@
   }
   window.__activityPull = pull; // test hook
   setTimeout(pull, 4000);
+})();
+
+/* ---------- wearable pull (Health Connect via Tasker -> Supabase) ----------
+   Reads the per-metric health tables the Tasker pipeline fills and reduces them
+   to one lean "today" summary the dashboard + readiness consume. Handles both
+   plugin schemas: plain Read Data {records:[...]} and aggregated
+   {longValues,doubleValues}. Mirrors watch.html parsing. Pure parse + cache. */
+(function wearablePull() {
+  'use strict';
+  var BASE = '/api/health/read';
+
+  function todayLocal() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dateOf(ms) {
+    var d = new Date(ms);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function recs(row) { return (row && row.data && Array.isArray(row.data.records)) ? row.data.records : []; }
+  function lv(row) { return (row && row.data && row.data.longValues) || {}; }
+  function dv(row) { return (row && row.data && row.data.doubleValues) || {}; }
+  function rowHasData(row) {
+    var d = row && row.data;
+    if (!d || typeof d !== 'object') return false;
+    if (Object.keys(d.longValues || {}).length || Object.keys(d.doubleValues || {}).length) return true;
+    if (Array.isArray(d.records)) return d.records.length > 0;
+    if (Array.isArray(d.samples)) return d.samples.length > 0;
+    return Object.keys(d).some(function (k) { return ['longValues', 'doubleValues', 'dataOrigins', 'records', 'samples', 'pageToken'].indexOf(k) < 0; });
+  }
+  // Newest row that actually carries data.
+  function freshest(rows) {
+    var best = null;
+    (rows || []).forEach(function (r) {
+      if (!rowHasData(r)) return;
+      if (!best || r.created_at > best.created_at) best = r;
+    });
+    return best;
+  }
+
+  // Pure reducer (exported for tests): { stepsRows, sleepRows, hrRows } -> summary.
+  function summarize(steps, sleep, hr) {
+    var out = { steps: null, sleepMin: null, sleepDate: null, restingHR: null, hrAvg: null };
+    var today = todayLocal();
+
+    var sRow = freshest(steps);
+    if (sRow) {
+      var st = lv(sRow).Steps_count_total || recs(sRow).reduce(function (s, x) { return s + (x.count || 0); }, 0);
+      if (sRow.created_at.slice(0, 10) === today) out.steps = st;
+    }
+
+    var slRow = freshest(sleep);
+    if (slRow) {
+      var ms = lv(slRow).SleepSession_sleep_duration_total || 0;
+      if (!ms) ms = recs(slRow).reduce(function (s, x) { return s + ((x.endTime || 0) - (x.startTime || 0)); }, 0);
+      if (ms) {
+        out.sleepMin = Math.round(ms / 60000);
+        var endMs = recs(slRow)[0] && recs(slRow)[0].endTime;
+        out.sleepDate = endMs ? dateOf(endMs) : slRow.created_at.slice(0, 10);
+      }
+    }
+
+    var bpms = [];
+    (hr || []).forEach(function (r) {
+      if (!rowHasData(r)) return;
+      var rs = recs(r);
+      if (rs.length) {
+        rs.forEach(function (rec) { (rec.samples || []).forEach(function (sm) { if (sm.beatsPerMinute) bpms.push(sm.beatsPerMinute); }); });
+      } else {
+        var b = dv(r).HeartRate_bpm_avg || lv(r).HeartRate_bpm_avg || dv(r).RestingHeartRate_bpm_avg || 0;
+        if (b) bpms.push(b);
+      }
+    });
+    if (bpms.length) {
+      out.hrAvg = Math.round(bpms.reduce(function (a, b) { return a + b; }, 0) / bpms.length);
+      out.restingHR = Math.round(Math.min.apply(null, bpms)); // lowest reading ~ resting proxy
+    }
+    return out;
+  }
+  window.__wearableSummarize = summarize; // test hook
+
+  function fetchMetric(type) {
+    return fetch(BASE + '/' + type + '?limit=100&days=2')
+      .then(function (r) { return r.ok ? r.json() : { rows: [] }; })
+      .then(function (j) { return j.rows || []; })
+      .catch(function () { return []; });
+  }
+
+  function pull() {
+    if (!navigator.onLine) return;
+    Promise.all([fetchMetric('steps'), fetchMetric('sleep'), fetchMetric('heartrate')])
+      .then(function (res) {
+        var sum = summarize(res[0], res[1], res[2]);
+        if (sum.steps == null && sum.sleepMin == null && sum.restingHR == null) return; // nothing useful
+        sum.syncTime = Date.now();
+        try {
+          var prev = localStorage.getItem('wearable:today:v1');
+          var next = JSON.stringify(sum);
+          // ignore syncTime-only churn
+          var prevCmp = prev ? JSON.stringify(Object.assign(JSON.parse(prev), { syncTime: 0 })) : null;
+          if (prevCmp !== JSON.stringify(Object.assign({}, sum, { syncTime: 0 }))) {
+            localStorage.setItem('wearable:today:v1', next);
+            window.dispatchEvent(new CustomEvent('lifeos:wearable'));
+          }
+        } catch (e) {}
+      }).catch(function () {});
+  }
+  window.__wearablePull = pull; // test hook
+  setTimeout(pull, 4500);
 })();
