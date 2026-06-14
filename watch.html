@@ -491,8 +491,16 @@
     }).join('');
   }
 
+  // Show cached data instantly, then auto-sync — no button press needed.
   renderAll(load());
   checkConnection();
+  syncData();
+  // Refresh every 5 min while the tab is open.
+  setInterval(syncData, 5 * 60 * 1000);
+  // Re-sync when the tab regains focus (e.g. reopened from the tab bar).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncData();
+  });
 })();
 </script>
 
