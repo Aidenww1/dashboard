@@ -16,6 +16,31 @@
 
   navigator.serviceWorker.register('/sw.js').catch(function () {});
 
+  /* ---------- update prompt ----------
+     sw.js uses skipWaiting + clients.claim, so a new worker takes control
+     without a reload — but the page's already-loaded HTML/CSS/JS stay stale
+     until refresh. Instead of silently serving old assets, tell the user a new
+     version is live and let them reload. (We hit stale-cache confusion in dev.) */
+  var __hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (!__hadController) return; // first-ever install, not an update
+    showUpdateToast();
+  });
+  function showUpdateToast() {
+    if (document.getElementById('__swUpdateToast')) return;
+    var t = document.createElement('div');
+    t.id = '__swUpdateToast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);display:flex;align-items:center;gap:12px;background:#141416;border:1px solid rgba(107,227,164,.4);color:#E8E6E0;padding:10px 14px 10px 18px;border-radius:24px;font-size:13px;font-weight:600;z-index:10000;box-shadow:0 8px 30px rgba(0,0,0,.5)';
+    var span = document.createElement('span');
+    span.textContent = 'New version available';
+    var btn = document.createElement('button');
+    btn.textContent = 'Reload';
+    btn.style.cssText = 'background:#6BE3A4;color:#0A0A0B;border:none;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit';
+    btn.onclick = function () { window.location.reload(); };
+    t.appendChild(span); t.appendChild(btn);
+    document.body.appendChild(t);
+  }
+
   /* ---------- install prompt ---------- */
   var deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', function (e) {
