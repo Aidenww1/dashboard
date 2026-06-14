@@ -250,13 +250,16 @@
   }
 
   // A row is "real" only if Health Connect actually returned values. Empty
-  // reads ({} or {longValues:{},doubleValues:{}}) must never become "today".
+  // reads ({}, {records:[]}, or {longValues:{},doubleValues:{}}) must never
+  // become "today". The plugin's plain "Read Data" returns {pageToken,records:[]};
+  // "Read Aggregated Data" returns {longValues,doubleValues}. Handle both.
   function rowHasData(row) {
     const d = row && row.data;
     if (!d || typeof d !== 'object') return false;
     if (Object.keys(d.longValues || {}).length || Object.keys(d.doubleValues || {}).length) return true;
-    if (Array.isArray(d.samples) && d.samples.length) return true;
-    return Object.keys(d).some(k => !['longValues', 'doubleValues', 'dataOrigins', 'samples'].includes(k));
+    if (Array.isArray(d.records)) return d.records.length > 0;
+    if (Array.isArray(d.samples)) return d.samples.length > 0;
+    return Object.keys(d).some(k => !['longValues', 'doubleValues', 'dataOrigins', 'records', 'samples', 'pageToken'].includes(k));
   }
 
   function latestByDate(rows, extractFn) {
@@ -273,6 +276,8 @@
 
   const lv = row => row.data?.longValues || {};
   const dv = row => row.data?.doubleValues || {};
+  // Plain "Read Data" payload: { pageToken, records: [...] }
+  const recs = row => (row.data && Array.isArray(row.data.records)) ? row.data.records : [];
 
   async function checkConnection() {
     const dot = document.getElementById('connDot');
@@ -303,28 +308,51 @@
         fetchMetric('floorsclimbed'),
       ]);
 
-      const steps = latestByDate(stepsRows, r => ({ steps: lv(r).Steps_count_total || 0 }));
-      const calories = latestByDate(calRows, r => ({
-        kcal: Math.round((dv(r).TotalCaloriesBurned_energy_total || 0) / 1000),
+      // Each extractor handles both schemas: aggregated (longValues/doubleValues)
+      // and plain Read Data (records[]). Plain reads cover the whole day window,
+      // so the day's total = sum across that row's records.
+      const steps = latestByDate(stepsRows, r => ({
+        steps: lv(r).Steps_count_total || recs(r).reduce((s, x) => s + (x.count || 0), 0),
       }));
-      const sleep = latestByDate(sleepRows, r => {
-        const ms = lv(r).SleepSession_sleep_duration_total || 0;
-        return { hours: +(ms / 3600000).toFixed(2), start: new Date(r.created_at).getTime() - ms };
+      const calories = latestByDate(calRows, r => {
+        const agg = dv(r).TotalCaloriesBurned_energy_total;
+        const kcal = agg ? Math.round(agg / 1000)
+          : Math.round(recs(r).reduce((s, x) => s + ((x.energy && x.energy.kilocalories) || 0), 0));
+        return { kcal };
       });
-      const heartRate = hrRows.filter(rowHasData)
-        .map(r => {
-          const d = r.data || {}, dvv = d.doubleValues || {}, lvv = d.longValues || {};
-          let bpm = dvv.HeartRate_bpm_avg || lvv.HeartRate_bpm_avg || dvv.RestingHeartRate_bpm_avg || 0;
+      const sleep = latestByDate(sleepRows, r => {
+        let ms = lv(r).SleepSession_sleep_duration_total || 0;
+        if (!ms) ms = recs(r).reduce((s, x) => s + ((x.endTime || 0) - (x.startTime || 0)), 0);
+        const start = recs(r)[0]?.startTime || (new Date(r.created_at).getTime() - ms);
+        return { hours: +(ms / 3600000).toFixed(2), start };
+      });
+      // Heart rate: flatten records[].samples[] across rows; fall back to
+      // aggregated avg when the row is in the aggregated schema.
+      const heartRate = [];
+      for (const r of hrRows) {
+        if (!rowHasData(r)) continue;
+        const d = r.data || {};
+        const rs = recs(r);
+        if (rs.length) {
+          for (const rec of rs) for (const s of (rec.samples || [])) {
+            if (s.beatsPerMinute) heartRate.push({ time: s.time || new Date(r.created_at).getTime(), bpm: Math.round(s.beatsPerMinute) });
+          }
+        } else {
+          let bpm = dv(r).HeartRate_bpm_avg || lv(r).HeartRate_bpm_avg || dv(r).RestingHeartRate_bpm_avg || 0;
           if (!bpm && Array.isArray(d.samples) && d.samples.length) bpm = d.samples[d.samples.length - 1].beatsPerMinute || 0;
-          return { time: new Date(r.created_at).getTime(), bpm: Math.round(bpm) };
-        })
-        .filter(r => r.bpm > 0);
-      const distance = latestByDate(distRows, r => ({
-        km: +((dv(r).Distance_distance_total || 0) / 1000).toFixed(2),
-      }));
-      const floors = latestByDate(floorsRows, r => ({
-        count: Math.round(dv(r).FloorsClimbed_floors_total || lv(r).FloorsClimbed_floors_total || 0),
-      }));
+          if (bpm) heartRate.push({ time: new Date(r.created_at).getTime(), bpm: Math.round(bpm) });
+        }
+      }
+      heartRate.sort((a, b) => a.time - b.time);
+      const distance = latestByDate(distRows, r => {
+        const m = dv(r).Distance_distance_total || recs(r).reduce((s, x) => s + ((x.distance && x.distance.meters) || 0), 0);
+        return { km: +(m / 1000).toFixed(2) };
+      });
+      const floors = latestByDate(floorsRows, r => {
+        const agg = dv(r).FloorsClimbed_floors_total || lv(r).FloorsClimbed_floors_total;
+        const fromRecs = recs(r).reduce((s, x) => s + (x.floors || (x.elevation && x.elevation.meters) || 0), 0);
+        return { count: Math.round(agg || fromRecs || 0) };
+      });
 
       const now = Date.now();
       const data = { steps, calories, sleep, heartRate, distance, floors, exercises: [], syncTime: now };
