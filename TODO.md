@@ -105,7 +105,7 @@ For each module, confirm it meets the spec's "feature complete" bar: mobile-OK, 
 - [ ] 🟢 Anthropic / Google / Supabase ToS compliance check for personal use at this scale.
 
 ## Ops, reliability & quality
-- [ ] 🔴 **Error monitoring** (client + serverless). Right now failures are silent; you'd never know an AI call, sync, or cron is broken. Add Sentry or equivalent + a visible "something failed" surface.
+- [~] 🔴 **Error monitoring** (client + serverless). Right now failures are silent; you'd never know an AI call, sync, or cron is broken. CLIENT DONE — errlog.js / LifeOSErrors ring buffer + tap-to-view surface (1cc3e2a). STILL TODO: serverless (agent.js/api errors) + cron-failure visibility.
 - [ ] 🟡 **Graceful degradation** when Anthropic/Supabase/Google are down or rate-limited (clear states, retries with backoff, never a blank screen).
 - [ ] 🟡 **Secrets/key rotation** plan + checklist (VAPID, Supabase, Anthropic, Google).
 - [ ] 🟡 **AI quality evals**: a small regression set for the deterministic-vs-AI boundary so prompt/model changes don't silently degrade coaching/classification.
