@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Aiden's Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloudsync.js"></script>
 <script src="claude.js"></script>
 <script src="realtime.js" defer></script>
 <script src="events-bridge.js" defer></script>
@@ -1801,162 +1802,18 @@ setInterval(refreshStatChips, 60000);
   fire(false);
 })();
 
-// ── Supabase cloud sync ───────────────────────────────────────────────────────
+// ── Supabase cloud sync (per-key timestamp merge via LifeOSSync) ──
 (function() {
-  const SUPABASE_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
-  const APP_KEY = 'dashboard';
-
-  if (!window.supabase) return;
-
-  let dbSupa = null, dbPushTimer = null, dbSuppressSync = false;
-  let dbPendingRemote = null, dbLastSyncedJson = null;
-
-  const _dbOrigSet    = localStorage.setItem.bind(localStorage);
-  const _dbOrigRemove = localStorage.removeItem.bind(localStorage);
-
-  function isDashboardKey(k) { return k && (k.startsWith('goals:') || k === 'goal_streak_v1'); }
-
-  localStorage.setItem = function(k, v) {
-    _dbOrigSet(k, v);
-    try { if (!dbSuppressSync && isDashboardKey(k)) dbSchedulePush(); } catch {}
-  };
-  localStorage.removeItem = function(k) {
-    _dbOrigRemove(k);
-    try { if (!dbSuppressSync && isDashboardKey(k)) dbSchedulePush(); } catch {}
-  };
-
-  function dbCollectState() {
-    const out = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (!isDashboardKey(k)) continue;
-      try { out[k] = JSON.parse(localStorage.getItem(k)); } catch {}
+  if (!window.LifeOSSync) return;
+  LifeOSSync.register('dashboard', ['goal_streak_v1'], {
+    prefixes: ['goals:'],
+    onApply: function () {
+      try { if (window.loadToday) loadToday(); } catch (e) {}
+      try { if (window.loadTomorrow) loadTomorrow(); } catch (e) {}
+      try { if (window.renderStreak) renderStreak(); } catch (e) {}
+      try { window.dispatchEvent(new CustomEvent('goals-changed')); } catch (e) {}
     }
-    return out;
-  }
-
-  function dbIsEditing() {
-    const ae = document.activeElement;
-    if (!ae) return false;
-    const tag = ae.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-    if (ae.getAttribute && ae.getAttribute('contenteditable') === 'true') return true;
-    return false;
-  }
-
-  function dbRerender() {
-    try { loadToday(); } catch {}
-    try { loadTomorrow(); } catch {}
-    try { renderStreak(); } catch {}
-    try { window.dispatchEvent(new CustomEvent('goals-changed')); } catch {}
-  }
-
-  function dbApplyRemoteState(remote) {
-    if (!remote || typeof remote !== 'object') return false;
-    dbSuppressSync = true;
-    let changed = false;
-    try {
-      // collect local dashboard keys
-      const localKeys = new Set();
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i); if (isDashboardKey(k)) localKeys.add(k);
-      }
-      // apply / update from remote
-      for (const k of Object.keys(remote)) {
-        if (!isDashboardKey(k)) continue;
-        const inc = JSON.stringify(remote[k]);
-        if (localStorage.getItem(k) !== inc) { _dbOrigSet(k, inc); changed = true; }
-      }
-      // remove local keys absent in remote
-      const remoteKeys = new Set(Object.keys(remote));
-      for (const k of localKeys) {
-        if (!remoteKeys.has(k)) { _dbOrigRemove(k); changed = true; }
-      }
-    } finally { dbSuppressSync = false; }
-    if (changed) { try { dbRerender(); } catch {} }
-    return changed;
-  }
-
-  function dbMaybeApply(remote) {
-    if (dbIsEditing()) { dbPendingRemote = remote; return; }
-    dbApplyRemoteState(remote);
-  }
-
-  function dbApplyPendingIfReady() {
-    if (dbPendingRemote && !dbIsEditing()) {
-      const r = dbPendingRemote; dbPendingRemote = null; dbApplyRemoteState(r);
-    }
-  }
-
-  async function dbPushNow() {
-    if (!dbSupa) return;
-    const state = dbCollectState();
-    const json = JSON.stringify(state);
-    if (json === dbLastSyncedJson) return;
-    try {
-      const { error } = await dbSupa
-        .from('app_state')
-        .upsert({ key: APP_KEY, data: state, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-      if (!error) dbLastSyncedJson = json;
-    } catch {}
-  }
-
-  function dbSchedulePush() {
-    if (dbSuppressSync) return;
-    clearTimeout(dbPushTimer);
-    dbPushTimer = setTimeout(dbPushNow, 250);
-  }
-
-  function dbFlushOnUnload() {
-    if (!dbSupa) return;
-    const state = dbCollectState();
-    const json = JSON.stringify(state);
-    if (json === dbLastSyncedJson) return;
-    try {
-      fetch(SUPABASE_URL + '/rest/v1/app_state?on_conflict=key', {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates',
-        },
-        body: JSON.stringify({ key: APP_KEY, data: state, updated_at: new Date().toISOString() }),
-        keepalive: true,
-      }).catch(() => {});
-      dbLastSyncedJson = json;
-    } catch {}
-  }
-
-  (async function dbInit() {
-    dbSupa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    try {
-      const { data, error } = await dbSupa
-        .from('app_state').select('data').eq('key', APP_KEY).maybeSingle();
-      if (!error && data && data.data && Object.keys(data.data).length > 0) {
-        dbLastSyncedJson = JSON.stringify(data.data);
-        dbMaybeApply(data.data);
-      } else if (Object.keys(dbCollectState()).length > 0) {
-        dbSchedulePush();
-      }
-    } catch {}
-    dbSupa.channel('app_state_' + APP_KEY)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + APP_KEY },
-        (payload) => {
-          if (!payload.new || !payload.new.data) return;
-          const inc = JSON.stringify(payload.new.data);
-          if (inc === dbLastSyncedJson) return;
-          dbLastSyncedJson = inc;
-          dbMaybeApply(payload.new.data);
-        })
-      .subscribe();
-  })();
-
-  document.addEventListener('focusout', () => { setTimeout(dbApplyPendingIfReady, 0); }, true);
-  window.addEventListener('pagehide', dbFlushOnUnload);
-  window.addEventListener('beforeunload', dbFlushOnUnload);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) dbFlushOnUnload(); });
+  });
 })();
 </script>
 

@@ -1808,6 +1808,7 @@ img, video, canvas, svg { max-width: 100%; }
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="cloudsync.js"></script>
 <script src="realtime.js" defer></script>
 <script src="events-bridge.js" defer></script>
 <script src="bus.js" defer></script>
@@ -4792,210 +4793,22 @@ img, video, canvas, svg { max-width: 100%; }
     window._measRender = measRender;
   })();
 
-  // ============================================================
-  // CLOUD SYNC via Supabase  (OPTIONAL — leave blank for local-only)
-  // ------------------------------------------------------------
-  // Stores your gym state as one JSONB row in the public.app_state
-  // table, keyed by APP_KEY. Supabase's realtime channel pushes
-  // changes to every device the instant they happen.
-  //
-  // SETUP (5 minutes, all in a browser):
-  //   1. Make a free account at https://supabase.com
-  //   2. Create a new project
-  //   3. In your project: Settings → API → copy your Project URL +
-  //      "Publishable" key (the one starting with `sb_publishable_`)
-  //   4. Paste them below, replacing the two placeholder strings
-  //   5. Open the SQL Editor and run the SQL block from README.md
-  //
-  // If you leave the placeholders unchanged the app still works,
-  // just only on this device (data stays in your browser).
-  // ============================================================
-  const SUPABASE_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
-  const APP_KEY = 'po-coach';
-  const PC_SYNCED_KEYS = ['po_coach_v1', 'po_coach_workout_done', 'po_coach_weights', 'po_coach_photos', 'body:logs', 'gym:cardio:v1', 'gym:templates:v1', 'gym:prs:v1'];
-
-  let pcSupa = null;
-  let pcPushTimer = null;
-  let pcSuppressSync = false;
-  let pcPendingRemote = null;
-  // JSON of the last state we sent or received — used to ignore
-  // realtime echoes of our own pushes so we don't infinite-loop.
-  let pcLastSyncedJson = null;
-
-  const _pcOrigSet = localStorage.setItem.bind(localStorage);
-  const _pcOrigRemove = localStorage.removeItem.bind(localStorage);
-  // Wrap setItem/removeItem so a sync-side error can NEVER prevent the
-  // underlying write from happening. The original call always runs;
-  // any error in the sync scheduling is swallowed.
-  localStorage.setItem = function(k, v) {
-    _pcOrigSet(k, v);
-    try {
-      if (!pcSuppressSync && PC_SYNCED_KEYS.indexOf(k) !== -1) pcSchedulePush();
-    } catch (e) {}
-  };
-  localStorage.removeItem = function(k) {
-    _pcOrigRemove(k);
-    try {
-      if (!pcSuppressSync && PC_SYNCED_KEYS.indexOf(k) !== -1) pcSchedulePush();
-    } catch (e) {}
-  };
-
-  function pcCollectState() {
-    const out = {};
-    for (const k of PC_SYNCED_KEYS) {
-      const v = localStorage.getItem(k);
-      if (v == null) continue;
-      try { out[k] = JSON.parse(v); } catch {}
-    }
-    return out;
+  // ── Cloud sync (per-key timestamp merge via LifeOSSync) ──
+  // cloudsync.js handles push/pull/merge + Realtime + edit-deferral. onApply
+  // reloads the closure mirrors of synced keys, then re-renders.
+  if (window.LifeOSSync) {
+    LifeOSSync.register('po-coach',
+      ['po_coach_v1', 'po_coach_workout_done', 'po_coach_weights', 'po_coach_photos', 'body:logs', 'gym:cardio:v1', 'gym:templates:v1', 'gym:prs:v1'],
+      { onApply: function () {
+          try { state = loadState(); } catch (e) {}
+          try { wtEntries = wtLoad(); } catch (e) {}
+          try { var raw = localStorage.getItem(PHOTO_KEY); photos = raw ? JSON.parse(raw) : []; } catch (e) { photos = []; }
+          try { renderAll(); } catch (e) {}
+          try { wtRender(); } catch (e) {}
+          try { photosRender(); } catch (e) {}
+          try { if (window._measRender) window._measRender(); } catch (e) {}
+        } });
   }
-
-  function pcIsUserEditing() {
-    const ae = document.activeElement;
-    if (!ae) return false;
-    const tag = ae.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
-    if (ae.getAttribute && ae.getAttribute('contenteditable') === 'true') return true;
-    return false;
-  }
-
-  function pcRerender() {
-    // Reload every closure variable that mirrors a synced localStorage
-    // key — otherwise renderAll/wtRender/photosRender would read stale
-    // in-memory copies from before the remote pull.
-    try { state = loadState(); } catch {}
-    try { wtEntries = wtLoad(); } catch {}
-    try {
-      const raw = localStorage.getItem(PHOTO_KEY);
-      photos = raw ? JSON.parse(raw) : [];
-    } catch { photos = []; }
-    try { renderAll(); } catch {}
-    try { wtRender(); } catch {}
-    try { photosRender(); } catch {}
-    try { if (window._measRender) window._measRender(); } catch {}
-  }
-
-  function pcApplyRemoteState(remote) {
-    if (!remote || typeof remote !== 'object') return false;
-    pcSuppressSync = true;
-    let changed = false;
-    try {
-      for (const k of PC_SYNCED_KEYS) {
-        if (k in remote) {
-          const incoming = JSON.stringify(remote[k]);
-          const local = localStorage.getItem(k);
-          if (local !== incoming) { try { _pcOrigSet(k, incoming); changed = true; } catch {} }
-        } else if (localStorage.getItem(k) != null) {
-          try { _pcOrigRemove(k); changed = true; } catch {}
-        }
-      }
-    } finally {
-      pcSuppressSync = false;
-    }
-    if (changed) { try { pcRerender(); } catch (e) {} }
-    return changed;
-  }
-
-  function pcMaybeApplyRemote(remote) {
-    if (pcIsUserEditing()) { pcPendingRemote = remote; return; }
-    pcApplyRemoteState(remote);
-  }
-
-  function pcApplyPendingIfReady() {
-    if (pcPendingRemote && !pcIsUserEditing()) {
-      const r = pcPendingRemote;
-      pcPendingRemote = null;
-      pcApplyRemoteState(r);
-    }
-  }
-
-  async function pcPushNow() {
-    if (!pcSupa) return;
-    const state = pcCollectState();
-    const json = JSON.stringify(state);
-    if (json === pcLastSyncedJson) return;
-    try {
-      const { error } = await pcSupa
-        .from('app_state')
-        .upsert(
-          { key: APP_KEY, data: state, updated_at: new Date().toISOString() },
-          { onConflict: 'key' }
-        );
-      if (!error) pcLastSyncedJson = json;
-    } catch (_) {}
-  }
-
-  function pcSchedulePush() {
-    if (pcSuppressSync) return;
-    clearTimeout(pcPushTimer);
-    pcPushTimer = setTimeout(pcPushNow, 250);
-  }
-
-  // Backup push on unload via fetch keepalive so a fast refresh
-  // doesn't lose the latest change before the debounced push fires.
-  function pcFlushPushOnUnload() {
-    if (!pcSupa) return;
-    const state = pcCollectState();
-    const json = JSON.stringify(state);
-    if (json === pcLastSyncedJson) return;
-    try {
-      fetch(SUPABASE_URL + '/rest/v1/app_state?on_conflict=key', {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_KEY,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates',
-        },
-        body: JSON.stringify({ key: APP_KEY, data: state, updated_at: new Date().toISOString() }),
-        keepalive: true,
-      }).catch(() => {});
-      pcLastSyncedJson = json;
-    } catch (_) {}
-  }
-
-  // Initial sync: connect Supabase, pull current state, subscribe to
-  // realtime updates so other devices' changes appear instantly.
-  (async function pcInitCloudSync() {
-    if (!window.supabase || !SUPABASE_URL || !SUPABASE_KEY) return;
-    // Skip if the placeholder values are still in place (local-only mode)
-    if (SUPABASE_URL.indexOf('PASTE-') === 0 || SUPABASE_KEY.indexOf('PASTE-') === 0) return;
-    pcSupa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    try {
-      const { data, error } = await pcSupa
-        .from('app_state').select('data').eq('key', APP_KEY).maybeSingle();
-      if (!error && data && data.data && Object.keys(data.data).length > 0) {
-        pcLastSyncedJson = JSON.stringify(data.data);
-        pcMaybeApplyRemote(data.data);
-      } else if (Object.keys(pcCollectState()).length > 0) {
-        pcSchedulePush();
-      }
-    } catch (_) {}
-    pcSupa.channel('app_state_' + APP_KEY)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'app_state',
-        filter: 'key=eq.' + APP_KEY,
-      }, (payload) => {
-        if (!payload.new || !payload.new.data) return;
-        const incoming = JSON.stringify(payload.new.data);
-        if (incoming === pcLastSyncedJson) return; // echo of our own push
-        pcLastSyncedJson = incoming;
-        pcMaybeApplyRemote(payload.new.data);
-      })
-      .subscribe();
-  })();
-
-  document.addEventListener('focusout', () => {
-    setTimeout(pcApplyPendingIfReady, 0);
-  }, true);
-  window.addEventListener('pagehide', pcFlushPushOnUnload);
-  window.addEventListener('beforeunload', pcFlushPushOnUnload);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) pcFlushPushOnUnload();
-  });
   window._wtRerender = function() { try { wtRender(); } catch (_) {} };
 })();
 </script>

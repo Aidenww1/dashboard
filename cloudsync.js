@@ -66,24 +66,56 @@
   window.__cloudMerge = merge;        // test hook
   window.__cloudNormalize = normalize; // test hook
 
+  // Don't overwrite a field the user is actively editing.
+  function isEditing() {
+    var ae = document.activeElement;
+    if (!ae) return false;
+    var t = ae.tagName;
+    return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT'
+      || (ae.getAttribute && ae.getAttribute('contenteditable') === 'true');
+  }
+
   function register(appKey, keys, opts) {
     opts = opts || {};
+    keys = keys || [];
+    var prefixes = opts.prefixes || []; // sync any key starting with one of these
     var META = 'sync:meta:' + appKey;
     var _set = localStorage.setItem.bind(localStorage);
-    var pushTimer = null, syncing = false;
+    var pushTimer = null, syncing = false, deferBound = false;
+
+    function matches(k) {
+      if (!k) return false;
+      if (keys.indexOf(k) !== -1) return true;
+      for (var i = 0; i < prefixes.length; i++) { if (k.indexOf(prefixes[i]) === 0) return true; }
+      return false;
+    }
+
+    function bindDefer() {
+      if (deferBound) return;
+      deferBound = true;
+      // Re-run the merge once the user stops editing.
+      document.addEventListener('focusout', function () {
+        setTimeout(function () { if (!isEditing()) syncOnce(); }, 60);
+      }, true);
+    }
 
     function localMeta() { return jparse(localStorage.getItem(META)) || {}; }
     function setLocalMeta(m) { try { _set(META, JSON.stringify(m)); } catch (e) {} }
     function localVals() {
       var o = {};
-      keys.forEach(function (k) { var v = localStorage.getItem(k); if (v != null) { var p = jparse(v); if (p !== undefined) o[k] = p; } });
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!matches(k)) continue;
+        var v = localStorage.getItem(k);
+        if (v != null) { var p = jparse(v); if (p !== undefined) o[k] = p; }
+      }
       return o;
     }
 
     // Stamp + schedule on any local write to a synced key.
     localStorage.setItem = function (k, v) {
       _set(k, v);
-      if (keys.indexOf(k) !== -1) { var m = localMeta(); m[k] = Date.now(); setLocalMeta(m); schedule(); }
+      if (matches(k)) { var m = localMeta(); m[k] = Date.now(); setLocalMeta(m); schedule(); }
     };
 
     function schedule() { clearTimeout(pushTimer); pushTimer = setTimeout(syncOnce, 500); }
@@ -119,7 +151,17 @@
         .then(function (rows) {
           var hadRow = !!(rows[0] && rows[0].data);
           var remote = normalize(rows[0] && rows[0].data);
-          var res = merge(keys, localVals(), localMeta(), remote);
+          // Effective key set = explicit keys + local matches + remote matches
+          // (so prefix-matched keys from either side are merged).
+          var lv = localVals(), keyset = {};
+          keys.forEach(function (k) { keyset[k] = 1; });
+          Object.keys(lv).forEach(function (k) { keyset[k] = 1; });
+          Object.keys(remote.vals || {}).forEach(function (k) { if (matches(k)) keyset[k] = 1; });
+          var res = merge(Object.keys(keyset), lv, localMeta(), remote);
+
+          // If remote has newer values but the user is mid-edit, defer applying
+          // them until focusout so we never clobber a field being typed.
+          if (Object.keys(res.pulled).length && isEditing()) { bindDefer(); return; }
 
           var changed = applyPulled(res.pulled);
           var m = localMeta();
@@ -152,6 +194,19 @@
     document.addEventListener('visibilitychange', function () { if (document.hidden) flush(); });
 
     syncOnce(); // initial pull + merge + push
+
+    // Live cross-device updates: if supabase-js is present, subscribe to this
+    // app row and re-merge on remote change. Gracefully skipped otherwise (the
+    // load/change/hide sync still works without it). One shared client.
+    try {
+      if (window.supabase) {
+        if (!window.__cloudClient) window.__cloudClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+        window.__cloudClient
+          .channel('cs_' + appKey)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + appKey }, function () { schedule(); })
+          .subscribe();
+      }
+    } catch (e) {}
   }
 
   window.LifeOSSync = { register: register };
