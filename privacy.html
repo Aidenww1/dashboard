@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Privacy &amp; Data — Dashboard</title>
+<style>
+  .page { max-width: 640px; margin: 0 auto; padding: 16px 16px 120px; }
+  h1 { font-size: 24px; font-weight: 700; margin: 12px 0 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-tertiary,#76746E); margin: 22px 0 8px; }
+  p, li { font-size: 14px; line-height: 1.6; color: var(--text-secondary,#B8B6B0); }
+  ul { padding-left: 18px; margin: 6px 0; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--text-primary,#FAFAFA); }
+  .danger { margin-top: 28px; border: 1px solid rgba(248,113,113,.35); border-radius: 14px; padding: 16px; }
+  .danger h2 { color: #F87171; margin-top: 0; }
+  button { font: inherit; font-weight: 700; padding: 11px 18px; border-radius: 10px; border: none; cursor: pointer; }
+  .wipe { background: #F87171; color: #0A0A0B; }
+  .wipe:disabled { opacity: .5; cursor: default; }
+  #status { margin-top: 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+<script src="topbar.js"></script>
+<div class="page">
+  <h1>Privacy &amp; Data</h1>
+
+  <h2>Where your data lives</h2>
+  <ul>
+    <li><strong>This device</strong> — everything you log is stored in your browser (localStorage) and, for progress photos, IndexedDB.</li>
+    <li><strong>Supabase</strong> (your private project) — a synced copy in the <code>app_state</code> table so your devices stay in sync, plus per-metric health tables fed by Tasker, and <code>events</code>.</li>
+    <li><strong>Anthropic</strong> — only the specific text/image you submit for an AI analysis is sent, per request. Not stored there by this app.</li>
+  </ul>
+
+  <h2>What's special-category</h2>
+  <p>Health, bloodwork, supplements, skin, and finance data are sensitive. They are not shared with anyone; the only copies are on your devices and in your own Supabase project.</p>
+
+  <div class="danger">
+    <h2>Delete everything</h2>
+    <p>Wipes all local data (localStorage + photo store) on this device <em>and</em> deletes the synced <code>app_state</code> rows in Supabase so it can't sync back. Health-metric tables are not touched here. This cannot be undone.</p>
+    <button class="wipe" id="wipeBtn" type="button">Delete everything</button>
+    <div id="status"></div>
+  </div>
+</div>
+
+<script src="tabbar.js"></script>
+<script>
+(function () {
+  'use strict';
+  var SUPA = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var btn = document.getElementById('wipeBtn');
+  var status = document.getElementById('status');
+
+  btn.addEventListener('click', function () {
+    if (!confirm('Delete ALL your data on this device and in the cloud? This cannot be undone.')) return;
+    if (!confirm('Really sure? Everything you have logged will be gone.')) return;
+    btn.disabled = true;
+    status.textContent = 'Wiping…';
+
+    // 1. Cloud: delete every app_state row. neq impossible key = "all rows".
+    fetch(SUPA + '/rest/v1/app_state?key=neq.__never__', {
+      method: 'DELETE',
+      headers: { apikey: KEY, Authorization: 'Bearer ' + KEY },
+    }).catch(function () {})
+      .then(function () {
+        // 2. Local stores.
+        try { localStorage.clear(); } catch (e) {}
+        try { sessionStorage.clear(); } catch (e) {}
+        // 3. Photos (IndexedDB).
+        try { indexedDB.deleteDatabase('lifeos-photos'); } catch (e) {}
+        // 4. Caches so stale pages don't resurrect anything.
+        if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+        status.textContent = 'Done. Everything wiped. Reloading…';
+        setTimeout(function () { location.href = '/index.html'; }, 1200);
+      });
+  });
+})();
+</script>
+</body>
+</html>
