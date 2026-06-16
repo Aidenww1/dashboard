@@ -15,7 +15,7 @@ Legend: ⛔ blocker · 🔴 high · 🟡 medium · 🟢 polish · 💤 deferred-
 - [ ] 🔴 **Secret on any ingest endpoints** (push-subscribe, future activity-ingest) so they can't be spammed.
 - [ ] 🟡 Audit what the publishable key can read today; rotate it after RLS lands.
 - [ ] 🟡 Confirm the Supabase **service key** only ever lives in Vercel env (never shipped to client). Currently correct — keep it that way.
-- [ ] 🟢 Add a privacy/data page: what's stored, where, how to wipe it.
+- [x] 🟢 Privacy/data page: what's stored + one-tap wipe (privacy.html, 1077cad).
 
 ## P1 — Finish "the AI runs everything" (the North Star)
 - [ ] 🔴 **Risky-action tools for the operator** behind preview→confirm: Gmail (archive/reply/label), finance (categorize/mark), calendar (create/move/cancel blocks), delete entries. Today the operator only does safe additive actions.
@@ -77,7 +77,7 @@ Legend: ⛔ blocker · 🔴 high · 🟡 medium · 🟢 polish · 💤 deferred-
 ## P4 — Performance, accessibility, testing
 - [ ] 🟡 **Performance budget**: first paint < 1.5s on mobile, no jank. Audit the largest pages, lazy-load below-the-fold, cache AI results (already partly done).
 - [ ] 🟡 **Accessibility**: focus states, ARIA on custom controls, contrast AA, screen-reader labels, 44px tap targets, keyboard nav on desktop.
-- [ ] 🟡 **Automated tests**: there are none. Add unit tests for the deterministic core (life score, readiness, savings rate, CSV parser, deload, merge, briefing, actions) — these are pure and high-value.
+- [~] 🟡 **Automated tests**: cloudsync.test.mjs covers the merge (the data-safety path), runs the real cloudsync.js in node, 11 asserts (1077cad-next). Remaining: life score / readiness / CSV parser / briefing (browser-bound IIFEs).
 - [ ] 🟢 Smoke/E2E for the critical flows (log a day, analyze a photo, run the operator).
 - [ ] 🟢 Error logging/telemetry (client errors surfaced somewhere you'll see them).
 - [ ] 🟢 Lighthouse PWA score 100; verify installability + offline shell on real devices.
@@ -93,7 +93,7 @@ For each module, confirm it meets the spec's "feature complete" bar: mobile-OK, 
 - [x] 🔴 **Multi-device sync = last-write-wins → silent data loss.** DONE — cloudsync.js (LifeOSSync) does per-key timestamp merge with Supabase Realtime + edit-deferral + prefix matching. ALL pages migrated, incl. finance/index/gym (c6d9aee, 1ce6c3f, 2d81b92). Remaining minor gap: whole-key deletion isn't propagated (needs tombstones) — rare here since entries are edited via array rewrites.
 - [ ] 🔴 **Timezone / DST correctness.** Crons run in UTC; briefing wake-time, date-keys, streaks, "today" windows are local. DST shifts and travel will mis-bucket days, break streaks, fire briefings at the wrong hour. Centralize date handling + test around DST.
 - [ ] 🟡 **localStorage schema migrations.** Keys evolve (`:v1` bumps) with no migration framework; a shape change silently breaks old data. Add versioned migrations on load.
-- [ ] 🟡 **Strip EXIF/GPS from uploaded photos** before store/analyze (don't leak home location in image metadata).
+- [~] 🟡 **Strip EXIF/GPS from uploaded photos**: stored photos already EXIF-free (body/skin re-encode via canvas.toDataURL, which drops metadata). Remaining: raw share-target images sent to the AI still carry EXIF — low risk (goes only to Anthropic, not stored/public).
 - [ ] 🟡 **Backup encryption.** Cloud backups + photos are plaintext sensitive data in Supabase. Consider client-side encryption for the backup blob and stored photos.
 - [ ] 🟡 **Historical / bulk import.** Getting past data in (old weights, workouts, transactions) — a bulk import/paste flow so the app isn't starting from zero.
 - [ ] 🟢 **Backup round-trip from ZIP.** Restore currently reads the JSON; confirm you can fully rebuild from the exported ZIP too.
@@ -101,7 +101,7 @@ For each module, confirm it meets the spec's "feature complete" bar: mobile-OK, 
 ## Legal & compliance (EU / single user, but still)
 - [x] 🔴 **Medical disclaimer** on bloodwork/supplements/skin ("not medical advice, consult a professional"). DONE — health.html page-foot disclaimer (c4b2362).
 - [x] 🟡 **Financial disclaimer** on can-I-afford/mortgage/investing ("not financial advice"). DONE — finance.html page-foot disclaimer (c4b2362).
-- [ ] 🟡 **GDPR basics**: health data is special-category. Even single-user, document data location, retention, and a one-tap "delete everything" (right to erasure) — also good hygiene.
+- [x] 🟡 **GDPR basics**: one-tap "delete everything" (local + IndexedDB + Supabase app_state rows) on privacy.html (1077cad). Data-location/retention noted on the page.
 - [ ] 🟢 Anthropic / Google / Supabase ToS compliance check for personal use at this scale.
 
 ## Ops, reliability & quality
