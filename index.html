@@ -1799,7 +1799,9 @@ setInterval(refreshStatChips, 60000);
   }
 
   refreshBtn.addEventListener('click', function() { fire(true); });
-  fire(false);
+  // Button-only: show today's cached briefing if present, never auto-call the AI.
+  var cached = LifeOS.ai.cacheGet('briefing_' + getActiveDateString());
+  if (cached) render(cached);
 })();
 
 // ── Supabase cloud sync (per-key timestamp merge via LifeOSSync) ──
