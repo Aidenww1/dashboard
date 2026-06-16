@@ -56,7 +56,7 @@ Legend: ⛔ blocker · 🔴 high · 🟡 medium · 🟢 polish · 💤 deferred-
 - [ ] 🟡 **Undo** for destructive actions (toast with Undo) instead of hard confirms everywhere.
 - [ ] 🟡 **Data Quality Score** surfaced consistently and feeding advice confidence in every AI output (spec requires it).
 - [ ] 🟡 Dedupe + validation on import (bank CSV, bloodwork) so bad rows can't poison trends.
-- [ ] 🟢 A "Fix my data" view: list anomalies (impossible weights, 350000kg lifts) and one-tap correct.
+- [x] 🟢 A "Fix my data" view: list anomalies (impossible weights, 350000kg lifts) and one-tap correct. DONE — fix.html scans po_coach_weights/body:logs/po_coach_v1, edit-or-delete each, syncs via po-coach register. Pure scan/apply in fixdata.js (fixdata.test.mjs, 8 asserts).
 
 ## P3 — Activity & Visual intelligence (the "track what I'm really doing")
 - [ ] 🟡 **Enrich the activity bridge**: active-vs-AFK split, window **titles** (gaming/docs/specific sites), category buckets (work/social/video/gaming). Currently only top apps/domains.

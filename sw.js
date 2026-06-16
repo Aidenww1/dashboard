@@ -1,4 +1,4 @@
-const CACHE = 'dashboard-v42';
+const CACHE = 'dashboard-v43';
 const SHARE_CACHE = 'share-target-v1';
 const PRECACHE = [
   '/', '/index.html', '/health.html', '/water.html', '/gym.html',
@@ -8,6 +8,7 @@ const PRECACHE = [
   '/design.css', '/claude.js', '/body.html', '/mood.html', '/review.html',
   '/lifeos-core.js', '/command.js', '/mail.html', '/radar.html', '/share.html',
   '/photo-store.js', '/errlog.js', '/cloudsync.js', '/privacy.html',
+  '/fix.html', '/fixdata.js',
 ];
 
 // Action buttons shown per notification kind (set via data.kind).

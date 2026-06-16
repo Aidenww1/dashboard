@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fix my data — Dashboard</title>
+<style>
+  .page { max-width: 640px; margin: 0 auto; padding: 16px 16px 120px; }
+  h1 { font-size: 24px; font-weight: 700; margin: 12px 0 6px; }
+  .sub { font-size: 13px; color: var(--text-tertiary,#76746E); margin: 0 0 18px; line-height: 1.5; }
+  .issue { border: 1px solid rgba(248,113,113,.30); border-radius: 12px; padding: 12px 14px; margin: 10px 0; }
+  .issue .meta { font-size: 12px; color: var(--text-tertiary,#76746E); margin-bottom: 6px; }
+  .issue .meta b { color: var(--text-secondary,#B8B6B0); font-weight: 600; }
+  .issue .bad { color: #F87171; font-weight: 700; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  input[type=number] { font: inherit; width: 120px; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); color: var(--text-primary,#FAFAFA); }
+  button { font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; }
+  .save { background: var(--good,#4ADE80); color: #0A0A0B; }
+  .del { background: rgba(248,113,113,.16); color: #F87171; }
+  .ok { margin-top: 24px; font-size: 15px; color: var(--text-secondary,#B8B6B0); }
+  #status { margin: 10px 0 0; font-size: 13px; color: var(--good,#4ADE80); min-height: 16px; }
+</style>
+</head>
+<body>
+<script src="topbar.js"></script>
+<div class="page">
+  <h1>Fix my data</h1>
+  <p class="sub">Scans your gym, bodyweight, and measurement logs for impossible numbers (typos like a 350000&nbsp;kg lift). Edit or delete each one. Sleep and bloodwork use varied units and aren't scanned here.</p>
+  <div id="status"></div>
+  <div id="list"></div>
+</div>
+
+<script src="fixdata.js"></script>
+<script src="cloudsync.js"></script>
+<script src="tabbar.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // po-coach keys (mirror gym.html register) so fixes push + merge via cloudsync.
+  var PC_KEYS = ['po_coach_v1', 'po_coach_workout_done', 'po_coach_weights',
+    'po_coach_photos', 'body:logs', 'gym:cardio:v1', 'gym:templates:v1', 'gym:prs:v1'];
+
+  function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } }
+  function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
+  // setItem is hooked by LifeOSSync.register below → stamps sync meta → pushes the merge.
+  function scan() { return window.FixData.scan(load); }
+  function apply(iss, newVal) { return window.FixData.apply(load, save, iss, newVal); }
+
+  var listEl = document.getElementById('list');
+  var statusEl = document.getElementById('status');
+
+  function render() {
+    var issues = scan();
+    listEl.innerHTML = '';
+    if (!issues.length) {
+      listEl.innerHTML = '<div class="ok">No anomalies found. Your logs look clean.</div>';
+      return;
+    }
+    issues.forEach(function (iss) {
+      var card = document.createElement('div');
+      card.className = 'issue';
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = '<b>' + esc(iss.label) + '</b>' + (iss.when ? ' · ' + esc(iss.when) : '') +
+        ' · current <span class="bad">' + esc(String(iss.value)) + '</span>';
+      var row = document.createElement('div');
+      row.className = 'row';
+      var input = document.createElement('input');
+      input.type = 'number'; input.value = iss.value;
+      var saveBtn = document.createElement('button');
+      saveBtn.className = 'save'; saveBtn.textContent = 'Save';
+      saveBtn.onclick = function () {
+        var v = parseFloat(input.value);
+        if (!isFinite(v)) { statusEl.textContent = 'Enter a number first.'; return; }
+        apply(iss, v); statusEl.textContent = 'Fixed ' + iss.label + '.'; render();
+      };
+      var delBtn = document.createElement('button');
+      delBtn.className = 'del';
+      delBtn.textContent = (iss.kind === 'meas') ? 'Clear value' : 'Delete entry';
+      delBtn.onclick = function () {
+        if (!confirm('Delete this ' + iss.label + ' entry? This cannot be undone.')) return;
+        apply(iss, undefined); statusEl.textContent = 'Removed ' + iss.label + '.'; render();
+      };
+      row.appendChild(input); row.appendChild(saveBtn); row.appendChild(delBtn);
+      card.appendChild(meta); card.appendChild(row);
+      listEl.appendChild(card);
+    });
+  }
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // Register so writes sync; re-scan when a remote pull lands.
+  if (window.LifeOSSync) {
+    try { LifeOSSync.register('po-coach', PC_KEYS, { onApply: render }); } catch (e) {}
+  }
+  render();
+})();
+</script>
+</body>
+</html>
