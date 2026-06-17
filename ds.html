@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Design System — Life OS</title>
+<link rel="stylesheet" href="design.css">
+<style>
+  /* page-local layout only — no component CSS lives here (that's the point) */
+  body { margin: 0; padding-bottom: 120px; color: var(--text-primary); }
+  .ds-wrap { max-width: 600px; margin: 0 auto; padding: 0 16px; }
+  .gallery-sec { margin: 32px 0; }
+  .gallery-sec > h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); margin: 0 0 12px; }
+  .variant-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); margin: 18px 0 8px; }
+  .row-demo { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  svg.ds-icon { width: 17px; height: 17px; }
+</style>
+</head>
+<body>
+
+<header class="ds-nav" data-ds-nav>
+  <div class="ds-nav-bar">
+    <span class="ds-nav-inline">Design</span>
+    <span style="flex:1"></span>
+    <button class="ds-nav-action" id="navAction">Done</button>
+  </div>
+  <h1 class="ds-largetitle">Design</h1>
+</header>
+
+<div class="ds-wrap">
+
+  <p class="t-subhead">Every component in every state. The reference and the regression check (APPLE_PLAN section 4). Scroll to collapse the title.</p>
+
+  <!-- TYPE -->
+  <section class="gallery-sec">
+    <h2>Type scale</h2>
+    <div class="t-large-title">Large title 34</div>
+    <div class="t-title1">Title 1 — 28</div>
+    <div class="t-title2">Title 2 — 22</div>
+    <div class="t-headline">Headline — 17 / 600</div>
+    <div class="t-body">Body — 17 / 400, the readable default.</div>
+    <div class="t-callout">Callout — 16</div>
+    <div class="t-subhead">Subhead — 15 secondary</div>
+    <div class="t-footnote">Footnote — 13 metadata</div>
+    <div class="t-caption">Caption — 12 eyebrow</div>
+  </section>
+
+  <!-- BUTTONS -->
+  <section class="gallery-sec">
+    <h2>Buttons — four roles, three sizes</h2>
+    <div class="variant-label">Default</div>
+    <div class="row-demo">
+      <button class="btn-filled">Filled</button>
+      <button class="btn-tinted">Tinted</button>
+      <button class="btn-plain">Plain</button>
+      <button class="btn-destructive">Destructive</button>
+    </div>
+    <div class="variant-label">Sizes (44 / 36 / 30)</div>
+    <div class="row-demo">
+      <button class="btn-filled">Regular</button>
+      <button class="btn-filled btn-sm">Small</button>
+      <button class="btn-filled btn-xs">Mini</button>
+    </div>
+    <div class="variant-label">Disabled</div>
+    <div class="row-demo">
+      <button class="btn-filled" disabled>Filled</button>
+      <button class="btn-tinted" disabled>Tinted</button>
+      <button class="btn-destructive" disabled>Destructive</button>
+    </div>
+  </section>
+
+  <!-- INSET GROUPED LIST -->
+  <section class="gallery-sec">
+    <h2>Inset grouped list — the workhorse</h2>
+
+    <div class="variant-label">Default (plain · value · toggle · stepper · push)</div>
+    <div class="ds-list">
+      <div class="ds-list-header">Body</div>
+      <div class="ds-group">
+        <div class="ds-row ds-row--inset-icon">
+          <span class="ds-row-icon">★</span>
+          <div class="ds-row-body"><div class="ds-row-title">Plain row</div></div>
+        </div>
+        <div class="ds-row">
+          <div class="ds-row-body"><div class="ds-row-title">Weight</div></div>
+          <span class="ds-row-value">82.4 kg</span>
+        </div>
+        <div class="ds-row">
+          <div class="ds-row-body"><div class="ds-row-title">Notifications</div></div>
+          <label class="ds-switch"><input type="checkbox" checked><span class="track"></span></label>
+        </div>
+        <div class="ds-row">
+          <div class="ds-row-body"><div class="ds-row-title">Water</div><div class="ds-row-sub">cups today</div></div>
+          <div class="ds-stepper" data-min="0" data-max="12" data-step="1"><button>−</button><span class="val">3</span><button>+</button></div>
+        </div>
+        <a class="ds-row" href="#">
+          <div class="ds-row-body"><div class="ds-row-title">Bloodwork</div></div>
+          <span class="ds-row-value">3 labs</span>
+          <span class="ds-row-chevron"></span>
+        </a>
+      </div>
+    </div>
+
+    <div class="variant-label">Swipe to delete (drag a row left)</div>
+    <div class="ds-list">
+      <div class="ds-group">
+        <div class="ds-swipe">
+          <div class="ds-swipe-actions"><button class="ds-swipe-action delete">Delete</button></div>
+          <div class="ds-swipe-content">
+            <div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">Swipe me left</div><div class="ds-row-sub">reveals Delete</div></div></div>
+          </div>
+        </div>
+        <div class="ds-swipe">
+          <div class="ds-swipe-actions"><button class="ds-swipe-action edit">Edit</button><button class="ds-swipe-action delete">Delete</button></div>
+          <div class="ds-swipe-content">
+            <div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">Two actions</div><div class="ds-row-sub">Edit + Delete</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-label">Empty</div>
+    <div class="ds-empty">
+      <span class="ds-empty-icon">🍽️</span>
+      <strong>No meals logged yet</strong>
+      Log your first meal to see today's intake.
+      <button class="btn-filled">Log a meal</button>
+    </div>
+
+    <div class="variant-label">Loading (skeleton matched to the list)</div>
+    <div class="ds-group ds-skel-stack" style="padding:4px 0">
+      <div class="ds-skel-row"><div class="ds-skeleton ds-skel-circle" style="width:28px;height:28px"></div><div style="flex:1"><div class="ds-skeleton ds-skel-text" style="width:50%"></div></div><div class="ds-skeleton ds-skel-text" style="width:48px"></div></div>
+      <div class="ds-skel-row"><div class="ds-skeleton ds-skel-circle" style="width:28px;height:28px"></div><div style="flex:1"><div class="ds-skeleton ds-skel-text" style="width:70%"></div></div><div class="ds-skeleton ds-skel-text" style="width:40px"></div></div>
+      <div class="ds-skel-row"><div class="ds-skeleton ds-skel-circle" style="width:28px;height:28px"></div><div style="flex:1"><div class="ds-skeleton ds-skel-text" style="width:40%"></div></div><div class="ds-skeleton ds-skel-text" style="width:56px"></div></div>
+    </div>
+
+    <div class="variant-label">Error</div>
+    <div class="ds-error"><span class="msg">Couldn't reach the AI</span><button id="retryBtn">Retry</button></div>
+  </section>
+
+  <!-- STAT -->
+  <section class="gallery-sec">
+    <h2>Stat / metric</h2>
+    <div class="variant-label">Default</div>
+    <div class="row-demo" style="gap:32px">
+      <div class="ds-stat"><span class="ds-stat-value">82.4<span style="font-size:15px;color:var(--text-tertiary)"> kg</span></span><span class="ds-stat-label">Weight</span><span class="ds-stat-delta down">▾ 0.6 this week</span></div>
+      <div class="ds-stat"><span class="ds-stat-value">1,840</span><span class="ds-stat-label">Calories</span><span class="ds-stat-delta up">▴ 12% vs target</span></div>
+      <div class="ds-stat"><span class="ds-stat-value">7.2</span><span class="ds-stat-label">Sleep (h)</span><span class="ds-stat-delta flat">— steady</span></div>
+    </div>
+    <div class="variant-label">Loading</div>
+    <div class="ds-skel-stack" style="width:120px"><div class="ds-skeleton ds-skel-title" style="width:80px;height:28px"></div><div class="ds-skeleton ds-skel-text" style="width:60px"></div></div>
+  </section>
+
+  <!-- CHARTS -->
+  <section class="gallery-sec">
+    <h2>Chart language</h2>
+    <div class="variant-label">Ring</div>
+    <div class="ds-ring-wrap">
+      <svg class="ds-ring" width="96" height="96" viewBox="0 0 96 96">
+        <circle class="track" cx="48" cy="48" r="42" stroke-width="8"></circle>
+        <circle class="fill" cx="48" cy="48" r="42" stroke-width="8" stroke-dasharray="264" stroke-dashoffset="79"></circle>
+      </svg>
+      <div class="ds-ring-center"><div class="ds-stat-value" style="font-size:22px">70%</div></div>
+    </div>
+    <div class="variant-label">Bars</div>
+    <div class="ds-bars">
+      <div class="ds-bar" style="height:40%"></div><div class="ds-bar" style="height:65%"></div>
+      <div class="ds-bar" style="height:50%"></div><div class="ds-bar" style="height:90%"></div>
+      <div class="ds-bar" style="height:75%"></div><div class="ds-bar muted" style="height:30%"></div>
+      <div class="ds-bar muted" style="height:55%"></div>
+    </div>
+    <div class="variant-label">Line</div>
+    <div class="ds-chart">
+      <svg viewBox="0 0 300 100" preserveAspectRatio="none" style="height:100px">
+        <path class="area" d="M0,80 L50,60 L100,68 L150,40 L200,52 L250,24 L300,36 L300,100 L0,100 Z"></path>
+        <path class="line" d="M0,80 L50,60 L100,68 L150,40 L200,52 L250,24 L300,36"></path>
+      </svg>
+    </div>
+    <div class="variant-label">Empty</div>
+    <div class="ds-empty"><span class="ds-empty-icon">📈</span><strong>No data yet</strong>Log entries to see the trend.</div>
+  </section>
+
+  <!-- FORM CONTROLS -->
+  <section class="gallery-sec">
+    <h2>Form controls</h2>
+    <div class="ds-field"><label for="f1">Text</label><input id="f1" type="text" placeholder="Placeholder"></div>
+    <div class="ds-field"><label for="f2">Date</label><input id="f2" type="date"></div>
+    <div class="ds-field"><label for="f3">Select</label><select id="f3"><option>Option one</option><option>Option two</option></select></div>
+    <div class="ds-field"><label for="f4">Notes</label><textarea id="f4" placeholder="Multi-line"></textarea></div>
+    <div class="variant-label">Switch · stepper</div>
+    <div class="row-demo" style="gap:24px">
+      <label class="ds-switch"><input type="checkbox"><span class="track"></span></label>
+      <label class="ds-switch"><input type="checkbox" checked><span class="track"></span></label>
+      <div class="ds-stepper" data-min="0" data-max="20" data-step="1"><button>−</button><span class="val">5</span><button>+</button></div>
+    </div>
+    <div class="variant-label">Search</div>
+    <div class="ds-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" placeholder="Search">
+    </div>
+  </section>
+
+  <!-- SEGMENTED -->
+  <section class="gallery-sec">
+    <h2>Segmented control</h2>
+    <div class="ds-segmented" id="segDemo">
+      <button data-value="food">Food</button>
+      <button data-value="body" aria-selected="true">Body</button>
+      <button data-value="mind">Mind</button>
+      <button data-value="skin">Skin</button>
+    </div>
+    <p class="t-footnote" id="segOut" style="margin-top:8px">Selected: body</p>
+  </section>
+
+  <!-- SHEETS, TOASTS -->
+  <section class="gallery-sec">
+    <h2>Sheets · toasts</h2>
+    <div class="row-demo">
+      <button class="btn-tinted" id="openForm">Form sheet</button>
+      <button class="btn-tinted" id="openAction">Action sheet</button>
+      <button class="btn-tinted" id="openFull">Full sheet</button>
+      <button class="btn-tinted" id="toastBtn">Toast</button>
+      <button class="btn-tinted" id="undoBtn">Delete + Undo</button>
+    </div>
+  </section>
+
+</div>
+
+<script src="ds.js"></script>
+<script>
+  // gallery wiring — exercises the JS API end to end
+  document.getElementById('navAction').onclick = function () { DS.toast('Done tapped'); };
+  document.getElementById('retryBtn').onclick = function () { DS.toast('Retrying…'); };
+
+  DS.segmented(document.getElementById('segDemo'), function (v) {
+    document.getElementById('segOut').textContent = 'Selected: ' + v;
+  });
+
+  document.getElementById('openForm').onclick = function () {
+    DS.sheet(
+      '<div class="ds-field"><label>Meal name</label><input type="text" placeholder="e.g. Chicken bowl"></div>' +
+      '<div class="ds-field"><label>Calories</label><input type="number" placeholder="0"></div>' +
+      '<button class="btn-filled btn-block" onclick="DS.toast(\'Saved\')">Save</button>',
+      { title: 'Log meal', variant: 'form' }
+    );
+  };
+  document.getElementById('openAction').onclick = function () {
+    DS.actionSheet([
+      { label: 'Take photo', onTap: function () { DS.toast('Camera'); } },
+      { label: 'Choose from library', onTap: function () { DS.toast('Library'); } },
+      { label: 'Delete entry', role: 'destructive', onTap: function () { DS.toast('Deleted'); } },
+    ], { title: 'Add photo' });
+  };
+  document.getElementById('openFull').onclick = function () {
+    DS.sheet('<h2 class="t-title2">Detail</h2><p class="t-body">A full-height sheet for detail screens. Swipe the grab handle down to dismiss.</p>', { title: 'Detail', variant: 'full' });
+  };
+  document.getElementById('toastBtn').onclick = function () { DS.toast('Logged 3 cups of water'); };
+  document.getElementById('undoBtn').onclick = function () {
+    DS.deleteWithUndo('Entry deleted', function () { DS.toast('Commit: gone for good'); }, function () { DS.toast('Restored'); });
+  };
+</script>
+</body>
+</html>
