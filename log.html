@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Log</title>
+<link rel="stylesheet" href="design.css">
+<style>
+  /* page-local layout only — components live in design.css */
+  body { margin: 0; padding-bottom: 96px; color: var(--text-primary); min-height: 100vh; }
+  .ds-wrap { max-width: 600px; margin: 0 auto; padding: 8px 16px 0; }
+  .seg-wrap { padding: 0 16px 12px; max-width: 600px; margin: 0 auto; }
+  .seg-scroll { overflow-x: auto; scrollbar-width: none; }
+  .seg-scroll::-webkit-scrollbar { display: none; }
+  .seg-scroll .ds-segmented { width: max-content; min-width: 100%; }
+  .panel[hidden] { display: none; }
+</style>
+</head>
+<body>
+
+<header class="ds-nav" data-ds-nav>
+  <div class="ds-nav-bar"><span class="ds-nav-inline">Log</span></div>
+  <h1 class="ds-largetitle">Log</h1>
+  <div class="seg-wrap"><div class="seg-scroll"><div class="ds-segmented" id="seg"></div></div></div>
+</header>
+
+<main class="ds-wrap" id="panels"></main>
+
+<script src="ds.js"></script>
+<script src="tabbar.js" defer></script>
+<script>
+// Phase 1 shell: each segment lists rows that route to the existing pages.
+// Phase 3 replaces these routes with inline grouped-list logging + sheets.
+var SEGMENTS = [
+  { id: 'food', label: 'Food', rows: [
+    { t: 'Nutrition', s: 'Meals, TDEE, macros, trends', href: 'nutrition.html' },
+  ]},
+  { id: 'body', label: 'Body', rows: [
+    { t: 'Health metrics', s: 'HRV, RHR, SpO2, steps, sleep', href: 'health.html' },
+    { t: 'Bloodwork & meds', s: 'Labs, medications', href: 'health.html#labs' },
+    { t: 'Progress photos & measurements', s: 'Weight, measurements, photos', href: 'body.html' },
+    { t: 'Wearable', s: 'Watch raw data', href: 'watch.html' },
+  ]},
+  { id: 'mind', label: 'Mind', rows: [
+    { t: 'Mood & journal', s: 'Mood, journal, gratitude, meditate', href: 'mood.html' },
+  ]},
+  { id: 'training', label: 'Training', rows: [
+    { t: 'Gym', s: 'Workouts, PRs, templates, cardio', href: 'gym.html' },
+  ]},
+  { id: 'skin', label: 'Skin', rows: [
+    { t: 'Skin', s: 'Routine, logs, products, breakouts', href: 'skin.html' },
+    { t: 'GlowLab', s: 'Skin lab', href: 'glowlab.html' },
+  ]},
+  { id: 'habits', label: 'Habits', rows: [
+    { t: 'Habits', s: 'Checklist, streaks, heatmap', href: 'habits.html' },
+  ]},
+  { id: 'water', label: 'Water', rows: [
+    { t: 'Water', s: 'Day ring, history', href: 'water.html' },
+  ]},
+  { id: 'supps', label: 'Supplements', rows: [
+    { t: 'Supplement stack', s: 'Due now, taken, schedule', href: 'reminders.html' },
+    { t: 'Medications', s: 'In Health', href: 'health.html#meds' },
+  ]},
+];
+
+var seg = document.getElementById('seg');
+var panels = document.getElementById('panels');
+var chevron = '<span class="ds-row-chevron"></span>';
+
+SEGMENTS.forEach(function (s, i) {
+  var b = document.createElement('button');
+  b.dataset.value = s.id;
+  b.textContent = s.label;
+  if (i === 0) b.setAttribute('aria-selected', 'true');
+  seg.appendChild(b);
+
+  var p = document.createElement('section');
+  p.className = 'panel';
+  p.dataset.panel = s.id;
+  if (i !== 0) p.hidden = true;
+  var rows = s.rows.map(function (r) {
+    return '<a class="ds-row" href="' + r.href + '">' +
+      '<div class="ds-row-body"><div class="ds-row-title">' + r.t + '</div>' +
+      (r.s ? '<div class="ds-row-sub">' + r.s + '</div>' : '') + '</div>' + chevron + '</a>';
+  }).join('');
+  p.innerHTML = '<div class="ds-list"><div class="ds-list-header">' + s.label +
+    '</div><div class="ds-group">' + rows + '</div>' +
+    '<div class="ds-list-footer">Opens the current page. Inline logging arrives in Phase 3.</div></div>';
+  panels.appendChild(p);
+});
+
+DS.segmented(seg, function (val) {
+  panels.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.dataset.panel !== val; });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Coach</title>
+<link rel="stylesheet" href="design.css">
+<style>
+  body { margin: 0; padding-bottom: 96px; color: var(--text-primary); min-height: 100vh; }
+  .ds-wrap { max-width: 600px; margin: 0 auto; padding: 8px 16px 0; }
+</style>
+</head>
+<body>
+
+<header class="ds-nav" data-ds-nav>
+  <div class="ds-nav-bar"><span class="ds-nav-inline">Coach</span></div>
+  <h1 class="ds-largetitle">Coach</h1>
+</header>
+
+<main class="ds-wrap" id="sections"></main>
+
+<script src="ds.js"></script>
+<script src="tabbar.js" defer></script>
+<script>
+// Phase 1 shell: Coach groups route to the existing AI surfaces.
+// Phase 4 merges ai + Ask bar + operator into one Ask and brings these inline.
+var SECTIONS = [
+  { header: 'What now', rows: [
+    { t: 'Briefing', s: 'Morning / evening brief (button-only)', href: 'index.html?qa=briefing' },
+    { t: 'Readiness', s: 'Score and drivers', href: 'watch.html' },
+  ]},
+  { header: 'Ask', rows: [
+    { t: 'Ask Claude', s: 'Chat with full data context + operator', href: 'ai.html' },
+  ]},
+  { header: 'Streams', rows: [
+    { t: 'Inbox', s: 'AI triage, orders, drafts', href: 'mail.html' },
+    { t: 'Opportunities', s: 'Radar', href: 'radar.html' },
+    { t: 'Reviews', s: 'Weekly review, feature audit', href: 'review.html' },
+  ]},
+];
+
+var chevron = '<span class="ds-row-chevron"></span>';
+document.getElementById('sections').innerHTML = SECTIONS.map(function (sec) {
+  var rows = sec.rows.map(function (r) {
+    return '<a class="ds-row" href="' + r.href + '">' +
+      '<div class="ds-row-body"><div class="ds-row-title">' + r.t + '</div>' +
+      '<div class="ds-row-sub">' + r.s + '</div></div>' + chevron + '</a>';
+  }).join('');
+  return '<div class="ds-list"><div class="ds-list-header">' + sec.header +
+    '</div><div class="ds-group">' + rows + '</div></div>';
+}).join('') +
+  '<div class="ds-list-footer" style="text-align:center">No tokens spent until you press a button.</div>';
+</script>
+</body>
+</html>

@@ -19,6 +19,10 @@
     { href: 'usage.html',     label: 'Usage',     icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>' },
     { href: 'privacy.html',   label: 'Privacy',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>' },
     { href: 'fix.html',       label: 'Fix data',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z"/></svg>' },
+    { href: 'settings.html',  label: 'Settings',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>' },
+    { href: 'travel.html',    label: 'Travel',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>' },
+    { href: 'social.html',    label: 'Social',    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+    { href: 'library.html',   label: 'Library',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' },
   ];
 
   // Clean-URL servers (Vercel, the dev server) serve /gym not /gym.html, so
@@ -49,13 +53,14 @@
     'privacy.html': '#30D158', 'fix.html': '#FF9F0A', 'library.html': '#5E5CE6',
     'social.html': '#FF2D55', 'travel.html': '#64D2FF', 'glowlab.html': '#FF2D55',
     'body.html': '#30D158', 'ai.html': '#0A84FF',
+    'log.html': '#0A84FF', 'coach.html': '#5E5CE6',
   };
   document.documentElement.style.setProperty('--accent', ACCENTS[page] || '#0A84FF');
 
   // ---- LifeOS layer: AI service, context core, command bar ----
   // Loaded sequentially so command.js can rely on both globals.
   (function loadLifeOS() {
-    const chain = ['errlog.js', 'claude.js', 'lifeos-core.js', 'command.js', 'pwa.js']
+    const chain = ['errlog.js', 'ds.js', 'claude.js', 'lifeos-core.js', 'command.js', 'pwa.js']
       .filter(src => !document.querySelector('script[src="' + src + '"]'));
     function next() {
       const src = chain.shift();
@@ -157,24 +162,44 @@
   const inner = document.createElement('div');
   inner.className = 'tabbar-inner';
 
-  // Four primary tabs on the bar; everything else lives in the More sheet.
-  const PRIMARY = ['index.html', 'health.html', 'gym.html', 'finance.html'];
-  const primaryTabs = PRIMARY.map(function (h) { return TABS.find(function (t) { return t.href === h; }); }).filter(Boolean);
-  const activeInPrimary = PRIMARY.indexOf(page) >= 0;
+  // ── 5-tab IA (APPLE_PLAN section 3) ──────────────────────────
+  // Today / Log / Coach / Money / More. Every old page belongs to a
+  // tab via TAB_OF so the right tab lights up; the rest fall to More.
+  // Old pages stay reachable through the More sheet (full grid below)
+  // and through the Log/Coach landing pages during migration.
+  const BAR = [
+    { id: 'today', href: 'index.html',   label: 'Today', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' },
+    { id: 'log',   href: 'log.html',     label: 'Log',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
+    { id: 'coach', href: 'coach.html',   label: 'Coach', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>' },
+    { id: 'money', href: 'finance.html', label: 'Money', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+  ];
+  const TAB_OF = {
+    'index.html': 'today', 'calendar.html': 'today', 'tasks.html': 'today',
+    'log.html': 'log', 'health.html': 'log', 'watch.html': 'log', 'water.html': 'log',
+    'po-water.html': 'log', 'gym.html': 'log', 'body.html': 'log', 'nutrition.html': 'log',
+    'mood.html': 'log', 'habits.html': 'log', 'skin.html': 'log', 'glowlab.html': 'log',
+    'reminders.html': 'log',
+    'coach.html': 'coach', 'mail.html': 'coach', 'radar.html': 'coach', 'review.html': 'coach',
+    'ai.html': 'coach',
+    'finance.html': 'money',
+    // everything else (usage, travel, social, library, export, settings,
+    // privacy, fix, ds) → More
+  };
+  const activeTab = TAB_OF[page] || 'more';
   const moreIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
 
-  primaryTabs.forEach(function (t) {
+  BAR.forEach(function (t) {
     const a = document.createElement('a');
     a.href = t.href;
-    a.className = 'tab' + (t.href === page ? ' active' : '');
-    if (t.href === page) a.setAttribute('aria-current', 'page');
+    a.className = 'tab' + (t.id === activeTab ? ' active' : '');
+    if (t.id === activeTab) a.setAttribute('aria-current', 'page');
     a.innerHTML = '<span class="tab-icon">' + t.icon + '</span><span>' + t.label + '</span>';
     inner.appendChild(a);
   });
 
   const moreBtn = document.createElement('button');
   moreBtn.type = 'button';
-  moreBtn.className = 'tab' + (activeInPrimary ? '' : ' active');
+  moreBtn.className = 'tab' + (activeTab === 'more' ? ' active' : '');
   moreBtn.setAttribute('aria-label', 'More tabs');
   moreBtn.innerHTML = '<span class="tab-icon">' + moreIcon + '</span><span>More</span>';
   inner.appendChild(moreBtn);
