@@ -394,7 +394,7 @@ body::before {
       <div id="ntProteinConsistPct" style="font-size:28px;font-weight:600;font-variant-numeric:tabular-nums">&mdash;</div>
       <div style="flex:1">
         <div style="height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;margin-bottom:5px">
-          <div id="ntProteinConsistFill" style="height:100%;background:#34D399;border-radius:3px;transition:width .3s;width:0%"></div>
+          <div id="ntProteinConsistFill" style="height:100%;background:var(--accent);border-radius:3px;transition:width .3s;width:0%"></div>
         </div>
         <div id="ntProteinConsistSub" style="font-size:12px;color:var(--text-tertiary)">Last 7 days hitting your protein target</div>
       </div>
@@ -455,7 +455,7 @@ body::before {
         <div class="nt-field"><div class="nt-field-lbl">Alcohol g 🍺</div><input type="number" class="nt-input" id="qAlc" placeholder="0" min="0" step="0.5"></div>
       </div>
       <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-tertiary);cursor:pointer">
-        <input type="checkbox" id="qRestaurant" style="width:16px;height:16px;accent-color:#34D399">
+        <input type="checkbox" id="qRestaurant" style="width:16px;height:16px;accent-color:var(--accent)">
         Restaurant meal (estimate, wider margins)
       </label>
       <button class="nt-btn" id="doQuickAdd">+ Log Quick Entry</button>
@@ -739,7 +739,7 @@ body::before {
       <button class="nt-btn" id="aiAnalyzeBtn" style="white-space:nowrap">Identify →</button>
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-tertiary);cursor:pointer;padding:2px 0">
-      <input type="checkbox" id="aiRestaurantChk" style="width:16px;height:16px;accent-color:#34D399">
+      <input type="checkbox" id="aiRestaurantChk" style="width:16px;height:16px;accent-color:var(--accent)">
       Restaurant meal — wider margins, day flagged as estimated
     </label>
   </div>

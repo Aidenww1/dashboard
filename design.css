@@ -14,23 +14,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  /* color */
-  --bg: #0A0A0B;
-  --bg-card: #141416;
-  --bg-card-hover: #1A1A1D;
-  --bg-inset: #0F0F11;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --text-primary: #F7F8F8;
-  --text-secondary: #B4B4B8;
-  --text-tertiary: #6E6E76;
-  --accent: #34D399;
-  --accent-dim: rgba(52, 211, 153, 0.12);
-  --accent-border: rgba(52, 211, 153, 0.28);
-  --danger: #FF6B6B;
-  --danger-dim: rgba(255, 107, 107, 0.10);
-  --warn: #FBBF24;
-  --info: #5B8DEF;
+  /* color — Apple dark: pure-black base, layered system greys */
+  --bg: #000000;
+  --bg-card: #1C1C1E;        /* systemGray6 dark */
+  --bg-card-hover: #2C2C2E;  /* systemGray5 dark */
+  --bg-inset: #161618;       /* darker well for inputs + track fills */
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.20);
+  --text-primary: #F5F5F7;
+  --text-secondary: #AEAEB2; /* systemGray */
+  --text-tertiary: #8E8E93;  /* systemGray2 */
+  /* accent: per-page tint set by tabbar.js; blue is the default.
+     dim/border derive from --accent so one value themes a whole page. */
+  --accent: #0A84FF;
+  --accent-dim: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 42%, transparent);
+  --danger: #FF453A;
+  --danger-dim: color-mix(in srgb, var(--danger) 14%, transparent);
+  --warn: #FF9F0A;
+  --info: #64D2FF;
 
   /* spacing (8px base) */
   --sp-1: 8px;
@@ -47,19 +49,27 @@
   --fs-xl: 24px;
   --fs-xxl: 32px;
 
-  --radius: 12px;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --radius: 16px;            /* Apple continuous-corner card */
+  --radius-sm: 12px;         /* buttons, inputs, small controls */
+  /* soft layered depth + faint top highlight — Apple cards aren't flat */
+  --shadow-card: inset 0 0.5px 0 rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.20);
+  /* SF Pro on Apple devices, Inter elsewhere */
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', "Segoe UI", Roboto, sans-serif;
 }
 
-/* ── base surface: flat true dark, kill decorative gradient blobs ── */
+/* ── base surface: pure dark, crisp text rendering, no gradient blobs ── */
 html, body {
   background: var(--bg) !important;
   font-family: var(--font) !important;
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.01em; /* SF-style subtle tightening */
 }
 body::before { display: none !important; }
 
-::selection { background: rgba(52, 211, 153, 0.25); color: var(--text-primary); }
+::selection { background: var(--accent-dim); color: var(--text-primary); }
 
 /* thin dark scrollbars (desktop) */
 @media (min-width: 768px) {
@@ -128,12 +138,12 @@ body::before { display: none !important; }
   background: var(--bg-card) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius) !important;
-  box-shadow: none !important;
+  box-shadow: var(--shadow-card) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  transition: border-color 0.15s;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
-.empty-note, .ds-empty { border-style: dashed !important; }
+.empty-note, .ds-empty { border-style: dashed !important; box-shadow: none !important; }
 
 .card:hover, .gm-card:hover, .stack-card:hover, .mtile:hover,
 .hero-card:hover, .chart-card:hover, .meas-tile:hover,
@@ -142,6 +152,7 @@ body::before { display: none !important; }
 .task-card:hover, .book-card:hover, .course-card:hover, .log-link:hover,
 .ds-card:hover {
   border-color: var(--border-strong) !important;
+  transform: translateY(-1px);
 }
 
 /* ── typography normalization ── */
@@ -169,7 +180,7 @@ input[type="time"], input[type="search"], input[type="email"],
 select, textarea {
   background: var(--bg-inset) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
+  border-radius: var(--radius-sm) !important;
   color: var(--text-primary) !important;
   font-family: var(--font) !important;
   transition: border-color 0.15s;
@@ -190,14 +201,15 @@ select:focus, textarea:focus {
   gap: var(--sp-1);
   min-height: 44px;
   padding: 0 var(--sp-2);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   font-family: var(--font);
   font-size: var(--fs-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s, border-color 0.15s;
+  transition: opacity 0.15s, border-color 0.15s, transform 0.1s ease;
   -webkit-tap-highlight-color: transparent;
 }
+.btn-primary:active, .btn-ghost:active, .btn-danger:active { transform: scale(0.97); }
 .btn-primary {
   background: var(--accent);
   color: #0A0A0B;
@@ -263,6 +275,14 @@ select:focus, textarea:focus {
 }
 a, button, label, select, input, textarea, [role="button"] {
   touch-action: manipulation;
+}
+
+/* respect reduced-motion: drop the lift + press transforms */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  .card:hover, .ds-card:hover, .gm-card:hover, .stack-card:hover, .mtile:hover,
+  .hero-card:hover, .chart-card:hover, .nw-subcard:hover, .ord-card:hover,
+  .btn-primary:active, .btn-ghost:active, .btn-danger:active { transform: none; }
 }
 /* tap-target floor for the common button classes (icon-only controls
    like modal close buttons keep their own sizing) */

@@ -21,7 +21,12 @@
     { href: 'fix.html',       label: 'Fix data',  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z"/></svg>' },
   ];
 
-  const page = (window.location.pathname.split('/').pop() || 'index.html').split('?')[0];
+  // Clean-URL servers (Vercel, the dev server) serve /gym not /gym.html, so
+  // normalize to the .html form the TABS hrefs + ACCENTS map use. Fixes active
+  // tab detection and per-page accent on extensionless URLs.
+  let page = (window.location.pathname.split('/').pop() || 'index.html').split('?')[0];
+  if (!page) page = 'index.html';
+  if (!/\.html$/.test(page)) page += '.html';
 
   // ---- Design system (shared tokens, grid, buttons, states) ----
   if (!document.querySelector('link[href="design.css"]')) {
@@ -30,6 +35,22 @@
     link.href = 'design.css';
     document.head.appendChild(link);
   }
+
+  // ---- Per-module accent (iOS multi-tint) ----
+  // One value per page drives --accent; design.css derives the dim/border
+  // variants via color-mix, so this is the whole theming surface.
+  const ACCENTS = {
+    'index.html': '#0A84FF', 'health.html': '#FF375F', 'watch.html': '#FF453A',
+    'water.html': '#64D2FF', 'gym.html': '#30D158', 'finance.html': '#00C7BE',
+    'nutrition.html': '#FF9F0A', 'calendar.html': '#FF453A', 'mail.html': '#0A84FF',
+    'radar.html': '#5E5CE6', 'reminders.html': '#FF9500', 'skin.html': '#FF2D55',
+    'mood.html': '#BF5AF2', 'habits.html': '#32D74B', 'tasks.html': '#0A84FF',
+    'review.html': '#5E5CE6', 'usage.html': '#64D2FF', 'export.html': '#0A84FF',
+    'privacy.html': '#30D158', 'fix.html': '#FF9F0A', 'library.html': '#5E5CE6',
+    'social.html': '#FF2D55', 'travel.html': '#64D2FF', 'glowlab.html': '#FF2D55',
+    'body.html': '#30D158', 'ai.html': '#0A84FF',
+  };
+  document.documentElement.style.setProperty('--accent', ACCENTS[page] || '#0A84FF');
 
   // ---- LifeOS layer: AI service, context core, command bar ----
   // Loaded sequentially so command.js can rely on both globals.
@@ -111,7 +132,7 @@
   -webkit-tap-highlight-color: transparent; background: transparent; border: none;
 }
 .tab-sheet-item:hover { background: rgba(255,255,255,0.05); }
-.tab-sheet-item.active { color: var(--accent, #34D399); background: rgba(224,118,88,0.1); }
+.tab-sheet-item.active { color: var(--accent, #34D399); background: rgb(from var(--accent) r g b / 0.10); }
 .tab-sheet-item .tab-icon { width: 24px; height: 24px; }
 @media (min-width: 700px) { .tab-sheet-grid { grid-template-columns: repeat(6, 1fr); } }
 

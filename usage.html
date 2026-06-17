@@ -8,7 +8,7 @@
     :root {
       --bg: #0A0A0B; --card: rgba(255,255,255,0.04);
       --border: rgba(255,255,255,0.08); --text: #E8E6E0;
-      --muted: #76746E; --accent: #34D399;
+      --muted: #76746E; --accent: var(--accent);
       --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -23,7 +23,7 @@
     .stat-lbl { font-size: 11px; color: var(--muted); }
     .chart-wrap { height: 80px; display: flex; align-items: flex-end; gap: 3px; margin-top: 14px; }
     .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
-    .bar-fill { width: 100%; background: rgba(52,211,153,0.35); border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.3s; }
+    .bar-fill { width: 100%; background: rgb(from var(--accent) r g b / 0.35); border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.3s; }
     .bar-lbl { font-size: 9px; color: var(--muted); }
     .model-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
     .model-row:last-child { border-bottom: none; }
@@ -34,7 +34,7 @@
     .recent-date { color: var(--muted); font-size: 11px; }
     .recent-model { font-size: 11px; color: var(--muted); margin-top: 2px; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-    .badge-agent { background: rgba(52,211,153,0.12); color: #34D399; }
+    .badge-agent { background: rgb(from var(--accent) r g b / 0.12); color: var(--accent); }
     .badge-chat { background: rgba(129,140,248,0.12); color: #818CF8; }
     .empty { color: var(--muted); text-align: center; padding: 24px 0; font-size: 14px; }
     .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; font-family: var(--font); transition: opacity 0.15s; }

@@ -11,17 +11,17 @@
   z-index: 190;
   display: flex; align-items: center; gap: 7px;
   padding: 9px 18px;
-  background: rgba(52,211,153,0.10);
-  border: 1px solid rgba(52,211,153,0.22);
+  background: rgb(from var(--accent) r g b / 0.10);
+  border: 1px solid rgb(from var(--accent) r g b / 0.22);
   border-radius: 22px;
-  color: #34D399; font-size: 13px; font-weight: 600;
+  color: var(--accent); font-size: 13px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
   backdrop-filter: blur(8px);
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, transform 0.1s;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-.claudebar-pill:hover { background: rgba(52,211,153,0.18); }
+.claudebar-pill:hover { background: rgb(from var(--accent) r g b / 0.18); }
 .claudebar-pill:active { transform: translateX(-50%) scale(0.95); }
 .claudebar-pill svg { flex-shrink: 0; }
 .claudebar-overlay {
@@ -76,7 +76,7 @@
 }
 .claudebar-msg.user {
   align-self: flex-end;
-  background: rgba(52,211,153,0.14); color: #E8E6E0;
+  background: rgb(from var(--accent) r g b / 0.14); color: #E8E6E0;
   border-bottom-right-radius: 4px;
 }
 .claudebar-msg.assistant {
@@ -102,10 +102,10 @@
   max-height: 120px; min-height: 42px; line-height: 1.4;
 }
 .claudebar-input::placeholder { color: #76746E; }
-.claudebar-input:focus { border-color: rgba(52,211,153,0.35); }
+.claudebar-input:focus { border-color: rgb(from var(--accent) r g b / 0.35); }
 .claudebar-send {
   width: 42px; height: 42px; border-radius: 13px;
-  background: #34D399; color: #0A0A0B; border: none;
+  background: var(--accent); color: #0A0A0B; border: none;
   font-size: 20px; cursor: pointer; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.15s; font-family: inherit;
@@ -182,18 +182,18 @@
 .topbar-water-add {
   flex: 0 0 auto;
   width: 38px;
-  border: 1px solid rgba(52, 211, 153, 0.28);
-  background: rgba(52, 211, 153, 0.12);
-  color: #34D399;
+  border: 1px solid rgb(from var(--accent) r g b / 0.28);
+  background: rgb(from var(--accent) r g b / 0.12);
+  color: var(--accent);
   font-family: inherit; font-size: 17px; font-weight: 600;
   cursor: pointer;
   border-radius: 0 8px 8px 0;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, transform 0.10s;
 }
-.topbar-water-add:hover { background: rgba(52, 211, 153, 0.20); }
+.topbar-water-add:hover { background: rgb(from var(--accent) r g b / 0.20); }
 .topbar-water-add:active { transform: scale(0.94); }
-.topbar-water-add.flash { background: rgba(52, 211, 153, 0.45); }
+.topbar-water-add.flash { background: rgb(from var(--accent) r g b / 0.45); }
 
 @media (max-width: 480px) {
   .topbar { padding-left: 10px; padding-right: 10px; gap: 4px; }
