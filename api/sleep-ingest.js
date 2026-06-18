@@ -1,3 +1,5 @@
+import { checkIngestToken } from './_ingest-auth.js';
+
 const SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
 const SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
 const SLEEP_KEY = 'sleep:logs';
@@ -39,12 +41,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
 
-  const expectedToken = process.env.SLEEP_INGEST_TOKEN;
+  // Fail CLOSED: if SLEEP_INGEST_TOKEN is unset the endpoint rejects rather than
+  // silently accepting unauthenticated writes (was: `expectedToken && ...` which
+  // skipped the check entirely when the env was missing).
+  const auth = checkIngestToken(req, 'SLEEP_INGEST_TOKEN');
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
   const body = req.body || {};
-
-  if (expectedToken && body.token !== expectedToken) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
 
   // Accept either raw timestamps (from MacroDroid) or pre-formatted values
   let { date, bedtime, waketime, duration, score, rem, deep } = body;

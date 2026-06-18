@@ -115,6 +115,27 @@ MUST stamp `user_id = OWNER_UID` on insert so reads (which may go through RLS) m
 - [ ] Backup → restore still round-trips post-RLS.
 - [ ] Owner can still log in + see data after the full cutover.
 
+## 9b. Security self-review findings (Codex CLI sandbox couldn't read the FS)
+
+- **[HIGH, FIXED] service-role inserts didn't set user_id** — see §6. All 6 routes
+  now stamp `OWNER_UID`; set the env before enabling RLS.
+- **[HIGH, FIXED] sleep-ingest fail-open** — `if (expectedToken && body.token !== …)`
+  skipped auth entirely when `SLEEP_INGEST_TOKEN` was unset. Now fails CLOSED via
+  `checkIngestToken` (api/_ingest-auth.js): no token configured -> 503; token via
+  `X-Ingest-Token` header / `body.token` / `?token`, constant-time compared.
+- **[HIGH, STAGED] health ingest (`api/health/[type].js`) had NO auth** — open POST
+  to 24 DB tables with `CORS *`. Added `checkIngestToken(..., {failOpenWhenUnset:true})`:
+  enforces once **`HEALTH_INGEST_TOKEN`** is set; stays open while unset so the
+  current Tasker/Health Connect flow isn't broken. **Cutover: set `HEALTH_INGEST_TOKEN`
+  + add the same token (header `X-Ingest-Token`) to the Tasker/MacroDroid HTTP task.**
+- **[MEDIUM] sleep-ingest uses the publishable key**, so post-RLS (no session) it
+  can't write. At cutover, switch `api/sleep-ingest.js` to `SUPABASE_SERVICE_KEY`
+  (server-only, bypasses RLS) so server ingest keeps working. (Already stamps
+  user_id.)
+- **[LOW, accepted] auth gate not focus-trapped / `auth:required` flag is localStorage
+  (tamperable)** — acceptable: the gate is UX, RLS server-side is the real boundary;
+  single-user on own device.
+
 ## 10. Threat review checklist (run with Codex adversarial review before cutover)
 
 unauthenticated access · cross-user access · stolen browser state · exposed

@@ -51,7 +51,8 @@ Server-only (NEVER shipped to client). Confirm each is set before deploy:
 | `SUPABASE_SERVICE_KEY` | server DB routes | **service role — server only** |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | _webpush, push-subscribe | web push |
 | `GOOGLE_CLIENT_ID` | gcal-nlp | calendar OAuth |
-| `SLEEP_INGEST_TOKEN` | sleep-ingest | endpoint auth |
+| `SLEEP_INGEST_TOKEN` | sleep-ingest | endpoint auth — **now required** (fails closed if unset) |
+| `HEALTH_INGEST_TOKEN` | health/[type] ingest | **set + add to Tasker** to lock the open health endpoint (Phase 10) |
 | `CRON_SECRET` | health-ai/agent cron | cron auth |
 | `OWNER_UID` | all Supabase-insert routes | **Phase 10 only** — set = auth user id before enabling RLS (see PHASE10-AUTH-RLS.md §6). Unset pre-cutover = no effect. |
 

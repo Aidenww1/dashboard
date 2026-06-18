@@ -1,3 +1,5 @@
+import { checkIngestToken } from '../_ingest-auth.js';
+
 const TABLE_MAP = {
   heartrate: 'heart_rate',
   steps: 'steps',
@@ -26,9 +28,17 @@ const TABLE_MAP = {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Ingest-Token');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).end();
+
+  // Staged ingest protection: enforces ONLY once HEALTH_INGEST_TOKEN is set, so it
+  // can't break the existing Tasker/Health Connect flow until the owner sets the
+  // env + adds the token (header X-Ingest-Token or body.token) on the device. While
+  // unset the endpoint stays open (documented residual — Phase 10 §6).
+  const auth = checkIngestToken(req, 'HEALTH_INGEST_TOKEN', { failOpenWhenUnset: true });
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+  if (auth.unprotected) console.warn('health ingest: HEALTH_INGEST_TOKEN unset — endpoint is OPEN');
 
   const { type } = req.query;
   const table = TABLE_MAP[type?.toLowerCase()];
