@@ -128,9 +128,9 @@ main{position:relative;z-index:2;max-width:720px;margin:0 auto;padding:56px 20px
 const KEY='social:contacts:v1';
 const REL_LABELS={friend:'Friend',close_friend:'Close friend',family:'Family',colleague:'Colleague',mentor:'Mentor',acquaintance:'Acquaintance',romantic:'Romantic'};
 const REL_COLORS={friend:'#5B8DEF',close_friend:'#9B6BFF',family:'#E07658',colleague:'#F2C063',mentor:'#4BC9A0',acquaintance:'#76746E',romantic:'#FF8FAB'};
-function load(){return JSON.parse(localStorage.getItem(KEY)||'[]')}
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')||[]}catch(e){return[]}}
 function save(d){localStorage.setItem(KEY,JSON.stringify(d))}
-function today(){return new Date().toISOString().slice(0,10)}
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function daysSince(dateStr){if(!dateStr)return 9999;return Math.floor((Date.now()-new Date(dateStr).getTime())/864e5)}
 function daysUntilBday(bdayStr){
   if(!bdayStr)return null;
@@ -170,6 +170,7 @@ function contactCard(c,overdue){
       <span class="contact-since" style="background:${sinceColor}22;color:${sinceColor};border:1px solid ${sinceColor}33">${sinceLabel}</span>
       <div style="display:flex;gap:6px">
         <button onclick="logContact('${c.id}')" style="padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit">✓ Saw them</button>
+        <button onclick="editContact('${c.id}')" style="background:transparent;border:none;color:var(--text-tertiary);cursor:pointer;font-size:12px;padding:2px">Edit</button>
         <button onclick="deleteContact('${c.id}')" style="background:transparent;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:13px;padding:2px">×</button>
       </div>
     </div>
@@ -199,11 +200,31 @@ function renderBirthdays(){
   }).join('');
 }
 
-document.getElementById('cSaveBtn').addEventListener('click',()=>{
+let editingId=null;
+const cSaveBtn=document.getElementById('cSaveBtn');
+window.editContact=function(id){
+  const c=load().find(x=>x.id===id);if(!c)return;
+  editingId=id;
+  document.getElementById('cName').value=c.name||'';
+  document.getElementById('cRel').value=c.rel||'friend';
+  document.getElementById('cBday').value=c.bday||'';
+  document.getElementById('cNotes').value=c.notes||'';
+  document.getElementById('cFreq').value=String(c.freq||14);
+  cSaveBtn.textContent='Save changes';
+  setTab('add');
+};
+cSaveBtn.addEventListener('click',()=>{
   const name=document.getElementById('cName').value.trim();
   if(!name)return;
   const contacts=load();
-  contacts.push({id:Date.now().toString(36),name,rel:document.getElementById('cRel').value,bday:document.getElementById('cBday').value||null,notes:document.getElementById('cNotes').value.trim()||null,freq:parseInt(document.getElementById('cFreq').value)||30,lastContact:null,createdAt:today()});
+  const fields={name,rel:document.getElementById('cRel').value,bday:document.getElementById('cBday').value||null,notes:document.getElementById('cNotes').value.trim()||null,freq:parseInt(document.getElementById('cFreq').value)||30};
+  if(editingId){
+    const c=contacts.find(x=>x.id===editingId);
+    if(c)Object.assign(c,fields); // keep id, lastContact, createdAt
+    editingId=null;cSaveBtn.textContent='Add contact';
+  } else {
+    contacts.push(Object.assign({id:Date.now().toString(36),lastContact:null,createdAt:today()},fields));
+  }
   save(contacts);
   ['cName','cBday','cNotes'].forEach(id=>document.getElementById(id).value='');
   setTab('contacts');renderContacts();

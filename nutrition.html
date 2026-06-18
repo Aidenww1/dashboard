@@ -414,7 +414,7 @@ body::before {
       </div>
       <div id="ntWaterLabel" style="font-size:12px;color:var(--text-tertiary)">— / 2500 ml</div>
     </div>
-    <a href="water.html" style="font-size:12px;color:var(--text-tertiary);text-decoration:none;white-space:nowrap">Log →</a>
+    <a href="water.html" style="font-size:12px;color:var(--text-tertiary);text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;min-height:44px;padding:0 6px">Log →</a>
   </div>
 </div>
 </div>
@@ -2202,7 +2202,7 @@ function renderAnalytics() {
     if (!fillEl || !labelEl) return;
     try {
       const wKey = 'po_water_v1';
-      const today = new Date().toISOString().slice(0,10);
+      const today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
       const wData = JSON.parse(localStorage.getItem(wKey) || '{}');
       const goal = wData.goal || 2500;
       const logs = (wData.logs || []).filter(l => l.date === today);
@@ -2227,8 +2227,8 @@ function renderAnalytics() {
         if (!saveLog || !getAppDateKey) {
           // Fallback: direct localStorage manipulation
           const all = JSON.parse(localStorage.getItem('nt:logs') || '[]');
-          const today = new Date().toISOString().slice(0,10).replace(/-/g,'/');
-          const yest  = new Date(Date.now()-864e5).toISOString().slice(0,10).replace(/-/g,'/');
+          const today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()).replace(/-/g,'/');
+          const yest  = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(new Date(Date.now()-864e5)).replace(/-/g,'/');
           const yLogs = all.filter(l => l.dateKey === yest);
           if (!yLogs.length) { alert('No food logged yesterday'); return; }
           const existing = all.filter(l => l.dateKey === today);
@@ -2269,9 +2269,9 @@ function renderAnalytics() {
   var KEY = 'health:caffeine:v1';
   var DAILY_LIMIT = 400;
   var HALF_LIFE_H = 5;
-  function today() { return new Date().toISOString().slice(0,10); }
-  function load() { return JSON.parse(localStorage.getItem(KEY)||'[]').filter(function(l) { return l.date === today(); }); }
-  function loadAll() { return JSON.parse(localStorage.getItem(KEY)||'[]'); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]').filter(function(l) { return l.date === today(); }); } catch(e){ return []; } }
+  function loadAll() { try { return JSON.parse(localStorage.getItem(KEY)||'[]')||[]; } catch(e){ return []; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
 
   function renderCaffeine() {
@@ -2366,7 +2366,7 @@ function renderAnalytics() {
     var logs = [];
     try { logs = JSON.parse(localStorage.getItem('nt:logs') || '[]'); } catch {}
     var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 14);
-    var cutoffKey = cutoff.toISOString().slice(0, 10);
+    var cutoffKey = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(cutoff);
     var recent = logs.filter(function(l) { return (l.dateKey || '') >= cutoffKey; });
     var byDay = {};
     recent.forEach(function(l) {

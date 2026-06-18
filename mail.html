@@ -15,7 +15,7 @@
   --border: rgba(255,255,255,0.06);
   --text-primary: #FAFAFA;
   --text-secondary: #B8B6B0;
-  --text-tertiary: #76746E;
+  --text-tertiary: #8E8E93; /* AA: was #76746E 4.2:1 */
   --accent: #E07658;
   --green: #6BE3A4;
   --amber: #E0B658;
@@ -151,7 +151,7 @@ body { background:var(--bg); color:var(--text-primary); font-family:var(--font);
   function jset(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
   function show(id) { $(id) && $(id).classList.remove('hidden'); }
   function hide(id) { $(id) && $(id).classList.add('hidden'); }
-  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function todayStr() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
   /* ---------- token (mirrors calendar.html) ---------- */
   function storeToken(token, expiresIn) {
@@ -370,7 +370,7 @@ body { background:var(--bg); color:var(--text-primary); font-family:var(--font);
     if (!n || n < 1) return;
     var s = jget(SNOOZE_KEY, {}) || {};
     var until = new Date(); until.setDate(until.getDate() + n);
-    s[id] = until.toISOString().slice(0, 10);
+    s[id] = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(until);
     jset(SNOOZE_KEY, s);
     renderAll();
   }

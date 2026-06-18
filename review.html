@@ -274,7 +274,7 @@ function tryParse(key, fallback) {
     const ntLogs = tryParse('nt:logs', []);
     const calsByDay = {};
     ntLogs.forEach(l => {
-      const d = l.dateKey || (l.loggedAt ? new Date(l.loggedAt).toISOString().slice(0,10) : null);
+      const d = l.dateKey || (l.loggedAt ? (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(new Date(l.loggedAt)) : null);
       if (d && days.includes(d)) calsByDay[d] = (calsByDay[d] || 0) + (l.calories || l.kcal || 0);
     });
     const calVals = Object.values(calsByDay);
@@ -370,7 +370,7 @@ document.getElementById('aiBtn').addEventListener('click', function() {
   const logs = tryParse('habits:logs:v1', {});
   const moodLogs = tryParse('mind:mood:v1', []).filter(e => DAYS.includes(e.date));
   const ntLogs = tryParse('nt:logs', []).filter(l => {
-    const d = l.dateKey || (l.loggedAt ? new Date(l.loggedAt).toISOString().slice(0,10) : null);
+    const d = l.dateKey || (l.loggedAt ? (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(new Date(l.loggedAt)) : null);
     return DAYS.includes(d);
   });
   const workoutDone = tryParse('po_coach_workout_done', {});
@@ -388,7 +388,7 @@ document.getElementById('aiBtn').addEventListener('click', function() {
 
   const calsByDay = {};
   ntLogs.forEach(l => {
-    const d = l.dateKey || (l.loggedAt ? new Date(l.loggedAt).toISOString().slice(0,10) : null);
+    const d = l.dateKey || (l.loggedAt ? (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(new Date(l.loggedAt)) : null);
     if (d) calsByDay[d] = (calsByDay[d]||0)+(l.calories||l.kcal||0);
   });
   const calVals = Object.values(calsByDay);

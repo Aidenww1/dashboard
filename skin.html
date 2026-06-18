@@ -66,7 +66,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
 .sk-btn-ghost:hover { background: rgba(255,255,255,0.08); }
 .sk-btn-add { width: 100%; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); color: var(--text-tertiary); font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; text-align: center; transition: background 0.15s, color 0.15s; }
 .sk-btn-add:hover { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
-.sk-del-btn { background: none; border: none; color: var(--text-quaternary); cursor: pointer; font-size: 14px; padding: 2px 5px; transition: color 0.15s; }
+.sk-del-btn { background: none; border: none; color: var(--text-quaternary); cursor: pointer; font-size: 14px; transition: color 0.15s; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .sk-del-btn:hover { color: #FF6B6B; }
 
 /* Forms */
@@ -505,7 +505,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
   const today = (() => {
     const d = new Date();
     if (d.getHours() < 5) d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    return (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d);
   })();
 
   const EMOJIS = ['', '💔', '😞', '😐', '😊', '✨'];
@@ -527,7 +527,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
       if (log.date === cur) {
         streak++;
         const d = new Date(cur); d.setDate(d.getDate() - 1);
-        cur = d.toISOString().slice(0, 10);
+        cur = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d);
       } else if (log.date < cur) break;
     }
     return streak;
@@ -538,7 +538,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
     const bkouts = load(BKOUTS_KEY) || [];
     const prods = load(PRODS_KEY) || [];
     const c30 = new Date(); c30.setDate(c30.getDate() - 30);
-    const cut = c30.toISOString().slice(0, 10);
+    const cut = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(c30);
     const rated = logs.filter(l => l.rating && l.date >= cut);
     document.getElementById('ovStreak').textContent = calcStreak() || '0';
     document.getElementById('ovAvg').textContent = rated.length
@@ -635,7 +635,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
             <div class="sk-product-meta">${[p.brand, p.concern, p.notes].filter(Boolean).join(' · ').slice(0, 60)}</div>
           </div>
           <span class="sk-time-badge sk-time-${p.time}">${p.time.toUpperCase()}</span>
-          <button class="sk-del-btn" data-del="${p.id}">✕</button>
+          <button class="sk-del-btn" aria-label="Delete" data-del="${p.id}">✕</button>
         </div>`).join('')}
     `).join('');
     el.querySelectorAll('[data-del]').forEach(btn => {
@@ -810,7 +810,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
             <span class="sk-entry-date">${e.date}</span>
             ${e.rating ? `<span class="sk-entry-rating" title="${LABELS[e.rating]}">${EMOJIS[e.rating]}</span>` : ''}
           </div>
-          <button class="sk-del-btn" data-del="${e.id}">✕</button>
+          <button class="sk-del-btn" aria-label="Delete" data-del="${e.id}">✕</button>
         </div>
         ${concerns}
         ${meta2 ? `<div class="sk-entry-line">${meta2}</div>` : ''}
@@ -842,7 +842,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
     const days = [];
     for (let i = 13; i >= 0; i--) {
       const d = new Date(); d.setDate(d.getDate() - i);
-      days.push(d.toISOString().slice(0, 10));
+      days.push((function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d));
     }
 
     const BAR_H = [0, 10, 22, 34, 46, 58];
@@ -884,7 +884,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
     el.innerHTML = items.map((item, i) => `
       <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.15);margin-bottom:6px">
         <span style="font-size:13px;color:#FCA5A5;flex:1">⚠️ ${item}</span>
-        <button class="sk-del-btn" data-ingr="${i}">✕</button>
+        <button class="sk-del-btn" aria-label="Delete" data-ingr="${i}">✕</button>
       </div>`).join('');
     el.querySelectorAll('[data-ingr]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -920,7 +920,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
       <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(125,211,252,0.05);border:1px solid rgba(125,211,252,0.1);margin-bottom:6px;cursor:pointer" data-gi="${i}">
         <div style="width:18px;height:18px;border-radius:5px;border:1.5px solid ${g.done ? 'var(--accent)' : 'rgba(255,255,255,0.2)'};background:${g.done ? 'rgba(125,211,252,0.2)' : 'transparent'};display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--accent);flex-shrink:0">${g.done ? '✓' : ''}</div>
         <span style="flex:1;font-size:13px;color:${g.done ? 'var(--text-tertiary)' : 'var(--text-secondary)'};${g.done ? 'text-decoration:line-through' : ''}">${g.text}</span>
-        <button class="sk-del-btn" data-gdel="${i}" style="font-size:12px">✕</button>
+        <button class="sk-del-btn" aria-label="Delete" data-gdel="${i}" style="font-size:12px">✕</button>
       </div>`).join('');
     el.querySelectorAll('[data-gi]').forEach(row => {
       row.addEventListener('click', e => {
@@ -1004,7 +1004,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
       <div class="sk-bkout-item">
         <div class="sk-bkout-header">
           <span class="sk-bkout-date">${b.date}</span>
-          <button class="sk-del-btn" data-bdel="${b.id}">✕</button>
+          <button class="sk-del-btn" aria-label="Delete" data-bdel="${b.id}">✕</button>
         </div>
         <div class="sk-bkout-tags">
           <span class="sk-tag-red">Severity ${b.severity}/5</span>
@@ -1129,7 +1129,7 @@ textarea.sk-input { resize: vertical; min-height: 60px; }
           ? `<div style="padding:4px 10px;border-radius:8px;background:rgba(255,107,107,0.12);border:1px solid rgba(255,107,107,0.3);font-size:11px;font-weight:700;color:#FF9999;white-space:nowrap">${remaining}d recovery</div>`
           : `<div style="padding:4px 10px;border-radius:8px;background:rgba(107,227,164,0.08);border:1px solid rgba(107,227,164,0.2);font-size:11px;font-weight:700;color:#86EFAC;white-space:nowrap">Healed</div>`
         }
-        <button class="sk-del-btn" data-dsess="${s.id}">✕</button>
+        <button class="sk-del-btn" aria-label="Delete" data-dsess="${s.id}">✕</button>
       </div>`;
     }).join('');
     el.querySelectorAll('[data-dsess]').forEach(btn => {

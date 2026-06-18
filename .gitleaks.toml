@@ -1,0 +1,12 @@
+# Gitleaks config. Keeps all default rules; allowlists only keys that are
+# PUBLIC BY DESIGN and safe to ship in client code. Service-role / secret keys
+# (sb_secret_*, service_role JWTs) are intentionally NOT allowlisted, so a real
+# leak is still caught.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Supabase publishable (anon) key + VAPID public key — client-safe by design"
+regexes = [
+  '''sb_publishable_[A-Za-z0-9_]+''',
+]

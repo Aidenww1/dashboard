@@ -86,10 +86,10 @@ main{position:relative;z-index:2;max-width:720px;margin:0 auto;padding:56px 20px
 const KEY='travel:trips:v1';
 const PACK_DEFAULTS=['🛂 Passport','✈️ Tickets','🏨 Hotel booking','💳 Cards','🔋 Phone charger','💊 Medications','👗 Clothes (5 days)','🧴 Toiletries','📷 Camera','🎧 Headphones','💵 Cash (local currency)','🩺 Travel insurance'];
 const STATUS={planning:{label:'Planning',color:'#F2C063'},booked:{label:'Booked',color:'#5B8DEF'},current:{label:'Now',color:'#4BC9A0'},past:{label:'Past',color:'#76746E'}};
-function load(){return JSON.parse(localStorage.getItem(KEY)||'[]')}
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')||[]}catch(e){return[]}}
 function save(d){localStorage.setItem(KEY,JSON.stringify(d))}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function today(){return new Date().toISOString().slice(0,10)}
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function nightCount(s,e){if(!s||!e)return null;return Math.round((new Date(e)-new Date(s))/864e5)}
 
 function tripCard(trip){
@@ -121,7 +121,10 @@ function tripCard(trip){
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <span class="status-badge" style="background:${st.color}22;color:${st.color};border:1px solid ${st.color}33">${st.label}</span>
-        <button onclick="deleteTrip('${trip.id}')" style="background:transparent;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:13px">Delete</button>
+        <div style="display:flex;gap:8px">
+          <button onclick="editTrip('${trip.id}')" style="background:transparent;border:none;color:var(--text-tertiary);cursor:pointer;font-size:13px;min-height:44px;padding:0 8px;display:inline-flex;align-items:center">Edit</button>
+          <button onclick="deleteTrip('${trip.id}')" style="background:transparent;border:none;color:rgba(255,107,107,0.5);cursor:pointer;font-size:13px;min-height:44px;padding:0 8px;display:inline-flex;align-items:center">Delete</button>
+        </div>
       </div>
     </div>
     <div class="trip-body">
@@ -143,7 +146,7 @@ function tripCard(trip){
             <button onclick="addExpense('${trip.id}')" style="padding:5px 10px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text-secondary);font-size:12px;cursor:pointer;font-family:inherit">+</button>
           </div>
         </div>
-        ${(trip.expenses||[]).slice(-5).map(e=>`<div class="expense-item"><span style="font-size:13px;color:var(--text-secondary)">${escHtml(e.name)}</span><span style="font-size:13px;font-weight:700;color:var(--text-primary)">€${e.amount}</span></div>`).join('')}
+        ${(trip.expenses||[]).map((e,i)=>`<div class="expense-item"><span style="font-size:13px;color:var(--text-secondary)">${escHtml(e.name)}</span><span style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:700;color:var(--text-primary)">€${e.amount}</span><button onclick="removeExpense('${trip.id}',${i})" aria-label="Remove expense" style="background:transparent;border:none;color:rgba(255,107,107,.4);cursor:pointer;font-size:13px;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center">×</button></span></div>`).join('')}
       </div>
 
       <!-- Packing list -->
@@ -155,7 +158,7 @@ function tripCard(trip){
         ${(trip.pack||[]).map((item,i)=>`<div class="pack-item">
           <div class="pack-check${item.done?' checked':''}" onclick="togglePack('${trip.id}',${i})"></div>
           <span class="pack-label${item.done?' done':''}">${escHtml(item.name)}</span>
-          <button onclick="removePack('${trip.id}',${i})" style="background:transparent;border:none;color:rgba(255,107,107,.4);cursor:pointer;font-size:13px;padding:0 2px">×</button>
+          <button onclick="removePack('${trip.id}',${i})" aria-label="Remove item" style="background:transparent;border:none;color:rgba(255,107,107,.4);cursor:pointer;font-size:13px;min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center">×</button>
         </div>`).join('')}
         <div style="display:flex;gap:6px;margin-top:8px">
           <input type="text" placeholder="Add item…" style="flex:1;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text-primary);font-size:13px;font-family:inherit;outline:none" id="packNew-${trip.id}">
@@ -171,6 +174,7 @@ window.togglePack=function(id,idx){const ts=load();const t=ts.find(x=>x.id===id)
 window.removePack=function(id,idx){const ts=load();const t=ts.find(x=>x.id===id);if(t?.pack){t.pack.splice(idx,1);save(ts);render();}};
 window.addPackItem=function(id){const inp=document.getElementById('packNew-'+id);const name=inp?.value?.trim();if(!name)return;const ts=load();const t=ts.find(x=>x.id===id);if(t){if(!t.pack)t.pack=[];t.pack.push({name,done:false});save(ts);render();}};
 window.initPacking=function(id){const ts=load();const t=ts.find(x=>x.id===id);if(t){t.pack=PACK_DEFAULTS.map(n=>({name:n,done:false}));save(ts);render();}};
+window.removeExpense=function(id,idx){const ts=load();const t=ts.find(x=>x.id===id);if(t?.expenses){t.expenses.splice(idx,1);save(ts);render();}};
 window.addExpense=function(id){
   const nameEl=document.getElementById('expName-'+id);
   const amtEl=document.getElementById('expAmt-'+id);
@@ -188,11 +192,31 @@ function render(){
   el.innerHTML=sorted.map(tripCard).join('');
 }
 
+let editingId=null;
+window.editTrip=function(id){
+  const t=load().find(x=>x.id===id);if(!t)return;
+  editingId=id;
+  document.getElementById('tDest').value=t.destination||'';
+  document.getElementById('tStart').value=t.start||'';
+  document.getElementById('tEnd').value=t.end||'';
+  document.getElementById('tBudget').value=t.budget||'';
+  document.getElementById('tStatus').value=t.status||'planning';
+  document.getElementById('tNotes').value=t.notes||'';
+  tSaveBtn.textContent='Save changes';
+  setTab('add');
+};
 const tSaveBtn=document.getElementById('tSaveBtn');
 tSaveBtn.addEventListener('click',()=>{
   const dest=document.getElementById('tDest').value.trim();if(!dest)return;
   const trips=load();
-  trips.push({id:Date.now().toString(36),destination:dest,start:document.getElementById('tStart').value||null,end:document.getElementById('tEnd').value||null,budget:parseFloat(document.getElementById('tBudget').value)||null,status:document.getElementById('tStatus').value,notes:document.getElementById('tNotes').value.trim()||null,pack:[],expenses:[]});
+  const fields={destination:dest,start:document.getElementById('tStart').value||null,end:document.getElementById('tEnd').value||null,budget:parseFloat(document.getElementById('tBudget').value)||null,status:document.getElementById('tStatus').value,notes:document.getElementById('tNotes').value.trim()||null};
+  if(editingId){
+    const t=trips.find(x=>x.id===editingId);
+    if(t)Object.assign(t,fields); // keep id, pack, expenses
+    editingId=null;tSaveBtn.textContent='Create trip';
+  } else {
+    trips.push(Object.assign({id:Date.now().toString(36),pack:[],expenses:[]},fields));
+  }
   save(trips);
   ['tDest','tStart','tEnd','tBudget','tNotes'].forEach(id=>document.getElementById(id).value='');
   setTab('trips');render();

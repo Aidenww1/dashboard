@@ -2677,7 +2677,7 @@ img, video, canvas, svg { max-width: 100%; }
       s.days = CONFIG.days.slice();
       s.filterDay = 'full';
       if (Array.isArray(s.splitRotation)) s.splitRotation = ['Full Body', 'Rest'];
-      s.splitAnchor = { date: new Date().toISOString().slice(0, 10), index: 1 };
+      s.splitAnchor = { date: (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()), index: 1 };
       if (Array.isArray(s.exercises)) {
         s.exercises = s.exercises.map(e => Object.assign({}, e, { day: 'full', gym: 'both' }));
       }
@@ -2714,7 +2714,7 @@ img, video, canvas, svg { max-width: 100%; }
         if (found >= 0) idx = found;
       }
       s.splitAnchor = {
-        date: (CONFIG.splitAnchor && CONFIG.splitAnchor.date) || new Date().toISOString().slice(0, 10),
+        date: (CONFIG.splitAnchor && CONFIG.splitAnchor.date) || (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()),
         index: idx
       };
     }
@@ -3728,7 +3728,7 @@ img, video, canvas, svg { max-width: 100%; }
     if (newTodayIdx >= cleaned.length) newTodayIdx = 0;
     state.splitRotation = cleaned;
     state.splitAnchor = {
-      date: new Date().toISOString().slice(0, 10),
+      date: (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()),
       index: newTodayIdx
     };
     saveState();
@@ -3821,7 +3821,7 @@ img, video, canvas, svg { max-width: 100%; }
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'po-coach-data-' + new Date().toISOString().slice(0,10) + '.json';
+    a.href = url; a.download = 'po-coach-data-' + (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()) + '.json';
     a.click(); URL.revokeObjectURL(url);
   });
   $('setImport').addEventListener('click', () => $('setImportFile').click());
@@ -4747,7 +4747,7 @@ img, video, canvas, svg { max-width: 100%; }
     const measLogBtn = document.getElementById('measLogBtn');
     const measForm   = document.getElementById('measForm');
     measLogBtn.addEventListener('click', function() {
-      document.getElementById('measFDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('measFDate').value = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
       measForm.classList.add('open');
       measLogBtn.style.display = 'none';
     });
@@ -4859,7 +4859,7 @@ function computePRs() {
       const key = set.id;
       if (suppressed.indexOf(key + '|' + w + '|' + r) >= 0) return; // user deleted this PR — never re-add
       if (!prs[key] || e1rm > (prs[key].e1rm || 0)) {
-        prs[key] = { e1rm, weight: w, reps: r, date, name: ex.name, isNew: date === new Date().toISOString().slice(0,10) };
+        prs[key] = { e1rm, weight: w, reps: r, date, name: ex.name, isNew: date === (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()) };
         updated = true;
       }
     });
@@ -4894,7 +4894,7 @@ function renderPRBoard() {
   const units = (getGymState() || {}).units || 'kg';
   grid.innerHTML = entries.slice(0, 30).map(p => `
     <div class="pr-card" style="position:relative">
-      <button class="pr-del" data-key="${p.key}" title="Delete this PR" aria-label="Delete PR" style="position:absolute;top:6px;right:6px;background:transparent;border:none;color:rgba(255,255,255,0.28);font-size:16px;line-height:1;cursor:pointer;padding:2px 4px">×</button>
+      <button class="pr-del" data-key="${p.key}" title="Delete this PR" aria-label="Delete PR" style="position:absolute;top:0;right:0;background:transparent;border:none;color:rgba(255,255,255,0.28);font-size:16px;line-height:1;cursor:pointer;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">×</button>
       <div class="pr-exercise">${p.name}${p.isNew ? '<span class="pr-new-badge">NEW PR</span>' : ''}</div>
       <div class="pr-val">${p.e1rm}${units}</div>
       <div class="pr-meta">1RM est. · ${p.weight}${units} × ${p.reps} reps</div>
@@ -4999,7 +4999,7 @@ document.getElementById('tplModalSave').addEventListener('click', () => {
     const t = templates.find(x => x.id === editingTplId);
     if (t) { t.name = name; t.exercises = checked; }
   } else {
-    templates.push({ id: Date.now().toString(36), name, exercises: checked, createdAt: new Date().toISOString().slice(0,10) });
+    templates.push({ id: Date.now().toString(36), name, exercises: checked, createdAt: (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()) });
   }
   save(TPL_KEY, templates);
   closeTplModal();
@@ -5027,7 +5027,7 @@ renderPRBoard();
   const KEY = 'gym:cardio:v1';
   const ICONS = { run:'🏃', bike:'🚴', swim:'🏊', row:'🚣', hiit:'⚡', walk:'🚶', hike:'⛰️', other:'💪' };
   const MET   = { run:9.8, bike:7.5, swim:8.0, row:7.0, hiit:10.5, walk:3.8, hike:6.0, other:5.5 };
-  function load() { return JSON.parse(localStorage.getItem(KEY)||'[]'); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]')||[]; } catch(e){ return []; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
   function estKcal(type, durMin) {
     const bw = (() => { try { const e = JSON.parse(localStorage.getItem('health:body:v1')||'[]'); return e.length ? (e[e.length-1].weight || 75) : 75; } catch { return 75; } })();
@@ -5083,14 +5083,14 @@ renderPRBoard();
     const hrEl    = document.getElementById('cardioHR');
     const notesEl = document.getElementById('cardioNotes');
 
-    dateEl.value = new Date().toISOString().slice(0,10);
+    dateEl.value = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
 
     saveBtn.addEventListener('click', () => {
       const dur = parseFloat(durEl.value);
       if (!dur || dur < 1) return;
       const entry = {
         id:       Date.now().toString(36),
-        date:     dateEl.value || new Date().toISOString().slice(0,10),
+        date:     dateEl.value || (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()),
         type:     typeEl.value,
         duration: dur,
         distance: parseFloat(distEl.value) || null,
@@ -5241,7 +5241,7 @@ renderPRBoard();
     const d = new Date(dateStr); d.setHours(0,0,0,0);
     const dow = (d.getDay()+6)%7;
     d.setDate(d.getDate()-dow);
-    return d.toISOString().slice(0,10);
+    return (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d);
   }
 
   function populate() {
@@ -5282,7 +5282,7 @@ renderPRBoard();
     const weekKeys = [];
     for (let i = weeks-1; i >= 0; i--) {
       const d = new Date(thisMonday); d.setDate(thisMonday.getDate()-i*7);
-      weekKeys.push(d.toISOString().slice(0,10));
+      weekKeys.push((function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d));
     }
 
     const vals = weekKeys.map(wk => byWeek[wk] || 0);
@@ -5354,7 +5354,7 @@ renderPRBoard();
     var acuteDays = 0, chronicDays = 0;
     for (var i = 0; i < 35; i++) {
       var d = new Date(now); d.setDate(now.getDate() - i);
-      var dk = d.toISOString().slice(0, 10);
+      var dk = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d);
       var v = dailyVol[dk] || 0;
       if (i < 7) { acuteVol += v; if (v > 0) acuteDays++; }
       else { chronicVol += v; if (v > 0) chronicDays++; }
@@ -5365,7 +5365,7 @@ renderPRBoard();
     var consecutive = 0;
     for (var j = 0; j < 14; j++) {
       var dd = new Date(now); dd.setDate(now.getDate() - j);
-      var ddKey = dd.toISOString().slice(0, 10);
+      var ddKey = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(dd);
       if (trainDays.has(ddKey)) consecutive++;
       else if (j > 0) break;
     }
@@ -5408,7 +5408,7 @@ renderPRBoard();
 
     var weekTotal = Object.entries(dailyVol).filter(function(e) {
       var d = new Date(now); d.setDate(now.getDate() - 6);
-      return e[0] >= d.toISOString().slice(0, 10);
+      return e[0] >= (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d);
     }).reduce(function(s, e) { return s + e[1]; }, 0);
 
     statsEl.innerHTML = [
@@ -5550,7 +5550,7 @@ renderPRBoard();
         else if(item.tag==='not-ordered') tagHtml='<span class="stack-item-tag tag-not-ordered">not ordered</span>';
         const row=document.createElement('div');
         row.className='stack-item'+(isTaken?' taken':'')+(isMissed?' missed':'');
-        row.innerHTML=`<button class="stack-check ${isTaken?'checked':''}" data-action="toggle" data-id="${item.id}">${isTaken?'✓':''}</button><div class="stack-item-body"><div class="stack-item-name" data-edit="name" data-id="${item.id}"><span class="stack-item-name-text">${escapeHtml(item.name)}</span>${tagHtml}</div><div class="stack-item-meta" data-edit="meta" data-id="${item.id}">${escapeHtml(metaText(item))}</div></div><button class="stack-low-btn ${isLow?'is-low':''}" data-action="low" data-id="${item.id}">▲ Running low</button><button class="stack-item-del" data-action="del" data-id="${item.id}">&times;</button>`;
+        row.innerHTML=`<button class="stack-check ${isTaken?'checked':''}" data-action="toggle" data-id="${item.id}" aria-pressed="${isTaken}" aria-label="${isTaken?'Taken':'Mark taken'}: ${escapeHtml(item.name)}">${isTaken?'✓':''}</button><div class="stack-item-body"><div class="stack-item-name" data-edit="name" data-id="${item.id}"><span class="stack-item-name-text">${escapeHtml(item.name)}</span>${tagHtml}</div><div class="stack-item-meta" data-edit="meta" data-id="${item.id}">${escapeHtml(metaText(item))}</div></div><button class="stack-low-btn ${isLow?'is-low':''}" data-action="low" data-id="${item.id}">▲ Running low</button><button class="stack-item-del" data-action="del" data-id="${item.id}">&times;</button>`;
         group.appendChild(row);
       });
       groupsEl.appendChild(group);
@@ -5831,7 +5831,7 @@ renderPRBoard();
   document.getElementById('cycleStatusSeg').addEventListener('click', e => {
     const b = e.target.closest('.cycle-seg-btn'); if (!b) return;
     const c = loadCycle(); const ns = b.dataset.status;
-    if (ns !== 'off' && c.status !== ns) c.weekStart = new Date().toISOString().slice(0, 10);
+    if (ns !== 'off' && c.status !== ns) c.weekStart = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     if (ns === 'off') c.weekStart = null;
     c.status = ns; saveCycle(c); renderCycle();
   });

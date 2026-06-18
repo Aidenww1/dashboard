@@ -2,3 +2,7 @@
 .netlify
 
 .vercel
+
+# Local tooling / MCP artifacts
+.codex/
+.playwright-mcp/

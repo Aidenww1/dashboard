@@ -13,7 +13,7 @@
 :root {
   --bg:#050506; --bg-card:rgba(255,255,255,0.04); --border:rgba(255,255,255,0.06);
   --border-strong:rgba(255,255,255,0.12); --text-primary:#FAFAFA; --text-secondary:#B8B6B0;
-  --text-tertiary:#76746E; --accent:#E07658; --green:#1D9E75; --blue:#5B8DEF;
+  --text-tertiary:#8E8E93; --accent:#E07658; --green:#1D9E75; --blue:#5B8DEF;
   --font:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;
 }
 *{box-sizing:border-box}
@@ -778,7 +778,7 @@ function renderReminder() {
     : 'No progress photos yet. Weight numbers without photos miss recomposition — take a front/side/back set now.';
   card.innerHTML = '<div class="pacing-card" style="border-color:rgba(251,191,36,0.3)">'
     + '<div style="font-size:13px;color:var(--text-secondary);line-height:1.5">' + msg + '</div>'
-    + '<a href="reminders.html" style="display:inline-block;margin-top:8px;font-size:12px;color:#34D399;text-decoration:none">Set a weekly reminder →</a></div>';
+    + '<a href="reminders.html" style="display:inline-flex;align-items:center;min-height:44px;margin-top:4px;font-size:12px;color:#34D399;text-decoration:none">Set a weekly reminder →</a></div>';
   card.style.display = '';
 }
 

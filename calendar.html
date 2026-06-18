@@ -12,7 +12,7 @@
 :root {
   --bg: #0A0A0B; --bg-deep: #050506; --bg-card: rgba(255,255,255,0.04);
   --glass-shadow: 0 1px 0 0 rgba(255,255,255,0.06) inset, 0 12px 40px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.25);
-  --text-primary: #FAFAFA; --text-secondary: #B8B6B0; --text-tertiary: #76746E; --text-quaternary: #4D4B47;
+  --text-primary: #FAFAFA; --text-secondary: #B8B6B0; --text-tertiary: #8E8E93; --text-quaternary: #4D4B47;
   --accent: #E07658; --success: #6BE3A4; --warning: #F2C063; --danger: #FF6B6B;
   --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
   --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -984,7 +984,7 @@ init();
 (function pomoModule() {
   const KEY = 'pomo:sessions:v1', CIRC = 326.7;
   let totalSecs = 1500, remaining = 1500, interval = null, running = false, label = 'Focus';
-  function load() { return JSON.parse(localStorage.getItem(KEY)||'[]'); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]')||[]; } catch(e){ return []; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
   function pad(n) { return String(n).padStart(2,'0'); }
   function fmt(s) { return pad(Math.floor(s/60))+':'+pad(s%60); }
@@ -995,7 +995,7 @@ init();
     if (fg) fg.style.strokeDashoffset = String(Math.round(CIRC*(1-remaining/totalSecs)));
     const startBtn = document.getElementById('pomoStart');
     if (startBtn) startBtn.textContent = running ? 'Pause' : (remaining<totalSecs?'Resume':'Start');
-    const today = new Date().toISOString().slice(0,10);
+    const today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     const count = load().filter(s => s.date===today&&s.type==='focus').length;
     const el = document.getElementById('pomoSessions');
     if (el) el.textContent = 'Sessions today: '+count;
@@ -1005,7 +1005,7 @@ init();
       clearInterval(interval); interval = null; running = false;
       if (label==='Focus') {
         const sessions = load();
-        sessions.push({ date: new Date().toISOString().slice(0,10), type:'focus', duration:totalSecs, ts:Date.now() });
+        sessions.push({ date: (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()), type:'focus', duration:totalSecs, ts:Date.now() });
         save(sessions);
         if (Notification.permission==='granted') new Notification('🍅 Focus session done!', { body: 'Time for a break.' });
       } else {
@@ -1047,9 +1047,9 @@ const TASK_KEY = 'tasks:v1';
 const PROJ_KEY = 'tasks:projects:v1';
 const PROJ_COLORS = ['#1D9E75','#5B8DEF','#E07658','#9B6BFF','#F2C063','#FF6B6B','#4BC9A0','#FF8FAB'];
 
-function loadTasks()    { return JSON.parse(localStorage.getItem(TASK_KEY)||'[]'); }
+function loadTasks()    { try { return JSON.parse(localStorage.getItem(TASK_KEY)||'[]')||[]; } catch(e){ return []; } }
 function saveTasks(d)   { localStorage.setItem(TASK_KEY, JSON.stringify(d)); }
-function loadProjects() { return JSON.parse(localStorage.getItem(PROJ_KEY)||'[]'); }
+function loadProjects() { try { return JSON.parse(localStorage.getItem(PROJ_KEY)||'[]')||[]; } catch(e){ return []; } }
 function saveProjects(d){ localStorage.setItem(PROJ_KEY, JSON.stringify(d)); }
 
 let tasks    = loadTasks();
@@ -1059,8 +1059,8 @@ let activeFilter  = 'all';
 
 if (!projects.length) { projects = [{ id:'inbox', name:'Inbox', color:'#1D9E75' }]; saveProjects(projects); }
 
-function today() { return new Date().toISOString().slice(0,10); }
-function endOfWeek() { const d = new Date(); d.setDate(d.getDate()+(7-d.getDay())); return d.toISOString().slice(0,10); }
+function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function endOfWeek() { const d = new Date(); d.setDate(d.getDate()+(7-d.getDay())); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
 function renderProjBar() {
   const bar = document.getElementById('projBar');
@@ -1286,7 +1286,7 @@ LifeOSSync.register('tasks-app',
 
   function planDateKey() {
     // currentDate is the calendar page's selected day (global)
-    try { return dateKey(currentDate); } catch (e) { return new Date().toISOString().slice(0, 10); }
+    try { return dateKey(currentDate); } catch (e) { return (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()); }
   }
 
   function renderPeaksLine() {

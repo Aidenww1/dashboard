@@ -32,10 +32,12 @@
   }
   function daysAgo(dateStr) {
     if (!dateStr) return null;
+    // Shared local-day impl (correct at every hour + across DST/travel).
+    if (typeof window !== 'undefined' && window.Dates) return window.Dates.daysAgo(dateStr);
     var norm = String(dateStr).slice(0, 10).replace(/\//g, '-');
     var d = new Date(norm + 'T12:00:00');
     if (isNaN(d)) return null;
-    return Math.floor((Date.now() - d.getTime()) / 86400000);
+    return Math.round((new Date(todayStr() + 'T12:00:00').getTime() - d.getTime()) / 86400000);
   }
   function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
   function lastDates(n) {

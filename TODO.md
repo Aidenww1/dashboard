@@ -37,7 +37,7 @@ Legend: ⛔ blocker · 🔴 high · 🟡 medium · 🟢 polish · 💤 deferred-
 
 ## P2 — "Apple Quality" UI/UX (the part that makes it feel premium)
 - [ ] 🔴 **Adopt the spec's exact nav**: Today / Log / Coach / Money / More (5 tabs). Current 4 + More-sheet is close but not the named structure; "Coach" and "Log" deserve first-class tabs.
-- [ ] 🔴 **Consistent design system pass** across all 20+ pages: one type scale, spacing scale, radius, shadow, color tokens. Several pages predate design.css and drift.
+- [~] 🔴 **Consistent design system pass** across all 20+ pages: one type scale, spacing scale, radius, shadow, color tokens. Several pages predate design.css and drift. PARTIAL (b5757a9) — design.css retuned to Apple-dark (layered greys, 16px continuous corners, soft depth, SF stack, antialiased) + iOS multi-accent (tabbar.js sets one --accent/module, color-mix derives variants). Old global accent #34D399 swapped to var(--accent) in CSS. REMAINING: dual-purpose success-green #6BE3A4 (116 uses) left semantic; canvas/chart literals keep their colors; per-page padding still tight vs Apple's airier spacing.
 - [ ] 🔴 **Loading states everywhere**: skeleton loaders for every card that fetches/computes (no blank flashes, no layout shift).
 - [ ] 🔴 **Error + empty states everywhere**: every card needs a useful empty state (spec: "No meals logged yet. Log your first meal…") and a graceful error state, not silence.
 - [ ] 🟡 **Motion**: 60fps page/card transitions, sheet spring animations, list reordering, tasteful micro-interactions. Respect `prefers-reduced-motion`.
@@ -53,9 +53,9 @@ Legend: ⛔ blocker · 🔴 high · 🟡 medium · 🟢 polish · 💤 deferred-
 
 ## P2 — Data integrity & editing (you must be able to fix anything yourself)
 - [ ] 🔴 **Edit/delete on every module's entries**, like the new gym PR/set delete: meals, weight, sleep, mood, supplements, finance tx, subscriptions, orders, skin logs, body photos, bloodwork, tasks, goals, reminders. No more "stuck bad data."
-- [ ] 🟡 **Undo** for destructive actions (toast with Undo) instead of hard confirms everywhere.
+- [~] 🟡 **Undo** for destructive actions (toast with Undo) instead of hard confirms everywhere. DS.deleteWithUndo/DS.toast infra done; wired in log.html (all 8 segments) + Today goals. 2026-06-18: added Undo to finance net-worth item delete, finance vehicle delete, and health bloodwork delete (were silent no-confirm/no-undo). REMAINING: audit remaining bare splice/filter deletes across old pages; finance confirm()-guarded deletes (subs/accounts) already meet destructive-confirm bar.
 - [ ] 🟡 **Data Quality Score** surfaced consistently and feeding advice confidence in every AI output (spec requires it).
-- [ ] 🟡 Dedupe + validation on import (bank CSV, bloodwork) so bad rows can't poison trends.
+- [~] 🟡 Dedupe + validation on import (bank CSV, bloodwork) so bad rows can't poison trends. VERIFIED (2026-06-18, code read): ING CSV import dedupes across all 3 derived stores — transactions replaced wholesale (idempotent re-import), subs deduped by lowercased name (existing + within-batch Sets, finance.html ~4607), orders deduped by composite id `ing:date:amount:desc` + existingOrderIds Set-skip (~4643). Parsing validated + tested (finance-parse.test.js, 31 asserts, pure ingParseTxns). REMAINING: bloodwork-import dedup; the commit-time dedup itself is untested (embedded in ingCommit w/ store writes, not arg-pure — low value per ponytail).
 - [x] 🟢 A "Fix my data" view: list anomalies (impossible weights, 350000kg lifts) and one-tap correct. DONE — fix.html scans po_coach_weights/body:logs/po_coach_v1, edit-or-delete each, syncs via po-coach register. Pure scan/apply in fixdata.js (fixdata.test.mjs, 8 asserts).
 
 ## P3 — Activity & Visual intelligence (the "track what I'm really doing")
@@ -76,7 +76,7 @@ Legend: ⛔ blocker · 🔴 high · 🟡 medium · 🟢 polish · 💤 deferred-
 
 ## P4 — Performance, accessibility, testing
 - [ ] 🟡 **Performance budget**: first paint < 1.5s on mobile, no jank. Audit the largest pages, lazy-load below-the-fold, cache AI results (already partly done).
-- [ ] 🟡 **Accessibility**: focus states, ARIA on custom controls, contrast AA, screen-reader labels, 44px tap targets, keyboard nav on desktop.
+- [~] 🟡 **Accessibility**: focus states, ARIA on custom controls, contrast AA, screen-reader labels, 44px tap targets, keyboard nav on desktop. IN PROGRESS (2026-06-18 a11y sweep): live-DOM probe (unnamed-control + <24px-target scan) run per surface. 5 tab pages clean. Fixed undersized hit targets: finance .nw-del/.gc-sync-btn/.gc-disc-btn → 44px; gym .pr-del → 44px + labeled gym .stack-check toggles (aria-pressed + aria-label); health .bld-del-btn → 44px. design.css already has global prefers-reduced-motion guard + 44px floor for .btn* classes + full SF type scale. REMAINING: sweep nutrition/skin/habits/mood/water/reminders/travel/social/library/calendar/tasks/mail/review/watch/body and the remaining old pages; AA contrast audit; keyboard/focus-trap on sheets.
 - [~] 🟡 **Automated tests**: cloudsync.test.mjs covers the merge (the data-safety path), runs the real cloudsync.js in node, 11 asserts (1077cad-next). Remaining: life score / readiness / CSV parser / briefing (browser-bound IIFEs).
 - [ ] 🟢 Smoke/E2E for the critical flows (log a day, analyze a photo, run the operator).
 - [ ] 🟢 Error logging/telemetry (client errors surfaced somewhere you'll see them).

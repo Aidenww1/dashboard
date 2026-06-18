@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>More</title>
+<link rel="stylesheet" href="design.css">
+<style>
+  body { margin: 0; padding-bottom: 96px; color: var(--text-primary); min-height: 100vh; }
+  .ds-wrap { max-width: 600px; margin: 0 auto; padding: 8px 16px 0; }
+  .ds-wrap .ds-list { margin-bottom: 14px; }
+  .search-wrap { padding: 0 16px 12px; max-width: 600px; margin: 0 auto; }
+  .search-field { width: 100%; box-sizing: border-box; background: var(--surface-2, rgba(255,255,255,.06)); border: 1px solid var(--hairline, rgba(255,255,255,.1));
+    border-radius: 10px; padding: 10px 12px; color: var(--text-primary); font: inherit; font-size: 16px; outline: none; }
+  .search-field::placeholder { color: var(--text-tertiary); }
+  .no-matches { padding: 24px 8px; text-align: center; color: var(--text-tertiary); font-size: 14px; }
+  .about-foot { padding: 6px 8px 20px; text-align: center; color: var(--text-tertiary); font-size: 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<header class="ds-nav" data-ds-nav>
+  <div class="ds-nav-bar"><span class="ds-nav-inline">More</span></div>
+  <h1 class="ds-largetitle">More</h1>
+  <div class="search-wrap"><input class="search-field" id="q" type="search" placeholder="Search settings, pages, your data" autocomplete="off"></div>
+</header>
+
+<main class="ds-wrap" id="sections"></main>
+
+<script src="lifeos-core.js"></script>
+<script src="ds.js"></script>
+<script src="tabbar.js" defer></script>
+<script>
+/* ============================================================
+   Phase 6 — More: everything else, organized and searchable.
+   One real Settings hub + the long-tail pages grouped into
+   Settings / Integrations / Notifications / Data / Life / About.
+   Search filters every destination live and folds in LifeOS.search
+   data hits (meals, tasks, notes…) so search finds destinations
+   AND data. Each row links to the existing page that owns it —
+   nothing here re-implements those pages.
+   ============================================================ */
+(function () {
+  'use strict';
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // Every destination, grouped. Sub text is also searchable.
+  var GROUPS = [
+    { header: 'Settings', rows: [
+      { t: 'Settings', s: 'Targets, units, wake time, push toggles', href: 'settings.html' },
+    ]},
+    { header: 'Integrations', rows: [
+      { t: 'Gmail', s: 'Connect inbox, triage, orders', href: 'mail.html' },
+      { t: 'Google Calendar', s: 'Day plan and calendar ops', href: 'calendar.html' },
+      { t: 'Wearable', s: 'Tasker / Health Connect sync', href: 'watch.html' },
+      { t: 'Screen-time bridge', s: 'ActivityWatch screen time', href: 'usage.html' },
+    ]},
+    { header: 'Notifications', rows: [
+      { t: 'Reminders', s: 'Schedules, quiet hours, push (VAPID)', href: 'reminders.html' },
+      { t: 'Supplement push', s: 'Browser notifications toggle', href: 'settings.html' },
+    ]},
+    { header: 'Data', rows: [
+      { t: 'Export & backup', s: 'Full backup, cloud backups, import', href: 'export.html' },
+      { t: 'Restore from backup', s: 'Rebuild this device from a backup', href: 'export.html' },
+      { t: 'Fix my data', s: 'Find and correct anomalies', href: 'fix.html' },
+      { t: 'Privacy', s: "What's stored, one-tap wipe", href: 'privacy.html' },
+      { t: 'Screen time', s: 'App and site usage', href: 'usage.html' },
+    ]},
+    { header: 'Life', rows: [
+      { t: 'Travel', s: 'Trips and the daily stack', href: 'travel.html' },
+      { t: 'Social', s: 'People and contact cadence', href: 'social.html' },
+      { t: 'Library', s: 'Books, articles, notes', href: 'library.html' },
+    ]},
+    { header: 'About', rows: [
+      { t: 'Component gallery', s: 'Design system reference (dev)', href: 'ds.html' },
+      { t: 'Version', s: 'Loading…', href: null, id: 'verRow' },
+    ]},
+  ];
+
+  function rowHtml(r) {
+    var search = (r.t + ' ' + (r.s || '')).toLowerCase();
+    var inner = '<div class="ds-row-body"><div class="ds-row-title">' + esc(r.t) + '</div>' +
+      (r.s ? '<div class="ds-row-sub"' + (r.id ? ' id="' + r.id + '"' : '') + '>' + esc(r.s) + '</div>' : '') + '</div>';
+    if (r.href) return '<a class="ds-row" data-row data-search="' + esc(search) + '" href="' + r.href + '">' + inner + '<span class="ds-row-chevron"></span></a>';
+    return '<div class="ds-row" data-row data-search="' + esc(search) + '">' + inner + '</div>';
+  }
+
+  var root = document.getElementById('sections');
+  root.innerHTML = GROUPS.map(function (g) {
+    return '<div class="ds-list" data-group><div class="ds-list-header">' + esc(g.header) + '</div><div class="ds-group">' +
+      g.rows.map(rowHtml).join('') + '</div></div>';
+  }).join('') +
+    '<div class="no-matches" id="noMatches" hidden>No matches.</div>' +
+    '<div class="about-foot">Life OS · single user · dark only. Not financial or medical advice.</div>';
+
+  // ---- live version from the service worker cache name ----
+  fetch('sw.js').then(function (r) { return r.text(); }).then(function (t) {
+    var m = t.match(/dashboard-v(\d+)/);
+    var el = document.getElementById('verRow');
+    if (el) el.textContent = m ? 'Build ' + m[1] : 'Installed';
+  }).catch(function () { var el = document.getElementById('verRow'); if (el) el.textContent = 'Installed'; });
+
+  // ---- search: filter destinations + fold in LifeOS.search data hits ----
+  var q = document.getElementById('q');
+  var noMatches = document.getElementById('noMatches');
+  var dataGroup = null;
+
+  function clearDataGroup() { if (dataGroup) { dataGroup.remove(); dataGroup = null; } }
+
+  function dataHits(query) {
+    if (query.length < 2 || !window.LifeOS || !LifeOS.search) return [];
+    try { return LifeOS.search(query) || []; } catch (_) { return []; }
+  }
+
+  function run() {
+    var query = q.value.trim().toLowerCase();
+    var anyDest = false;
+    root.querySelectorAll('[data-group]').forEach(function (g) {
+      var shown = 0;
+      g.querySelectorAll('[data-row]').forEach(function (row) {
+        var hit = !query || row.getAttribute('data-search').indexOf(query) >= 0;
+        row.hidden = !hit; if (hit) shown++;
+      });
+      g.hidden = shown === 0;
+      if (shown) anyDest = true;
+    });
+
+    clearDataGroup();
+    var hits = dataHits(query);
+    if (hits.length) {
+      var html = '<div class="ds-list-header">In your data</div><div class="ds-group">' +
+        hits.map(function (h) {
+          return '<a class="ds-row" href="' + (h.href || '#') + '"><div class="ds-row-body">' +
+            '<div class="ds-row-title">' + esc(h.label) + '</div>' +
+            '<div class="ds-row-sub">' + esc(h.type) + (h.detail ? ' · ' + esc(h.detail) : '') + (h.date ? ' · ' + esc(h.date) : '') + '</div></div>' +
+            '<span class="ds-row-chevron"></span></a>';
+        }).join('') + '</div>';
+      dataGroup = document.createElement('div');
+      dataGroup.className = 'ds-list'; dataGroup.setAttribute('data-data-group', '');
+      dataGroup.innerHTML = html;
+      root.insertBefore(dataGroup, root.firstChild);
+    }
+
+    noMatches.hidden = anyDest || hits.length > 0 || !query;
+  }
+
+  q.addEventListener('input', run);
+})();
+</script>
+</body>
+</html>

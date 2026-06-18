@@ -26,7 +26,7 @@
     0 1px 2px rgba(0, 0, 0, 0.25);
   --text-primary: #FAFAFA;
   --text-secondary: #B8B6B0;
-  --text-tertiary: #76746E;
+  --text-tertiary: #8E8E93; /* AA: was #76746E (4.2:1), now systemGray2 5.6:1 */
   --text-quaternary: #4D4B47;
   --border: transparent;
   --border-soft: transparent;
@@ -420,8 +420,11 @@ html, body { scrollbar-width: none; -ms-overflow-style: none; }
 .nw-del {
   background: none; border: none;
   color: var(--text-tertiary); cursor: pointer;
-  font-size: 14px; padding: 0 4px; line-height: 1;
+  font-size: 14px; line-height: 1;
   flex-shrink: 0;
+  /* 44px hit target (Apple min) without inflating the visible glyph */
+  min-width: 44px; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .nw-del:hover { color: var(--danger); }
 
@@ -2001,14 +2004,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: rgba(107,227,164,0.12); border: 1px solid rgba(107,227,164,0.25);
   color: #6BE3A4; font-family: inherit; font-size: 10.5px; font-weight: 700;
   letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 4px 9px; border-radius: 6px; cursor: pointer;
+  padding: 4px 12px; border-radius: 6px; cursor: pointer;
+  min-height: 44px;
 }
 .gc-sync-btn:hover { background: rgba(107,227,164,0.20); }
 .gc-sync-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .gc-disc-btn {
   background: transparent; border: 1px solid rgba(255,255,255,0.08);
   color: var(--text-tertiary); font-family: inherit; font-size: 10px;
-  padding: 4px 8px; border-radius: 6px; cursor: pointer;
+  padding: 4px 12px; border-radius: 6px; cursor: pointer;
+  min-height: 44px;
 }
 .gc-disc-btn:hover { color: #FF8A8A; }
 .gc-msg {
@@ -2825,8 +2830,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
   tabs.forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
+  const VALID_TABS = ['net','subs','incoming','wish','income','business','budget','accounts','cashflow','invoices','debt','vehicle','compound','portfolio','transactions'];
+  // Deep-link from the Money overview (money.html?tab=accounts or #accounts) wins over the saved tab.
+  const linkTab = (new URLSearchParams(location.search).get('tab') || location.hash.replace('#', '')).trim();
   const savedTab = storeGet(TAB_KEY);
-  setActiveTab(savedTab && ['net','subs','incoming','wish','income','business','budget','accounts','cashflow','invoices','debt','portfolio','transactions'].includes(savedTab) ? savedTab : 'net');
+  setActiveTab(VALID_TABS.includes(linkTab) ? linkTab : (savedTab && VALID_TABS.includes(savedTab) ? savedTab : 'net'));
 
   // ============================================================
   // NET WORTH (copied from the main dashboard, verbatim logic)
@@ -2875,6 +2883,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
         items.splice(idx, 1); storeSet('nw:' + cat.key, items);
         if (removed) logActivity(cat.key, removed.name, -(Number(removed.amount) || 0), 'delete');
         renderAllNetWorth();
+        // Reversible delete -> offer Undo (data restored at its original index).
+        if (removed && window.DS && DS.toast) {
+          DS.toast('Deleted ' + removed.name, { action: 'Undo', onAction: () => {
+            const cur = storeGet('nw:' + cat.key) || [];
+            cur.splice(Math.min(idx, cur.length), 0, removed);
+            storeSet('nw:' + cat.key, cur);
+            logActivity(cat.key, removed.name, Number(removed.amount) || 0, 'restore');
+            renderAllNetWorth();
+          } });
+        }
       });
       row.appendChild(name); row.appendChild(amt); row.appendChild(del);
       list.appendChild(row);
@@ -4153,7 +4171,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       if (window.addEvent) window.addEvent('finance.expense', ['finance'], {
         name: n, amount: +aRaw.toFixed(2), currency: ccy,
         amount_chf: +amountCHF.toFixed(2), category: catEl ? catEl.value : '',
-        date: dEl && dEl.value ? dEl.value : new Date().toISOString().slice(0,10),
+        date: dEl && dEl.value ? dEl.value : (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()),
       }).catch(() => {});
       nEl.value = ''; aEl.value = '';
       if (dEl) dEl.value = '';
@@ -4601,7 +4619,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
             name: tx.description,
             amount: amtEur / fxRate,
             period: 'monthly',
-            renewal: txDate.toISOString().slice(0, 10),
+            renewal: (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(txDate),
             entered_amount: amtEur,
             entered_currency: 'EUR',
             fromCat: 'bank',
@@ -4684,7 +4702,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       source: src,
       amount: amt,
       currency: ccyEl ? ccyEl.value : 'EUR',
-      date: dtEl && dtEl.value ? dtEl.value : new Date().toISOString().slice(0, 10),
+      date: dtEl && dtEl.value ? dtEl.value : (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()),
       recurring: recEl ? recEl.checked : false,
       period: perEl ? perEl.value : 'monthly',
       ts: Date.now()
@@ -5397,7 +5415,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     var client = cl ? (cl.value || '').trim() : '';
     var amount = parseFloat(am ? am.value : '');
     if (!client || isNaN(amount) || amount <= 0) { if (cl) cl.focus(); return; }
-    var today = new Date().toISOString().slice(0, 10);
+    var today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     var arr = storeGet(BIZ_REV_KEY) || [];
     arr.push({
       id: 'r_' + Date.now(),
@@ -5422,7 +5440,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     var desc = de ? (de.value || '').trim() : '';
     var amount = parseFloat(am ? am.value : '');
     if (!desc || isNaN(amount) || amount <= 0) { if (de) de.focus(); return; }
-    var today = new Date().toISOString().slice(0, 10);
+    var today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     var arr = storeGet(BIZ_EXP_KEY) || [];
     arr.push({
       id: 'e_' + Date.now(),
@@ -5527,7 +5545,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           imported++;
           if (window.addEvent) window.addEvent('finance.expense', ['finance'], {
             name: name, amount: amount, currency: ccy, amount_chf: amount, category: cat,
-            date: date || new Date().toISOString().slice(0,10),
+            date: date || (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()),
           }).catch(function(){});
         });
         if (imported) {
@@ -5910,7 +5928,7 @@ document.getElementById('acctSaveBtn').addEventListener('click',()=>{
   const bank    = document.getElementById('acctBank').value.trim();
   if(!name)return;
   const existing = accounts.findIndex(a=>a.name.toLowerCase()===name.toLowerCase());
-  const today = new Date().toISOString().slice(0,10);
+  const today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
   if(existing>=0){
     accounts[existing]={...accounts[existing], balance, type, bank, updatedAt:today};
   } else {
@@ -6049,7 +6067,7 @@ renderAccounts();
 // ===== EMERGENCY FUND TRACKER =====
 (function efModule() {
   const KEY = 'fin:emergency_fund:v1';
-  function load() { return JSON.parse(localStorage.getItem(KEY)||'{"amount":0,"months":6}'); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)||'{"amount":0,"months":6}')||{amount:0,months:6}; } catch(e){ return {amount:0,months:6}; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
 
   function render() {
@@ -6122,7 +6140,7 @@ renderAccounts();
 (function invoiceModule() {
   const KEY = 'fin:invoices:v1';
   const STATUS_COLORS = { draft:'#94a3b8', sent:'#F2C063', paid:'#4BC9A0', overdue:'#FF6B6B', cancelled:'#64748b' };
-  function load() { return JSON.parse(localStorage.getItem(KEY)||'[]'); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]')||[]; } catch(e){ return []; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
   const fmt = n => '€' + Number(n).toLocaleString('nl-NL', {minimumFractionDigits:2, maximumFractionDigits:2});
 
@@ -6132,7 +6150,7 @@ renderAccounts();
     const sumEl  = document.getElementById('invSummaryRow');
     if (!listEl || !sumEl) return;
 
-    const today = new Date().toISOString().slice(0,10);
+    const today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     // mark overdue
     invs.forEach(i => { if (i.status === 'sent' && i.dueDate && i.dueDate < today) i.status = 'overdue'; });
 
@@ -6190,11 +6208,11 @@ renderAccounts();
 
   const saveBtn = document.getElementById('invSaveBtn');
   if (saveBtn) {
-    const today = new Date().toISOString().slice(0,10);
+    const today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     document.getElementById('invIssueDate').value = today;
     // default due 30 days from today
     const due = new Date(); due.setDate(due.getDate()+30);
-    document.getElementById('invDueDate').value = due.toISOString().slice(0,10);
+    document.getElementById('invDueDate').value = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(due);
 
     saveBtn.addEventListener('click', () => {
       const client = document.getElementById('invClient').value.trim();
@@ -6225,7 +6243,7 @@ renderAccounts();
 (function debtModule() {
   const KEY = 'fin:debts:v1';
   const STRAT_KEY = 'fin:debt_strat';
-  function load() { return JSON.parse(localStorage.getItem(KEY)||'[]'); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]')||[]; } catch(e){ return []; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
   let strategy = localStorage.getItem(STRAT_KEY) || 'snowball';
 
@@ -6482,9 +6500,9 @@ renderAccounts();
   const nn = v => parseFloat(v) || 0;
   const hesc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
-  function loadH() { return JSON.parse(localStorage.getItem(HOLD_KEY)||'[]'); }
+  function loadH() { try { return JSON.parse(localStorage.getItem(HOLD_KEY)||'[]')||[]; } catch(e){ return []; } }
   function saveH(d) { localStorage.setItem(HOLD_KEY, JSON.stringify(d)); }
-  function loadD() { return JSON.parse(localStorage.getItem(DIV_KEY)||'[]'); }
+  function loadD() { try { return JSON.parse(localStorage.getItem(DIV_KEY)||'[]')||[]; } catch(e){ return []; } }
   function saveD(d) { localStorage.setItem(DIV_KEY, JSON.stringify(d)); }
 
   function render() {
@@ -6591,7 +6609,7 @@ renderAccounts();
 
   const divSaveBtn = document.getElementById('pfDivSaveBtn');
   if (divSaveBtn) {
-    document.getElementById('pfDivDate').value = new Date().toISOString().slice(0,10);
+    document.getElementById('pfDivDate').value = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     divSaveBtn.addEventListener('click', () => {
       const ticker = document.getElementById('pfDivTicker').value.trim(); if (!ticker) return;
       const amount = nn(document.getElementById('pfDivAmount').value); if (amount <= 0) return;
@@ -6600,7 +6618,7 @@ renderAccounts();
       divs.push({ id: Date.now().toString(36), ticker, amount, date });
       saveD(divs);
       ['pfDivTicker','pfDivAmount'].forEach(id => { document.getElementById(id).value = ''; });
-      document.getElementById('pfDivDate').value = new Date().toISOString().slice(0,10);
+      document.getElementById('pfDivDate').value = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
       render();
     });
   }
@@ -6640,7 +6658,7 @@ renderAccounts();
 (function txSearch() {
   const TX_KEY = 'ing:tx';
   const hesc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  function load() { return JSON.parse(localStorage.getItem(TX_KEY)||'null'); }
+  function load() { try { return JSON.parse(localStorage.getItem(TX_KEY)||'null'); } catch(e){ return null; } }
   function fmtEur(v) { return (v>=0?'+':'-')+'€'+Math.abs(v).toFixed(2); }
 
   function populateMonths(txs) {
@@ -7115,7 +7133,7 @@ renderAccounts();
         if (f.period === 'weekly') next.setDate(next.getDate() + 7);
         else if (f.period === 'yearly') next.setFullYear(next.getFullYear() + 1);
         else next.setMonth(next.getMonth() + 1);
-        subs.push({ name: f.name, amount: f.amount, period: f.period, renewal: next.toISOString().slice(0, 10), entered_amount: f.amount, entered_currency: 'EUR', fromCat: 'bank', fromAccount: '', autoDeduct: false, lastDeductedAt: null });
+        subs.push({ name: f.name, amount: f.amount, period: f.period, renewal: (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(next), entered_amount: f.amount, entered_currency: 'EUR', fromCat: 'bank', fromAccount: '', autoDeduct: false, lastDeductedAt: null });
         jset('subs', subs);
         if (window._financeRenderAll) try { window._financeRenderAll(); } catch (e) {}
         renderRecurring();
@@ -7174,7 +7192,7 @@ renderAccounts();
         if (de && rep.merchant) de.value = rep.merchant;
         if (am && rep.total != null) am.value = rep.total;
         if (ca) ca.value = ['tools', 'marketing', 'equipment', 'travel', 'contractor', 'education', 'other'].indexOf(rep.category) >= 0 ? rep.category : 'other';
-        if (dt) dt.value = rep.date || new Date().toISOString().slice(0, 10);
+        if (dt) dt.value = rep.date || (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
         setStatus('Form filled — check it, then press + Add to log. Photo not stored.');
         if (report) {
           var items = (rep.items || []).slice(0, 6).map(function (it) { return esc(it.name) + (it.price != null ? ' — ' + eur(it.price, 2) : ''); }).join('<br>');
@@ -7279,7 +7297,13 @@ window.addEventListener('lifeos:event', function(e) {
 
     listEl.querySelectorAll('[data-vdel]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        var vehs = load(); vehs.splice(parseInt(btn.dataset.vdel), 1); save(vehs); renderVehicles();
+        var i = parseInt(btn.dataset.vdel);
+        var vehs = load(); var removed = vehs[i]; vehs.splice(i, 1); save(vehs); renderVehicles();
+        if (removed && window.DS && DS.toast) {
+          DS.toast('Deleted ' + (removed.name || 'vehicle'), { action: 'Undo', onAction: function() {
+            var cur = load(); cur.splice(Math.min(i, cur.length), 0, removed); save(cur); renderVehicles();
+          } });
+        }
       });
     });
 
@@ -7399,7 +7423,7 @@ window.addEventListener('lifeos:event', function(e) {
 })();
 </script>
 
-<p style="max-width:720px;margin:24px auto 100px;padding:0 16px;font-size:12px;line-height:1.5;color:var(--muted,#76746E);text-align:center">
+<p style="max-width:720px;margin:24px auto 100px;padding:0 16px;font-size:12px;line-height:1.5;color:var(--muted,#8E8E93);text-align:center">
   For tracking and education only. Not financial advice. Afford checks, mortgage,
   and investing figures are estimates, not a recommendation. Consult a licensed
   financial professional before making money decisions.

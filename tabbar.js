@@ -26,7 +26,7 @@
   ];
 
   // Clean-URL servers (Vercel, the dev server) serve /gym not /gym.html, so
-  // normalize to the .html form the TABS hrefs + ACCENTS map use. Fixes active
+  // normalize to the .html form the BAR hrefs + ACCENTS map use. Fixes active
   // tab detection and per-page accent on extensionless URLs.
   let page = (window.location.pathname.split('/').pop() || 'index.html').split('?')[0];
   if (!page) page = 'index.html';
@@ -53,14 +53,14 @@
     'privacy.html': '#30D158', 'fix.html': '#FF9F0A', 'library.html': '#5E5CE6',
     'social.html': '#FF2D55', 'travel.html': '#64D2FF', 'glowlab.html': '#FF2D55',
     'body.html': '#30D158', 'ai.html': '#0A84FF',
-    'log.html': '#0A84FF', 'coach.html': '#5E5CE6',
+    'log.html': '#0A84FF', 'coach.html': '#5E5CE6', 'money.html': '#00C7BE', 'more.html': '#8E8E93',
   };
   document.documentElement.style.setProperty('--accent', ACCENTS[page] || '#0A84FF');
 
   // ---- LifeOS layer: AI service, context core, command bar ----
   // Loaded sequentially so command.js can rely on both globals.
   (function loadLifeOS() {
-    const chain = ['errlog.js', 'ds.js', 'claude.js', 'lifeos-core.js', 'command.js', 'pwa.js']
+    const chain = ['errlog.js', 'dates.js', 'ds.js', 'claude.js', 'lifeos-core.js', 'command.js', 'pwa.js', 'auth.js']
       .filter(src => !document.querySelector('script[src="' + src + '"]'));
     function next() {
       const src = chain.shift();
@@ -97,7 +97,7 @@
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 3px; padding: 6px 4px 4px;
   text-decoration: none;
-  color: #76746E;
+  color: #85837C; /* AA: 5.2:1 on tabbar bg (was #76746E = 4.2, under 4.5) */
   font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
   transition: color 0.15s; -webkit-tap-highlight-color: transparent;
@@ -171,17 +171,17 @@
     { id: 'today', href: 'index.html',   label: 'Today', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' },
     { id: 'log',   href: 'log.html',     label: 'Log',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
     { id: 'coach', href: 'coach.html',   label: 'Coach', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>' },
-    { id: 'money', href: 'finance.html', label: 'Money', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+    { id: 'money', href: 'money.html', label: 'Money', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
   ];
   const TAB_OF = {
     'index.html': 'today', 'calendar.html': 'today', 'tasks.html': 'today',
     'log.html': 'log', 'health.html': 'log', 'watch.html': 'log', 'water.html': 'log',
-    'po-water.html': 'log', 'gym.html': 'log', 'body.html': 'log', 'nutrition.html': 'log',
+    'gym.html': 'log', 'body.html': 'log', 'nutrition.html': 'log',
     'mood.html': 'log', 'habits.html': 'log', 'skin.html': 'log', 'glowlab.html': 'log',
     'reminders.html': 'log',
     'coach.html': 'coach', 'mail.html': 'coach', 'radar.html': 'coach', 'review.html': 'coach',
     'ai.html': 'coach',
-    'finance.html': 'money',
+    'money.html': 'money', 'finance.html': 'money',
     // everything else (usage, travel, social, library, export, settings,
     // privacy, fix, ds) → More
   };
@@ -197,35 +197,14 @@
     inner.appendChild(a);
   });
 
-  const moreBtn = document.createElement('button');
-  moreBtn.type = 'button';
-  moreBtn.className = 'tab' + (activeTab === 'more' ? ' active' : '');
-  moreBtn.setAttribute('aria-label', 'More tabs');
-  moreBtn.innerHTML = '<span class="tab-icon">' + moreIcon + '</span><span>More</span>';
-  inner.appendChild(moreBtn);
+  // More is now a real searchable page (more.html), not a sheet.
+  const moreLink = document.createElement('a');
+  moreLink.href = 'more.html';
+  moreLink.className = 'tab' + (activeTab === 'more' ? ' active' : '');
+  if (activeTab === 'more') moreLink.setAttribute('aria-current', 'page');
+  moreLink.innerHTML = '<span class="tab-icon">' + moreIcon + '</span><span>More</span>';
+  inner.appendChild(moreLink);
 
   nav.appendChild(inner);
   document.body.appendChild(nav);
-
-  // ---- More sheet: full grid of every destination ----
-  const backdrop = document.createElement('div');
-  backdrop.className = 'tab-sheet-backdrop';
-  const sheet = document.createElement('div');
-  sheet.className = 'tab-sheet';
-  sheet.setAttribute('role', 'menu');
-  let grid = '<div class="tab-sheet-grab"></div><div class="tab-sheet-grid">';
-  TABS.forEach(function (t) {
-    grid += '<a class="tab-sheet-item' + (t.href === page ? ' active' : '') + '" href="' + t.href + '">' +
-      '<span class="tab-icon">' + t.icon + '</span><span>' + t.label + '</span></a>';
-  });
-  grid += '</div>';
-  sheet.innerHTML = grid;
-  document.body.appendChild(backdrop);
-  document.body.appendChild(sheet);
-
-  function openSheet() { backdrop.classList.add('open'); sheet.classList.add('open'); }
-  function closeSheet() { backdrop.classList.remove('open'); sheet.classList.remove('open'); }
-  moreBtn.addEventListener('click', function () { sheet.classList.contains('open') ? closeSheet() : openSheet(); });
-  backdrop.addEventListener('click', closeSheet);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
 })();

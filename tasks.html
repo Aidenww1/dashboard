@@ -73,7 +73,7 @@ main { position:relative; z-index:2; max-width:720px; margin:0 auto; padding:56p
 .task-due.overdue { color:#FF6B6B; font-weight:700; }
 .task-proj-tag { font-size:11px; color:var(--text-tertiary); padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); }
 .task-actions { display:flex; flex-direction:column; gap:6px; margin-left:4px; }
-.task-act-btn { background:transparent; border:none; color:var(--text-tertiary); cursor:pointer; font-size:14px; padding:2px; line-height:1; }
+.task-act-btn { background:transparent; border:none; color:var(--text-tertiary); cursor:pointer; font-size:14px; line-height:1; min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 .task-act-btn:hover { color:var(--text-primary); }
 
 /* ── SUBTASKS ── */
@@ -187,7 +187,7 @@ main { position:relative; z-index:2; max-width:720px; margin:0 auto; padding:56p
     </div>
     <div>
       <div class="form-label">Due date</div>
-      <input type="date" id="taskDue" class="form-inp">
+      <input type="date" id="taskDue" class="form-inp" aria-label="Due date">
     </div>
     <div>
       <div class="form-label">Notes (optional)</div>
@@ -225,9 +225,9 @@ const PROJ_KEY = 'tasks:projects:v1';
 
 const PROJ_COLORS = ['#1D9E75','#5B8DEF','#E07658','#9B6BFF','#F2C063','#FF6B6B','#4BC9A0','#FF8FAB'];
 
-function loadTasks()    { return JSON.parse(localStorage.getItem(TASK_KEY)||'[]'); }
+function loadTasks()    { try { return JSON.parse(localStorage.getItem(TASK_KEY)||'[]')||[]; } catch(e){ return []; } }
 function saveTasks(d)   { localStorage.setItem(TASK_KEY, JSON.stringify(d)); }
-function loadProjects() { return JSON.parse(localStorage.getItem(PROJ_KEY)||'[]'); }
+function loadProjects() { try { return JSON.parse(localStorage.getItem(PROJ_KEY)||'[]')||[]; } catch(e){ return []; } }
 function saveProjects(d){ localStorage.setItem(PROJ_KEY, JSON.stringify(d)); }
 
 let tasks    = loadTasks();
@@ -242,11 +242,11 @@ if (!projects.length) {
   saveProjects(projects);
 }
 
-function today() { return new Date().toISOString().slice(0,10); }
+function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function endOfWeek() {
   const d = new Date();
   d.setDate(d.getDate() + (7 - d.getDay()));
-  return d.toISOString().slice(0,10);
+  return (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d);
 }
 
 function renderProjBar() {

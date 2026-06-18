@@ -56,7 +56,7 @@
 }
 .claudebar-head-left { display: flex; flex-direction: column; gap: 1px; }
 .claudebar-head-title { font-size: 15px; font-weight: 700; color: #E8E6E0; }
-.claudebar-head-sub { font-size: 11px; color: #76746E; }
+.claudebar-head-sub { font-size: 11px; color: #8E8E93; }
 .claudebar-close {
   width: 28px; height: 28px; border-radius: 50%;
   background: rgba(255,255,255,0.07); border: none;

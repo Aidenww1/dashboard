@@ -18,7 +18,7 @@
   --border-strong: rgba(255,255,255,0.12);
   --text-primary: #FAFAFA;
   --text-secondary: #B8B6B0;
-  --text-tertiary: #76746E;
+  --text-tertiary: #8E8E93; /* AA: was #76746E 4.2:1 */
   --text-quaternary: #4D4B47;
   --accent: #E07658;
   --accent-glow: rgba(224,118,88,0.35);
@@ -664,7 +664,7 @@ window._habitsRenderAll = function() { habits = load(STORE_KEY) || []; logs = lo
     for (var i = 0; i < 30; i++) {
       var d = new Date(today);
       d.setDate(d.getDate() - i);
-      days.push(d.toISOString().slice(0, 10));
+      days.push((function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d));
     }
     var summary = habitsRaw.map(function(h) {
       var completed = days.filter(function(day) {

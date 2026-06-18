@@ -927,7 +927,7 @@ main {
 .bld-entry:last-child { border-bottom: none; }
 .bld-entry-date { font-size: 11px; font-weight: 600; color: var(--text-tertiary); white-space: nowrap; flex-shrink: 0; padding-top: 2px; }
 .bld-entry-markers { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
-.bld-del-btn { background: none; border: none; color: var(--text-quaternary); cursor: pointer; font-size: 14px; padding: 2px; flex-shrink: 0; }
+.bld-del-btn { background: none; border: none; color: var(--text-quaternary); cursor: pointer; font-size: 14px; flex-shrink: 0; min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .bld-del-btn:hover { color: #FF6B6B; }
 .bld-marker-chip { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: var(--text-secondary); }
 .bld-marker-chip.ok  { background: rgba(107,227,164,0.08); border-color: rgba(107,227,164,0.25); color: #6BE3A4; }
@@ -1898,7 +1898,7 @@ main {
     return 'bad';
   }
 
-  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function todayStr() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
   function dayLabel(dateStr) {
     const d = new Date(dateStr + 'T12:00:00');
@@ -1909,14 +1909,14 @@ main {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
-      return d.toISOString().slice(0, 10);
+      return (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(d);
     });
   }
 
   function renderHero(entries) {
     const today = todayStr();
     const yest = new Date(); yest.setDate(yest.getDate() - 1);
-    const yestStr = yest.toISOString().slice(0, 10);
+    const yestStr = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(yest);
     const entry = entries.find(e => e.date === today) || entries.find(e => e.date === yestStr);
 
     const durEl = document.getElementById('slpDur');
@@ -2268,7 +2268,7 @@ main {
 
       entries.push({
         id: startMs,
-        date: ed.toISOString().slice(0, 10),
+        date: (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(ed),
         bedtime:  `${pad(sd.getHours())}:${pad(sd.getMinutes())}`,
         waketime: `${pad(ed.getHours())}:${pad(ed.getMinutes())}`,
         duration, score, rem: null, deep: null, source: 'samsung_csv',
@@ -2739,7 +2739,19 @@ main {
       + '</div>'
     ).join('');
     el.querySelectorAll('.bld-del-btn').forEach(btn => {
-      btn.addEventListener('click', () => { save(load().filter(e => e.id !== Number(btn.dataset.id))); render(); });
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.id);
+        const removed = load().find(e => e.id === id);
+        save(load().filter(e => e.id !== id)); render();
+        // Bloodwork is hard to re-enter -> offer Undo instead of silent loss.
+        if (removed && window.DS && DS.toast) {
+          DS.toast('Deleted bloodwork entry', { action: 'Undo', onAction: () => {
+            const cur = load(); cur.push(removed);
+            cur.sort((a, b) => (b.id || 0) - (a.id || 0));
+            save(cur); render();
+          } });
+        }
+      });
     });
   }
 
@@ -2755,7 +2767,7 @@ main {
     const weeks = active ? (flagged.length ? 6 : 10) : phase === 'off' ? (flagged.length ? 8 : 16) : (flagged.length ? 8 : 26);
     const due = new Date(latest.date + 'T12:00:00');
     due.setDate(due.getDate() + weeks * 7);
-    const dueStr = due.toISOString().slice(0,10);
+    const dueStr = (function(_d){return _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0')})(due);
     const overdue = Date.now() > due.getTime();
     const daysLeft = Math.ceil((due.getTime() - Date.now()) / 86400000);
     const why = (flagged.length ? flagged.length + ' flagged marker' + (flagged.length > 1 ? 's' : '') + ' (' + flagged.slice(0,3).map(m => m.label).join(', ') + ')' : 'all in range')
@@ -2817,7 +2829,7 @@ main {
   const form   = document.getElementById('bloodForm');
   const dateInp = document.getElementById('bloodDate');
 
-  function openForm()  { if (!dateInp.value) dateInp.value = new Date().toISOString().slice(0,10); form.classList.add('open'); logBtn.textContent = '− Close'; }
+  function openForm()  { if (!dateInp.value) dateInp.value = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()); form.classList.add('open'); logBtn.textContent = '− Close'; }
   function closeForm() { form.classList.remove('open'); logBtn.textContent = '+ Log test results'; }
 
   logBtn && logBtn.addEventListener('click', () => form.classList.contains('open') ? closeForm() : openForm());
@@ -2825,7 +2837,7 @@ main {
   document.getElementById('bloodSave') && document.getElementById('bloodSave').addEventListener('click', () => {
     const markers = getFormValues();
     if (!Object.keys(markers).length) return;
-    const date = dateInp.value || new Date().toISOString().slice(0,10);
+    const date = dateInp.value || (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     const phase = (document.getElementById('bloodPhase') || {}).value || 'normal';
     const logs = load();
     const idx = logs.findIndex(e => e.date === date);
@@ -3059,7 +3071,7 @@ renderLabs();
 // ===== BODY COMPOSITION TRACKER =====
 (function bodyComp() {
   const KEY = 'health:body:v1';
-  function load() { return JSON.parse(localStorage.getItem(KEY)||'[]'); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)||'[]')||[]; } catch(e){ return []; } }
   function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
 
   function render() {
@@ -3103,7 +3115,7 @@ renderLabs();
     saveBtn.addEventListener('click', () => {
       const bf = parseFloat(document.getElementById('bfInput').value);
       if (isNaN(bf) || bf < 3 || bf > 60) return;
-      const today = new Date().toISOString().slice(0,10);
+      const today = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
       const logs = load();
       const entry = {
         date:  today,

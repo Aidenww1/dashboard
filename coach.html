@@ -8,6 +8,16 @@
 <style>
   body { margin: 0; padding-bottom: 96px; color: var(--text-primary); min-height: 100vh; }
   .ds-wrap { max-width: 600px; margin: 0 auto; padding: 8px 16px 0; }
+  .ds-wrap .ds-list { margin-bottom: 14px; }
+  .coach-hero { text-align: center; padding: 18px 16px 20px; }
+  .coach-score { font-size: 52px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .coach-label { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); margin-top: 6px; }
+  .coach-advice { font-size: 14px; color: var(--text-secondary); margin-top: 10px; line-height: 1.45; }
+  .ask-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .ask-chip { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--hairline, rgba(255,255,255,.12)); background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px; cursor: pointer; }
+  .ask-chip:hover { background: rgba(255,255,255,.05); }
+  .brief-line { display: flex; gap: 10px; align-items: flex-start; }
+  .brief-line .ico { flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -19,37 +29,145 @@
 
 <main class="ds-wrap" id="sections"></main>
 
+<script src="lifeos-core.js"></script>
+<script src="claude.js"></script>
 <script src="ds.js"></script>
+<script src="command.js" defer></script>
 <script src="tabbar.js" defer></script>
 <script>
-// Phase 1 shell: Coach groups route to the existing AI surfaces.
-// Phase 4 merges ai + Ask bar + operator into one Ask and brings these inline.
-var SECTIONS = [
-  { header: 'What now', rows: [
-    { t: 'Briefing', s: 'Morning / evening brief (button-only)', href: 'index.html?qa=briefing' },
-    { t: 'Readiness', s: 'Score and drivers', href: 'watch.html' },
-  ]},
-  { header: 'Ask', rows: [
-    { t: 'Ask Claude', s: 'Chat with full data context + operator', href: 'ai.html' },
-  ]},
-  { header: 'Streams', rows: [
-    { t: 'Inbox', s: 'AI triage, orders, drafts', href: 'mail.html' },
-    { t: 'Opportunities', s: 'Radar', href: 'radar.html' },
-    { t: 'Reviews', s: 'Weekly review, feature audit', href: 'review.html' },
-  ]},
-];
+/* ============================================================
+   Phase 4 — Coach: "what should I do, and how am I doing."
+   One AI surface: Ask launches the single operator chat that
+   already lives in command.js (full data context + confirm-gated
+   actions) — no second chat engine. Readiness + Briefing render
+   deterministically from LifeOS (zero tokens). Streams surface
+   cached summaries with deep links. Token rule preserved:
+   nothing here spends tokens without a button press.
+   ============================================================ */
+(function () {
+  'use strict';
 
-var chevron = '<span class="ds-row-chevron"></span>';
-document.getElementById('sections').innerHTML = SECTIONS.map(function (sec) {
-  var rows = sec.rows.map(function (r) {
-    return '<a class="ds-row" href="' + r.href + '">' +
-      '<div class="ds-row-body"><div class="ds-row-title">' + r.t + '</div>' +
-      '<div class="ds-row-sub">' + r.s + '</div></div>' + chevron + '</a>';
-  }).join('');
-  return '<div class="ds-list"><div class="ds-list-header">' + sec.header +
-    '</div><div class="ds-group">' + rows + '</div></div>';
-}).join('') +
-  '<div class="ds-list-footer" style="text-align:center">No tokens spent until you press a button.</div>';
+  function lsget(k, fb) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch (_) { return fb; } }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function hoursAgo(ms) { return Math.max(0, Math.round((Date.now() - ms) / 3600000)); }
+
+  function valueRow(title, value) {
+    return '<div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">' + esc(title) + '</div></div><span class="ds-row-value">' + esc(value) + '</span></div>';
+  }
+  function pushRow(title, sub, href) {
+    return '<a class="ds-row" href="' + href + '"><div class="ds-row-body"><div class="ds-row-title">' + esc(title) + '</div>' +
+      (sub ? '<div class="ds-row-sub">' + esc(sub) + '</div>' : '') + '</div><span class="ds-row-chevron"></span></a>';
+  }
+
+  var root = document.getElementById('sections');
+
+  // ---- Ask (the one AI surface) -------------------------------------------
+  var SAMPLES = ['What should I focus on today?', "How's my recovery?", 'What needs my attention?'];
+  function askSection() {
+    var chips = SAMPLES.map(function (q) { return '<button class="ask-chip" data-ask="' + esc(q) + '">' + esc(q) + '</button>'; }).join('');
+    var card = document.createElement('div');
+    card.className = 'ds-list';
+    card.innerHTML = '<div class="ds-list-header">Ask</div>' +
+      '<div class="ds-group"><div class="ds-row" style="display:block">' +
+      '<div class="ds-row-title">Ask anything about your data</div>' +
+      '<div class="ds-row-sub" style="margin-top:2px">Full context + the operator. Risky actions ask before running.</div>' +
+      '<button class="btn-filled btn-block" id="askOpen" style="margin-top:12px">Ask Claude</button>' +
+      '<div class="ask-chips">' + chips + '</div></div></div>' +
+      '<div class="ds-list-footer">No tokens spent until you ask.</div>';
+    root.appendChild(card);
+    function ask(q) {
+      if (window.LifeOSCmd && LifeOSCmd.ask) LifeOSCmd.ask(q);
+      else DS.toast('Ask bar still loading — try again');
+    }
+    card.querySelector('#askOpen').onclick = function () { ask(); };
+    card.querySelectorAll('[data-ask]').forEach(function (b) { b.onclick = function () { ask(b.getAttribute('data-ask')); }; });
+  }
+
+  // ---- Readiness (deterministic) ------------------------------------------
+  function readinessSection() {
+    var card = document.createElement('div');
+    card.className = 'ds-list';
+    try {
+      var rd = LifeOS.readiness();
+      var drivers = rd.parts.map(function (p) { return valueRow(p.label, p.pts + '/' + p.max + (p.detail ? ' · ' + p.detail : '')); }).join('');
+      card.innerHTML = '<div class="ds-list-header">Readiness</div>' +
+        '<div class="ds-group"><div class="coach-hero">' +
+          '<div class="coach-score">' + rd.score + '</div>' +
+          '<div class="coach-label">' + esc(rd.label) + '</div>' +
+          (rd.advice ? '<div class="coach-advice">' + esc(rd.advice) + '</div>' : '') +
+        '</div></div>' +
+        '<div class="ds-list-header" style="margin-top:14px">Drivers</div>' +
+        '<div class="ds-group">' + drivers + '</div>';
+    } catch (e) {
+      card.innerHTML = '<div class="ds-list-header">Readiness</div><div class="ds-empty"><span class="ds-empty-icon">🔋</span><strong>No readiness yet</strong>Log sleep to compute readiness.</div>';
+    }
+    root.appendChild(card);
+  }
+
+  // ---- Briefing (button-only, deterministic) ------------------------------
+  function briefingSection() {
+    var card = document.createElement('div');
+    card.className = 'ds-list';
+    card.innerHTML = '<div class="ds-list-header">Briefing</div>' +
+      '<div class="ds-group"><div class="ds-row" style="display:block">' +
+      '<div class="ds-row-sub">Your day assembled from today\'s data. Generated on demand.</div>' +
+      '<button class="btn-tinted btn-block" id="briefRun" style="margin-top:10px">Run briefing</button>' +
+      '<div id="briefOut" style="margin-top:8px"></div></div></div>';
+    root.appendChild(card);
+    card.querySelector('#briefRun').onclick = function () {
+      var out = card.querySelector('#briefOut');
+      try {
+        var b = LifeOS.briefing();
+        out.innerHTML = b.lines.map(function (l) {
+          return '<div class="ds-row brief-line" style="padding-left:0;padding-right:0">' +
+            '<span class="ico">' + (l.icon || '•') + '</span>' +
+            '<div class="ds-row-body"><div class="ds-row-title">' + esc(l.label) + '</div>' +
+            '<div class="ds-row-sub">' + esc(l.value) + '</div></div></div>';
+        }).join('');
+      } catch (e) { out.innerHTML = '<div class="ds-row-sub" style="color:var(--danger)">Couldn\'t build briefing: ' + esc(e.message) + '</div>'; }
+    };
+  }
+
+  // ---- Streams: Inbox / Opportunities / Reviews ---------------------------
+  function streamsSection() {
+    var card = document.createElement('div');
+    card.className = 'ds-list';
+    var rows = '';
+
+    var m = lsget('mail:summary:v1', null);
+    if (m) {
+      var inboxSub = (m.needs_reply || 0) + ' need reply · ' + (m.orders_active || 0) + ' orders' +
+        (m.delivery_issues ? ' · ' + m.delivery_issues + ' issue' : '') + ' · synced ' + hoursAgo(m.ts || 0) + 'h ago';
+      rows += pushRow('Inbox', inboxSub, 'mail.html');
+    } else {
+      rows += pushRow('Inbox', 'Not synced — open to connect Gmail', 'mail.html');
+    }
+
+    var o = lsget('radar:summary:v1', null);
+    if (o && o.shown && o.shown.length) {
+      var top = o.shown[0];
+      rows += pushRow('Opportunities', (o.total_found || o.shown.length) + ' found · ' + (top.title || top.label || top.headline || 'see radar'), 'radar.html');
+    } else {
+      rows += pushRow('Opportunities', 'Not scanned yet', 'radar.html');
+    }
+
+    rows += pushRow('Reviews', 'Weekly review & feature audit', 'review.html');
+
+    card.innerHTML = '<div class="ds-list-header">Streams</div><div class="ds-group">' + rows + '</div>';
+    root.appendChild(card);
+  }
+
+  function build() {
+    root.innerHTML = '';
+    askSection();
+    readinessSection();
+    briefingSection();
+    streamsSection();
+  }
+
+  if (window.LifeOS) build();
+  else window.addEventListener('lifeos:ready', build, { once: true });
+})();
 </script>
 </body>
 </html>

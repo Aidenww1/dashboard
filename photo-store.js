@@ -52,9 +52,42 @@
     });
   }
 
+  // Strip metadata (EXIF, incl. GPS coordinates) by re-encoding the pixels
+  // through a canvas -- canvas export carries no EXIF. createImageBitmap with
+  // imageOrientation:'from-image' bakes the EXIF orientation into the pixels
+  // first, so stripping the tag does not leave the photo sideways. This is the
+  // trust boundary: a photo is sanitized once, on the way into the store, so
+  // every copy that ever leaves the device (share, future upload) is clean.
+  function sanitize(dataUrl) {
+    if (typeof dataUrl !== 'string' || dataUrl.indexOf('data:image/') !== 0) {
+      return Promise.resolve(dataUrl); // not a raster image (e.g. data:image/svg or a ref) -> leave as-is
+    }
+    return fetch(dataUrl).then(function (r) { return r.blob(); }).then(function (blob) {
+      var bitmapP = (typeof createImageBitmap === 'function')
+        ? createImageBitmap(blob, { imageOrientation: 'from-image' }).catch(function () { return createImageBitmap(blob); })
+        : Promise.reject(new Error('no-createImageBitmap'));
+      return bitmapP.then(function (bmp) {
+        var c = document.createElement('canvas');
+        c.width = bmp.width; c.height = bmp.height;
+        c.getContext('2d').drawImage(bmp, 0, 0);
+        if (bmp.close) bmp.close();
+        // Re-encode as JPEG (the source camera format); PNG would balloon size.
+        return c.toDataURL('image/jpeg', 0.92);
+      });
+    }).catch(function () {
+      // Decode/encode failed: keep the original rather than lose the photo.
+      // Photos are device-local IndexedDB, so an un-stripped local copy is the
+      // lesser harm than dropping the user's data.
+      return dataUrl;
+    });
+  }
+
   window.LifeOSPhotos = {
+    sanitize: sanitize,
     put: function (id, dataUrl) {
-      return tx('readwrite', function (s) { s.put(dataUrl, id); }).then(function () {});
+      return sanitize(dataUrl).then(function (clean) {
+        return tx('readwrite', function (s) { s.put(clean, id); });
+      }).then(function () {});
     },
     get: function (id) {
       return open().then(function (db) {

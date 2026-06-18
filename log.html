@@ -9,6 +9,8 @@
   /* page-local layout only — components live in design.css */
   body { margin: 0; padding-bottom: 96px; color: var(--text-primary); min-height: 100vh; }
   .ds-wrap { max-width: 600px; margin: 0 auto; padding: 8px 16px 0; }
+  .panel > .btn-block { margin: 4px 0 12px; }
+  .ds-wrap .ds-list { margin-bottom: 14px; }
   .seg-wrap { padding: 0 16px 12px; max-width: 600px; margin: 0 auto; }
   .seg-scroll { overflow-x: auto; scrollbar-width: none; }
   .seg-scroll::-webkit-scrollbar { display: none; }
@@ -26,72 +28,411 @@
 
 <main class="ds-wrap" id="panels"></main>
 
+<script src="lifeos-core.js"></script>
+<script src="cloudsync.js" defer></script>
 <script src="ds.js"></script>
 <script src="tabbar.js" defer></script>
 <script>
-// Phase 1 shell: each segment lists rows that route to the existing pages.
-// Phase 3 replaces these routes with inline grouped-list logging + sheets.
-var SEGMENTS = [
-  { id: 'food', label: 'Food', rows: [
-    { t: 'Nutrition', s: 'Meals, TDEE, macros, trends', href: 'nutrition.html' },
-  ]},
-  { id: 'body', label: 'Body', rows: [
-    { t: 'Health metrics', s: 'HRV, RHR, SpO2, steps, sleep', href: 'health.html' },
-    { t: 'Bloodwork & meds', s: 'Labs, medications', href: 'health.html#labs' },
-    { t: 'Progress photos & measurements', s: 'Weight, measurements, photos', href: 'body.html' },
-    { t: 'Wearable', s: 'Watch raw data', href: 'watch.html' },
-  ]},
-  { id: 'mind', label: 'Mind', rows: [
-    { t: 'Mood & journal', s: 'Mood, journal, gratitude, meditate', href: 'mood.html' },
-  ]},
-  { id: 'training', label: 'Training', rows: [
-    { t: 'Gym', s: 'Workouts, PRs, templates, cardio', href: 'gym.html' },
-  ]},
-  { id: 'skin', label: 'Skin', rows: [
-    { t: 'Skin', s: 'Routine, logs, products, breakouts', href: 'skin.html' },
-    { t: 'GlowLab', s: 'Skin lab', href: 'glowlab.html' },
-  ]},
-  { id: 'habits', label: 'Habits', rows: [
-    { t: 'Habits', s: 'Checklist, streaks, heatmap', href: 'habits.html' },
-  ]},
-  { id: 'water', label: 'Water', rows: [
-    { t: 'Water', s: 'Day ring, history', href: 'water.html' },
-  ]},
-  { id: 'supps', label: 'Supplements', rows: [
-    { t: 'Supplement stack', s: 'Due now, taken, schedule', href: 'reminders.html' },
-    { t: 'Medications', s: 'In Health', href: 'health.html#meds' },
-  ]},
-];
+/* ============================================================
+   Phase 3 — Log: the universal capture surface.
+   Each segment writes the SAME localStorage stores the module
+   pages read (via LifeOS.log + direct store edits), so the
+   operator, Today and the module pages never disagree.
+   Quick capture + today's entries with edit/delete live here;
+   deep editing (food DB, workout sets, skin routine) stays in
+   the module page, linked from each segment.
+   ============================================================ */
+(function () {
+  'use strict';
 
-var seg = document.getElementById('seg');
-var panels = document.getElementById('panels');
-var chevron = '<span class="ds-row-chevron"></span>';
+  // ---- tiny store helpers ----
+  function lsget(k, fb) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch (_) { return fb; } }
+  function lsset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} }
+  function fire() { try { window.dispatchEvent(new CustomEvent('lifeos:logged', { detail: { src: 'log' } })); } catch (_) {} }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function today() { return (window.LifeOS && LifeOS.todayStr) ? LifeOS.todayStr() : (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date()); }
+  function offset(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function ntKey() { var d = new Date(); if (d.getHours() < 6) d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function num(sel, s) { return parseFloat(s.el.querySelector(sel).value) || 0; }
+  function fmtDur(min) { return Math.floor(min / 60) + 'h ' + (min % 60) + 'm'; }
+  function byDateDesc(a, b) { return String(b.date).localeCompare(String(a.date)); }
+  function concernStr(c) { return Array.isArray(c) ? c.join(', ') : (c || ''); }
 
-SEGMENTS.forEach(function (s, i) {
-  var b = document.createElement('button');
-  b.dataset.value = s.id;
-  b.textContent = s.label;
-  if (i === 0) b.setAttribute('aria-selected', 'true');
-  seg.appendChild(b);
+  // ---- markup helpers ----
+  function valueRow(title, value) {
+    return '<div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">' + esc(title) + '</div></div><span class="ds-row-value">' + esc(value) + '</span></div>';
+  }
+  function pushRow(title, href) {
+    return '<a class="ds-row" href="' + href + '"><div class="ds-row-body"><div class="ds-row-title">' + esc(title) + '</div></div><span class="ds-row-chevron"></span></a>';
+  }
+  function entryRow(e) {
+    return '<div class="ds-swipe" data-id="' + esc(e.id) + '">' +
+      '<div class="ds-swipe-actions">' +
+        (e.editable ? '<button class="ds-swipe-action edit" data-act="edit">Edit</button>' : '') +
+        '<button class="ds-swipe-action delete" data-act="del">Delete</button></div>' +
+      '<div class="ds-swipe-content"><div class="ds-row"><div class="ds-row-body">' +
+        '<div class="ds-row-title">' + esc(e.title) + '</div>' +
+        (e.sub ? '<div class="ds-row-sub">' + esc(e.sub) + '</div>' : '') +
+      '</div>' + (e.value ? '<span class="ds-row-value">' + esc(e.value) + '</span>' : '') + '</div></div></div>';
+  }
+  function emptyHtml(icon, title, sub, btn) {
+    return '<div class="ds-empty"><span class="ds-empty-icon">' + icon + '</span><strong>' + esc(title) + '</strong>' + esc(sub) +
+      (btn ? '<button class="btn-filled">' + esc(btn) + '</button>' : '') + '</div>';
+  }
+  function errBlock(msg) {
+    return '<div class="ds-empty"><span class="ds-empty-icon">⚠️</span><strong>Couldn\'t load</strong>' + esc(msg) + '<button class="btn-filled" data-retry>Retry</button></div>';
+  }
+  // ---- wiring shared by panels ----
+  function wireAdd(p, fn) {
+    var b = p.querySelector('[data-add]'); if (b) b.onclick = function () { fn(); };
+    var eb = p.querySelector('.ds-empty button:not([data-retry])'); if (eb) eb.onclick = function () { fn(); };
+  }
+  function wireEntries(p, id) {
+    var g = p.querySelector('[data-entries]'); if (!g) return;
+    g.addEventListener('click', function (e) {
+      var btn = e.target.closest('.ds-swipe-action'); if (!btn) return;
+      var row = btn.closest('.ds-swipe'); var eid = row.getAttribute('data-id'); var seg = C[id];
+      if (btn.dataset.act === 'edit' && seg.edit) { seg.edit(eid); }
+      else {
+        var undo = seg.del(eid); paint(id);
+        DS.deleteWithUndo('Deleted', null, function () { if (undo) undo(); paint(id); });
+      }
+    });
+  }
 
-  var p = document.createElement('section');
-  p.className = 'panel';
-  p.dataset.panel = s.id;
-  if (i !== 0) p.hidden = true;
-  var rows = s.rows.map(function (r) {
-    return '<a class="ds-row" href="' + r.href + '">' +
-      '<div class="ds-row-body"><div class="ds-row-title">' + r.t + '</div>' +
-      (r.s ? '<div class="ds-row-sub">' + r.s + '</div>' : '') + '</div>' + chevron + '</a>';
-  }).join('');
-  p.innerHTML = '<div class="ds-list"><div class="ds-list-header">' + s.label +
-    '</div><div class="ds-group">' + rows + '</div>' +
-    '<div class="ds-list-footer">Opens the current page. Inline logging arrives in Phase 3.</div></div>';
-  panels.appendChild(p);
-});
+  // ---- log sheets ----
+  function mealSheet(pre) {
+    pre = pre || {};
+    var v = function (x) { return x != null && x !== '' ? x : ''; };
+    var html = '<div class="ds-field"><label>Meal</label><input id="m-name" type="text" placeholder="e.g. Chicken bowl" value="' + esc(pre.name || '') + '"></div>' +
+      '<div class="ds-field"><label>Calories</label><input id="m-cal" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.calories) + '"></div>' +
+      '<div class="ds-field"><label>Protein (g)</label><input id="m-pro" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.protein) + '"></div>' +
+      '<div class="ds-field"><label>Carbs (g)</label><input id="m-carb" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.carbs) + '"></div>' +
+      '<div class="ds-field"><label>Fat (g)</label><input id="m-fat" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.fat) + '"></div>' +
+      '<button class="btn-filled btn-block" id="m-save">Save</button>';
+    var s = DS.sheet(html, { title: pre.id ? 'Edit meal' : 'Log meal', variant: 'form' });
+    s.el.querySelector('#m-save').onclick = function () {
+      var name = s.el.querySelector('#m-name').value.trim();
+      if (!name) { DS.toast('Meal name required'); return; }
+      var cal = num('#m-cal', s), pro = num('#m-pro', s), carb = num('#m-carb', s), fat = num('#m-fat', s);
+      if (pre.id) {
+        // edit in place — keep foodId/micros/amount/unit the module set, only update what the form edits
+        var arr = lsget('nt:logs', []), e = arr.find(function (l) { return String(l.id) === String(pre.id); });
+        if (e) { e.name = name; e.calories = Math.round(cal); e.protein = Math.round(pro); e.carbs = Math.round(carb); e.fat = Math.round(fat); lsset('nt:logs', arr); fire(); }
+        s.close(); DS.toast('Meal updated'); paint('food'); return;
+      }
+      var r = LifeOS.log({ type: 'meal', name: name, calories: cal, protein: pro, carbs: carb, fat: fat });
+      s.close(); DS.toast(r.message || 'Saved'); paint('food');
+    };
+  }
+  function weightSheet(pre) {
+    pre = pre || {};
+    var html = '<div class="ds-field"><label>Weight (kg)</label><input id="w-kg" type="number" inputmode="decimal" step="0.1" value="' + (pre.weight != null ? pre.weight : '') + '"></div>' +
+      '<button class="btn-filled btn-block" id="w-save">Save</button>';
+    var s = DS.sheet(html, { title: 'Log weight', variant: 'form' });
+    s.el.querySelector('#w-save').onclick = function () {
+      var r = LifeOS.log({ type: 'weight', kg: parseFloat(s.el.querySelector('#w-kg').value) });
+      if (!r.ok) { DS.toast(r.message); return; }
+      s.close(); DS.toast(r.message); paint('body');
+    };
+  }
+  function sleepSheet(pre) {
+    pre = pre || {};
+    var hrs = pre.duration ? (pre.duration / 60) : '';
+    var html = '<div class="ds-field"><label>Hours slept</label><input id="s-hrs" type="number" inputmode="decimal" step="0.25" placeholder="7.5" value="' + hrs + '"></div>' +
+      '<button class="btn-filled btn-block" id="s-save">Save</button>';
+    var s = DS.sheet(html, { title: 'Log sleep', variant: 'form' });
+    s.el.querySelector('#s-save').onclick = function () {
+      var r = LifeOS.log({ type: 'sleep', hours: parseFloat(s.el.querySelector('#s-hrs').value) });
+      if (!r.ok) { DS.toast(r.message); return; }
+      s.close(); DS.toast(r.message); paint('body');
+    };
+  }
+  function moodSheet(pre) {
+    pre = pre || {};
+    var opts = '';
+    for (var i = 1; i <= 5; i++) opts += '<option value="' + i + '"' + (pre.mood === i ? ' selected' : '') + '>' + i + ' / 5</option>';
+    var html = '<div class="ds-field"><label>Mood</label><select id="md-v">' + opts + '</select></div>' +
+      '<div class="ds-field"><label>Note (optional)</label><textarea id="md-n" placeholder="What\'s on your mind">' + esc(pre.note || '') + '</textarea></div>' +
+      '<button class="btn-filled btn-block" id="md-save">Save</button>';
+    var s = DS.sheet(html, { title: 'Log mood', variant: 'form' });
+    s.el.querySelector('#md-save').onclick = function () {
+      var r = LifeOS.log({ type: 'mood', mood: +s.el.querySelector('#md-v').value, note: s.el.querySelector('#md-n').value.trim() });
+      if (!r.ok) { DS.toast(r.message); return; }
+      s.close(); DS.toast(r.message); paint('mind');
+    };
+  }
+  function skinSheet(pre) {
+    pre = pre || {};
+    var opts = '';
+    for (var i = 1; i <= 5; i++) opts += '<option value="' + i + '"' + (pre.rating === i ? ' selected' : '') + '>' + i + ' / 5</option>';
+    var html = '<div class="ds-field"><label>Skin rating</label><select id="sk-r">' + opts + '</select></div>' +
+      '<div class="ds-field"><label>Concerns (optional)</label><input id="sk-c" type="text" placeholder="e.g. dry, breakout on chin" value="' + esc(concernStr(pre.concerns)) + '"></div>' +
+      '<button class="btn-filled btn-block" id="sk-save">Save</button>';
+    var s = DS.sheet(html, { title: 'Log skin', variant: 'form' });
+    s.el.querySelector('#sk-save').onclick = function () {
+      var t = today(), arr = lsget('skin:logs', []) || [];
+      if (pre.id != null) arr = arr.filter(function (l) { return String(l.id) !== String(pre.id); });
+      var cval = s.el.querySelector('#sk-c').value.trim();
+      arr.push({ id: Date.now(), date: t, rating: +s.el.querySelector('#sk-r').value, concerns: cval ? cval.split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [] });
+      lsset('skin:logs', arr); fire();
+      s.close(); DS.toast('Skin logged'); paint('skin');
+    };
+  }
 
-DS.segmented(seg, function (val) {
-  panels.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.dataset.panel !== val; });
-});
+  // ---- segment controllers ----
+  var C = {
+    food: {
+      label: 'Food',
+      render: function (p) {
+        var key = ntKey();
+        var logs = (lsget('nt:logs', []) || []).filter(function (l) { return String(l.dateKey || '').replace(/\//g, '-') === key; });
+        var tot = logs.reduce(function (a, l) { a.c += l.calories || 0; a.pr += l.protein || 0; return a; }, { c: 0, pr: 0 });
+        var tgt = lsget('nt:targets', {}) || {}, ct = tgt.calories || 2000, pt = tgt.protein || 150;
+        var summary = '<div class="ds-list"><div class="ds-group">' +
+          valueRow('Calories', Math.round(tot.c) + ' / ' + ct + ' kcal') +
+          valueRow('Protein', Math.round(tot.pr) + ' / ' + pt + ' g') + '</div></div>';
+        var add = '<button class="btn-filled btn-block" data-add>+ Log meal</button>';
+        var list = logs.length
+          ? '<div class="ds-list"><div class="ds-list-header">Today</div><div class="ds-group" data-entries>' +
+              logs.map(function (l) { return entryRow({ id: l.id, title: l.name, sub: Math.round(l.calories || 0) + ' kcal · ' + Math.round(l.protein || 0) + 'g P', editable: true }); }).join('') +
+              '</div><div class="ds-list-footer"><a href="nutrition.html">Open Food — database, meals, trends</a></div></div>'
+          : emptyHtml('🍽️', 'No meals logged today', 'Log your first meal to track intake.', 'Log a meal');
+        p.innerHTML = summary + add + list;
+        wireAdd(p, function () { mealSheet(); });
+        wireEntries(p, 'food');
+      },
+      del: function (id) {
+        var arr = lsget('nt:logs', []), i = arr.findIndex(function (l) { return String(l.id) === String(id); });
+        if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('nt:logs', arr); fire();
+        return function () { var a = lsget('nt:logs', []); a.push(it); lsset('nt:logs', a); fire(); };
+      },
+      edit: function (id) { var l = (lsget('nt:logs', []) || []).find(function (x) { return String(x.id) === String(id); }); if (l) mealSheet(l); },
+    },
+
+    body: {
+      label: 'Body',
+      render: function (p) {
+        var t = today();
+        var w = (lsget('po_coach_weights', []) || []).filter(function (e) { return e && e.dateKey === t && e.weight > 0; })[0];
+        var sl = (lsget('sleep:logs', []) || []).filter(function (e) { return e && e.date === t; })[0];
+        var rows = [];
+        if (w) rows.push(entryRow({ id: 'w', title: 'Weight', value: w.weight + ' kg', editable: true }));
+        if (sl) rows.push(entryRow({ id: 's', title: 'Sleep', value: fmtDur(sl.duration), editable: true }));
+        var add = '<button class="btn-filled btn-block" data-add>+ Log body</button>';
+        var entries = rows.length
+          ? '<div class="ds-list"><div class="ds-list-header">Today</div><div class="ds-group" data-entries>' + rows.join('') + '</div></div>'
+          : emptyHtml('⚖️', 'Nothing logged today', 'Log weight or last night\'s sleep.', 'Log body');
+        var more = '<div class="ds-list"><div class="ds-list-header">More</div><div class="ds-group">' +
+          pushRow('Measurements & progress photos', 'body.html') +
+          pushRow('Health metrics (HRV, RHR, steps)', 'health.html') +
+          pushRow('Bloodwork & meds', 'health.html#labs') +
+          pushRow('Wearable', 'watch.html') + '</div></div>';
+        p.innerHTML = add + entries + more;
+        wireAdd(p, function () { DS.actionSheet([{ label: 'Weight', onTap: function () { weightSheet(); } }, { label: 'Sleep', onTap: function () { sleepSheet(); } }], { title: 'Log body' }); });
+        wireEntries(p, 'body');
+      },
+      del: function (id) {
+        var t = today();
+        if (id === 'w') {
+          var arr = lsget('po_coach_weights', []), i = arr.findIndex(function (e) { return e.dateKey === t; });
+          if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('po_coach_weights', arr); fire();
+          return function () { var a = lsget('po_coach_weights', []); a.push(it); a.sort(function (x, y) { return String(x.dateKey).localeCompare(String(y.dateKey)); }); lsset('po_coach_weights', a); fire(); };
+        }
+        var sarr = lsget('sleep:logs', []), si = sarr.findIndex(function (e) { return e.date === t; });
+        if (si < 0) return null; var sit = sarr[si]; sarr.splice(si, 1); lsset('sleep:logs', sarr); fire();
+        return function () { var a = lsget('sleep:logs', []); a.push(sit); lsset('sleep:logs', a); fire(); };
+      },
+      edit: function (id) {
+        var t = today();
+        if (id === 'w') weightSheet((lsget('po_coach_weights', []) || []).filter(function (e) { return e.dateKey === t; })[0]);
+        else sleepSheet((lsget('sleep:logs', []) || []).filter(function (e) { return e.date === t; })[0]);
+      },
+    },
+
+    mind: {
+      label: 'Mind',
+      render: function (p) {
+        var t = today();
+        var m = (lsget('mind:mood:v1', []) || []).filter(function (e) { return e.date === t; })[0];
+        var add = '<button class="btn-filled btn-block" data-add>+ Log mood</button>';
+        var entries = m
+          ? '<div class="ds-list"><div class="ds-list-header">Today</div><div class="ds-group" data-entries>' +
+              entryRow({ id: 'm', title: 'Mood', value: m.mood + '/5', sub: m.note || '', editable: true }) + '</div></div>'
+          : emptyHtml('🧠', 'No mood logged', 'How are you feeling today?', 'Log mood');
+        var more = '<div class="ds-list"><div class="ds-list-header">More</div><div class="ds-group">' +
+          pushRow('Journal, gratitude, meditate', 'mood.html') + '</div></div>';
+        p.innerHTML = add + entries + more;
+        wireAdd(p, function () { moodSheet(); });
+        wireEntries(p, 'mind');
+      },
+      del: function () {
+        var t = today(), arr = lsget('mind:mood:v1', []), i = arr.findIndex(function (e) { return e.date === t; });
+        if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('mind:mood:v1', arr); fire();
+        return function () { var a = lsget('mind:mood:v1', []); a.push(it); lsset('mind:mood:v1', a); fire(); };
+      },
+      edit: function () { moodSheet((lsget('mind:mood:v1', []) || []).filter(function (e) { return e.date === today(); })[0]); },
+    },
+
+    training: {
+      label: 'Training',
+      render: function (p) {
+        var t = today(), done = lsget('po_coach_workout_done', {}) || {}, on = !!done[t];
+        var n = 0; for (var i = 0; i < 7; i++) if (done[offset(-i)]) n++;
+        var list = '<div class="ds-list"><div class="ds-group">' +
+          '<div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">Worked out today</div></div>' +
+          '<label class="ds-switch"><input type="checkbox" id="t-done"' + (on ? ' checked' : '') + '><span class="track"></span></label></div>' +
+          valueRow('This week', n + ' / 7 sessions') + '</div></div>';
+        var more = '<div class="ds-list"><div class="ds-list-header">More</div><div class="ds-group">' +
+          pushRow('Open Gym — workout, PRs, templates, cardio', 'gym.html') + '</div></div>';
+        p.innerHTML = list + more;
+        p.querySelector('#t-done').onchange = function () {
+          var d = lsget('po_coach_workout_done', {}) || {};
+          if (this.checked) d[t] = true; else delete d[t];
+          lsset('po_coach_workout_done', d); fire();
+          DS.toast(this.checked ? 'Workout logged' : 'Cleared'); paint('training');
+        };
+      },
+    },
+
+    skin: {
+      label: 'Skin',
+      render: function (p) {
+        var t = today();
+        var todays = (lsget('skin:logs', []) || []).slice().sort(byDateDesc).filter(function (e) { return e.date === t; });
+        var add = '<button class="btn-filled btn-block" data-add>+ Log skin</button>';
+        var entries = todays.length
+          ? '<div class="ds-list"><div class="ds-list-header">Today</div><div class="ds-group" data-entries>' +
+              todays.map(function (l) { return entryRow({ id: l.id != null ? l.id : l.date, title: 'Rating ' + (l.rating || '—') + '/5', sub: concernStr(l.concerns), editable: true }); }).join('') + '</div></div>'
+          : emptyHtml('🧴', 'No skin check today', 'Rate your skin and note concerns.', 'Log skin');
+        var more = '<div class="ds-list"><div class="ds-list-header">More</div><div class="ds-group">' +
+          pushRow('Routine, products, breakouts', 'skin.html') +
+          pushRow('Lab — ingredients & devices', 'glowlab.html') + '</div></div>';
+        p.innerHTML = add + entries + more;
+        wireAdd(p, function () { skinSheet(); });
+        wireEntries(p, 'skin');
+      },
+      del: function (id) {
+        var arr = lsget('skin:logs', []), i = arr.findIndex(function (l) { return String(l.id != null ? l.id : l.date) === String(id); });
+        if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('skin:logs', arr); fire();
+        return function () { var a = lsget('skin:logs', []); a.push(it); lsset('skin:logs', a); fire(); };
+      },
+      edit: function (id) { var l = (lsget('skin:logs', []) || []).find(function (x) { return String(x.id != null ? x.id : x.date) === String(id); }); if (l) skinSheet(l); },
+    },
+
+    habits: {
+      label: 'Habits',
+      render: function (p) {
+        var defs = lsget('habits:v1', []) || [], t = today(), logs = lsget('habits:logs:v1', {}) || {}, doneToday = logs[t] || [];
+        if (!defs.length) {
+          p.innerHTML = emptyHtml('✅', 'No habits yet', 'Create habits to build streaks.', 'Manage habits');
+          wireAdd(p, function () { location.href = 'habits.html'; });
+          return;
+        }
+        var rows = defs.map(function (h) {
+          var id = h.id != null ? h.id : (h.name || h.title);
+          var on = doneToday.some(function (x) { return String(x) === String(id); });
+          return '<div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">' + esc(h.name || h.title || 'Habit') + '</div></div>' +
+            '<label class="ds-switch"><input type="checkbox" data-h="' + esc(id) + '"' + (on ? ' checked' : '') + '><span class="track"></span></label></div>';
+        }).join('');
+        p.innerHTML = '<div class="ds-list"><div class="ds-list-header">Today</div><div class="ds-group">' + rows +
+          '</div><div class="ds-list-footer"><a href="habits.html">Manage habits & streaks</a></div></div>';
+        p.querySelectorAll('[data-h]').forEach(function (cb) {
+          cb.onchange = function () {
+            var lg = lsget('habits:logs:v1', {}) || {}, arr = (lg[t] || []).filter(function (x) { return String(x) !== cb.getAttribute('data-h'); });
+            if (cb.checked) arr.push(cb.getAttribute('data-h')); // string id — matches habits.html Set keys
+            lg[t] = arr; lsset('habits:logs:v1', lg); fire();
+          };
+        });
+      },
+    },
+
+    water: {
+      label: 'Water',
+      render: function (p) {
+        var t = today(), ws = lsget('po_water_v1', {}) || {}, logs = ws.logs || {}, count = logs[t] || 0;
+        var wKg = (ws.profile || {}).weightKg || 75, bMl = ws.bottleMl || 500, target = Math.max(1, Math.ceil(wKg * 35 / bMl));
+        p.innerHTML = '<div class="ds-list"><div class="ds-group">' +
+          '<div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">Water</div><div class="ds-row-sub">bottles today</div></div>' +
+          '<div class="ds-stepper" data-min="0" data-max="30" data-step="1"><button>−</button><span class="val">' + count + '</span><button>+</button></div></div>' +
+          valueRow('Target', count + ' / ' + target + ' bottles') + '</div>' +
+          '<div class="ds-list-footer"><a href="water.html">History & reminders</a></div></div>';
+        DS.stepper(p.querySelector('.ds-stepper'), function (n) {
+          var w = lsget('po_water_v1', {}) || {}; w.logs = w.logs || {}; w.logs[t] = n; lsset('po_water_v1', w); fire(); paint('water');
+        });
+      },
+    },
+
+    supps: {
+      label: 'Supplements',
+      render: function (p) {
+        var items = lsget('stack:items', []) || [], t = today(), taken = lsget('stack:taken:' + t, {}) || {};
+        if (!items.length) {
+          p.innerHTML = emptyHtml('💊', 'No supplement stack', 'Build your stack to track doses.', 'Manage stack') +
+            '<div class="ds-list"><div class="ds-group">' + pushRow('Medications', 'health.html#meds') + '</div></div>';
+          wireAdd(p, function () { location.href = 'reminders.html'; });
+          return;
+        }
+        var rows = items.map(function (it) {
+          return '<div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">' + esc(it.name || 'Supplement') + '</div>' +
+            (it.dose ? '<div class="ds-row-sub">' + esc(it.dose) + '</div>' : '') + '</div>' +
+            '<label class="ds-switch"><input type="checkbox" data-s="' + esc(it.id) + '"' + (taken[it.id] ? ' checked' : '') + '><span class="track"></span></label></div>';
+        }).join('');
+        p.innerHTML = '<div class="ds-list"><div class="ds-list-header">Due today</div><div class="ds-group">' + rows +
+          '</div><div class="ds-list-footer"><a href="reminders.html">Manage stack & schedule</a> · <a href="health.html#meds">Meds</a></div></div>';
+        p.querySelectorAll('[data-s]').forEach(function (cb) {
+          cb.onchange = function () {
+            var tk = lsget('stack:taken:' + t, {}) || {}, id = cb.getAttribute('data-s');
+            if (cb.checked) tk[id] = true; else delete tk[id];
+            lsset('stack:taken:' + t, tk); fire();
+          };
+        });
+      },
+    },
+  };
+
+  var ORDER = ['food', 'body', 'mind', 'training', 'skin', 'habits', 'water', 'supps'];
+  var seg = document.getElementById('seg');
+  var panels = document.getElementById('panels');
+  var active = ORDER[0];
+
+  function panelOf(id) { return panels.querySelector('[data-panel="' + id + '"]'); }
+  function paint(id) {
+    var p = panelOf(id); if (!p) return;
+    // localStorage reads are synchronous, so render directly — no skeleton flash.
+    try { C[id].render(p); }
+    catch (e) {
+      p.innerHTML = errBlock(e.message);
+      var r = p.querySelector('[data-retry]'); if (r) r.onclick = function () { paint(id); };
+    }
+  }
+
+  ORDER.forEach(function (id, i) {
+    var b = document.createElement('button');
+    b.dataset.value = id; b.textContent = C[id].label;
+    if (i === 0) b.setAttribute('aria-selected', 'true');
+    seg.appendChild(b);
+    var pn = document.createElement('section');
+    pn.className = 'panel'; pn.dataset.panel = id; if (i !== 0) pn.hidden = true;
+    panels.appendChild(pn);
+  });
+
+  DS.segmented(seg, function (val) {
+    active = val;
+    panels.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.dataset.panel !== val; });
+    paint(val);
+  });
+
+  // keep the visible segment fresh when the operator/other tabs write
+  window.addEventListener('lifeos:logged', function (e) {
+    if (e && e.detail && e.detail.src === 'log') return; // our own writes already repaint
+    paint(active);
+  });
+
+  function start() { paint(active); }
+  if (window.LifeOS) start();
+  else window.addEventListener('lifeos:ready', start, { once: true });
+})();
 </script>
 </body>
 </html>

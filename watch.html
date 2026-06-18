@@ -12,7 +12,7 @@
       --card: rgba(255,255,255,0.04);
       --border: rgba(255,255,255,0.08);
       --text: #E8E6E0;
-      --muted: #76746E;
+      --muted: #8E8E93; /* AA: was #76746E 4.2:1 */
       --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -393,7 +393,7 @@
     const today = last7[last7.length - 1];
     const maxVal = Math.max(...last7.map(s => s.steps), 1);
     const avg = Math.round(last7.reduce((s, d) => s + d.steps, 0) / last7.length);
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = (function(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')})(new Date());
     const bars = last7.map(d => {
       const h = Math.max(3, Math.round((d.steps / maxVal) * 60));
       return `<div class="bar-wrap">

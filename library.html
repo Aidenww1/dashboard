@@ -103,12 +103,12 @@ main{position:relative;z-index:2;max-width:720px;margin:0 auto;padding:56px 20px
 'use strict';
 const BOOK_KEY='library:books:v1';
 const COURSE_KEY='library:courses:v1';
-function loadBooks(){return JSON.parse(localStorage.getItem(BOOK_KEY)||'[]')}
+function loadBooks(){try{return JSON.parse(localStorage.getItem(BOOK_KEY)||'[]')||[]}catch(e){return[]}}
 function saveBooks(d){localStorage.setItem(BOOK_KEY,JSON.stringify(d))}
-function loadCourses(){return JSON.parse(localStorage.getItem(COURSE_KEY)||'[]')}
+function loadCourses(){try{return JSON.parse(localStorage.getItem(COURSE_KEY)||'[]')||[]}catch(e){return[]}}
 function saveCourses(d){localStorage.setItem(COURSE_KEY,JSON.stringify(d))}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-function today(){return new Date().toISOString().slice(0,10)}
+function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 
 function renderStats(){
   const books=loadBooks();

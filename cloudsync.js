@@ -31,6 +31,14 @@
   var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
   var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
 
+  // Phase 10: once the owner is logged in, send the session JWT as the bearer
+  // (apikey stays the publishable key). Pre-login LifeOSAuth.token() is null, so
+  // this falls back to the publishable key -> identical to today's behaviour.
+  function bearer() {
+    var t = (window.LifeOSAuth && window.LifeOSAuth.token && window.LifeOSAuth.token()) || SUPA_KEY;
+    return 'Bearer ' + t;
+  }
+
   function jparse(v) { try { return JSON.parse(v); } catch (e) { return undefined; } }
 
   // remote row.data -> { vals, ts, legacy }
@@ -82,6 +90,13 @@
     var META = 'sync:meta:' + appKey;
     var _set = localStorage.setItem.bind(localStorage);
     var pushTimer = null, syncing = false, deferBound = false;
+    // Realtime fires postgres_changes for OUR OWN put() too. Without this guard
+    // every push echoes back as a "remote change" -> schedule() -> syncOnce ->
+    // (if the write was slow/failed) another push = a request storm. Suppress
+    // the echo for a short window after our own push; a genuine remote edit
+    // after the window, plus the load/focusout/hide syncs, still get through.
+    var lastPushAt = 0;
+    var ECHO_WINDOW_MS = 1500;
 
     function matches(k) {
       if (!k) return false;
@@ -129,11 +144,12 @@
     }
 
     function put(vals, ts) {
+      lastPushAt = Date.now();
       try {
         fetch(SUPA_URL + '/rest/v1/app_state?on_conflict=key', {
           method: 'POST',
           headers: {
-            apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY,
+            apikey: SUPA_KEY, Authorization: bearer(),
             'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates',
           },
           body: JSON.stringify({ key: appKey, data: { __v: 2, vals: vals, ts: ts }, updated_at: new Date().toISOString() }),
@@ -146,7 +162,7 @@
       if (syncing || !navigator.onLine) return;
       syncing = true;
       fetch(SUPA_URL + '/rest/v1/app_state?select=data&key=eq.' + encodeURIComponent(appKey) + '&limit=1',
-        { headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY } })
+        { headers: { apikey: SUPA_KEY, Authorization: bearer() } })
         .then(function (r) { return r.ok ? r.json() : []; })
         .then(function (rows) {
           var hadRow = !!(rows[0] && rows[0].data);
@@ -203,7 +219,11 @@
         if (!window.__cloudClient) window.__cloudClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
         window.__cloudClient
           .channel('cs_' + appKey)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + appKey }, function () { schedule(); })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + appKey }, function () {
+            // Ignore the echo of our own push; only re-sync for a genuine
+            // remote (other-device) change.
+            if (Date.now() - lastPushAt > ECHO_WINDOW_MS) schedule();
+          })
           .subscribe();
       }
     } catch (e) {}

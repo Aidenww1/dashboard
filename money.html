@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Money</title>
+<link rel="stylesheet" href="design.css">
+<style>
+  body { margin: 0; padding-bottom: 96px; color: var(--text-primary); min-height: 100vh; }
+  .ds-wrap { max-width: 600px; margin: 0 auto; padding: 8px 16px 0; }
+  .ds-wrap .ds-list { margin-bottom: 14px; }
+  .ds-wrap > .btn-block, .panel > .btn-block { margin: 4px 0 12px; }
+  .nw-hero { text-align: center; padding: 18px 16px 16px; }
+  .nw-label { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
+  .nw-total { font-size: 44px; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-top: 6px; }
+  .nw-break { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; margin-top: 12px; }
+  .nw-break span { font-size: 12px; color: var(--text-secondary); }
+  .nw-break b { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .disclaimer { font-size: 11px; color: var(--text-tertiary); text-align: center; padding: 4px 8px 20px; }
+</style>
+</head>
+<body>
+
+<header class="ds-nav" data-ds-nav>
+  <div class="ds-nav-bar"><span class="ds-nav-inline">Money</span></div>
+  <h1 class="ds-largetitle">Money</h1>
+</header>
+
+<main class="ds-wrap" id="sections"></main>
+
+<script src="lifeos-core.js"></script>
+<script src="ds.js"></script>
+<script src="tabbar.js" defer></script>
+<script>
+/* ============================================================
+   Phase 5 — Money: the whole financial life, calm.
+   Overview surface (net-worth hero + grouped section list) in
+   the Apple grammar. Each row pushes into the existing
+   finance.html detail at ?tab=<name>, which stays the rich
+   editing/import host. Reads the same stores finance.html uses
+   so the numbers reconcile. (Full monolith split into lazy
+   per-section files is deferred — finance.html remains the host.)
+   ============================================================ */
+(function () {
+  'use strict';
+
+  function lsget(k, fb) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch (_) { return fb; } }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function money(n) { return '€ ' + (Math.round(Number(n) || 0)).toLocaleString('en-US'); }
+
+  function catTotal(cat) {
+    return (lsget('nw:' + cat, []) || []).reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0);
+  }
+
+  function pushRow(title, sub, tab, href) {
+    var h = href || ('finance.html#' + tab); // hash survives the .html->clean-url redirect; query string does not
+    return '<a class="ds-row" href="' + h + '"><div class="ds-row-body"><div class="ds-row-title">' + esc(title) + '</div>' +
+      (sub ? '<div class="ds-row-sub">' + esc(sub) + '</div>' : '') + '</div><span class="ds-row-chevron"></span></a>';
+  }
+  function group(header, rows) {
+    return '<div class="ds-list"><div class="ds-list-header">' + esc(header) + '</div><div class="ds-group">' + rows.join('') + '</div></div>';
+  }
+
+  function build() {
+    var root = document.getElementById('sections');
+    var bank = catTotal('bank'), stocks = catTotal('stocks'), crypto = catTotal('crypto'), other = catTotal('other');
+    var nw = bank + stocks + crypto + other;
+    var fin = {};
+    try { fin = LifeOS.context('finance') || {}; } catch (_) {}
+
+    // Hero
+    var hero = '<div class="ds-list"><div class="ds-group"><div class="nw-hero">' +
+      '<div class="nw-label">Net worth</div>' +
+      '<div class="nw-total">' + money(nw) + '</div>';
+    if (nw) {
+      hero += '<div class="nw-break">' +
+        '<span>Bank <b>' + money(bank) + '</b></span>' +
+        '<span>Stocks <b>' + money(stocks) + '</b></span>' +
+        '<span>Crypto <b>' + money(crypto) + '</b></span>' +
+        '<span>Other <b>' + money(other) + '</b></span></div>';
+    } else {
+      hero += '<div class="ds-row-sub" style="margin-top:8px">No balances yet — open Net worth to add accounts.</div>';
+    }
+    hero += '</div></div></div>';
+
+    // Quick money stats (deterministic, from LifeOS)
+    var statRows = [];
+    if (fin.monthly_income != null) statRows.push(['Monthly income', money(fin.monthly_income)]);
+    if (fin.monthly_expenses_est != null) statRows.push(['Monthly expenses (est.)', money(fin.monthly_expenses_est)]);
+    if (fin.subscriptions_monthly != null) statRows.push(['Subscriptions', money(fin.subscriptions_monthly) + ' / mo']);
+    if (fin.savings_rate_pct != null) statRows.push(['Savings rate', fin.savings_rate_pct + '%']);
+    var stats = statRows.length
+      ? '<div class="ds-list"><div class="ds-list-header">This month</div><div class="ds-group">' +
+          statRows.map(function (r) { return '<div class="ds-row"><div class="ds-row-body"><div class="ds-row-title">' + r[0] + '</div></div><span class="ds-row-value">' + esc(r[1]) + '</span></div>'; }).join('') +
+          '</div></div>'
+      : '';
+
+    var add = '<button class="btn-filled btn-block" id="moAdd">+ Add transaction</button>';
+
+    var groups = [
+      group('Accounts & cash', [
+        pushRow('Accounts', null, 'accounts'),
+        pushRow('Cash flow', null, 'cashflow'),
+        pushRow('Transactions', null, 'transactions'),
+        pushRow('Budget', null, 'budget'),
+      ]),
+      group('Recurring & spending', [
+        pushRow('Subscriptions', fin.subscriptions_monthly != null ? money(fin.subscriptions_monthly) + ' / mo' : null, 'subs'),
+        pushRow('Orders', null, 'incoming'),
+        pushRow('Wishlist', null, 'wish'),
+      ]),
+      group('Income & growth', [
+        pushRow('Income', fin.monthly_income != null ? money(fin.monthly_income) + ' / mo' : null, 'income'),
+        pushRow('Portfolio', null, 'portfolio'),
+        pushRow('Compound calculator', null, 'compound'),
+      ]),
+      group('More in Money', [
+        pushRow('Business', fin.business_profit_ytd != null ? money(fin.business_profit_ytd) + ' YTD' : null, 'business'),
+        pushRow('Invoices', null, 'invoices'),
+        pushRow('Debt', null, 'debt'),
+        pushRow('Vehicle', null, 'vehicle'),
+      ]),
+      group('Net worth & data', [
+        pushRow('Net worth detail', null, 'net'),
+        pushRow('Fix my data', 'Find and correct anomalies', null, 'fix.html'),
+      ]),
+    ];
+
+    root.innerHTML = hero + stats + add + groups.join('') +
+      '<div class="disclaimer">Not financial advice. Figures are your own logged data.</div>';
+    document.getElementById('moAdd').onclick = function () { location.href = 'finance.html#cashflow'; };
+  }
+
+  if (window.LifeOS) build();
+  else window.addEventListener('lifeos:ready', build, { once: true });
+})();
+</script>
+</body>
+</html>
