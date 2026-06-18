@@ -20,7 +20,7 @@ async function supaSet(key, data) {
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates',
     },
-    body: JSON.stringify({ key, data, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ key, data, updated_at: new Date().toISOString(), user_id: process.env.OWNER_UID }),
   });
 }
 

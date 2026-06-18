@@ -72,19 +72,33 @@ MUST stamp `user_id = OWNER_UID` on insert so reads (which may go through RLS) m
 
 ## 6. Server changes
 
-- Health/ingest routes already use `SUPABASE_SERVICE_KEY` (bypasses RLS) + their own
-  secrets (`SLEEP_INGEST_TOKEN`, `CRON_SECRET`). Add `user_id = OWNER_UID` to inserts.
+- Health/ingest routes use `SUPABASE_SERVICE_KEY` (bypasses RLS) + their own secrets
+  (`SLEEP_INGEST_TOKEN`, `CRON_SECRET`).
+- **CRITICAL FINDING (self-review, HIGH) — FIXED IN CODE.** Service-role inserts run
+  with `auth.uid() = NULL`, so the `user_id NOT NULL DEFAULT auth.uid()` column would
+  get NULL → **every server insert would fail (and NULL-owned rows would be invisible
+  to the owner's authed reads).** Fixed: all six Supabase-insert routes now stamp
+  `user_id: process.env.OWNER_UID` —
+  `api/health/[type].js`, `api/health-ai/agent.js` (health + events + briefing),
+  `api/events/add.js`, `api/push-subscribe.js`, `api/sleep-ingest.js`, `api/_webpush.js`.
+  Pre-cutover `OWNER_UID` is unset → `undefined` → omitted by `JSON.stringify` →
+  behaviour is byte-identical to today. **You MUST set the `OWNER_UID` env var
+  (= the auth user's id) on Vercel before enabling the NOT NULL constraint / RLS**,
+  or server ingestion breaks.
 - After cutover, rotate the publishable key (it was exposed pre-RLS) — TODO P0 item.
 
 ## 7. Cutover order (do NOT reorder)
 
 1. Ship client build that can authenticate but still works pre-RLS (auth optional).
-2. Owner logs in once on the deployed app; confirm session works.
-3. Run §2 schema + backfill (rows now owned by OWNER_UID).
-4. Run §3 enable RLS + policies.
-5. Owner reloads → confirms data still visible (now via session).
-6. Make auth **required** (remove the pre-RLS fallback).
-7. Rotate publishable key.
+2. Create the Supabase auth user; copy its id.
+3. Set `OWNER_UID` env on Vercel = that id, and redeploy (so server routes stamp it).
+4. Owner logs in once on the deployed app; confirm session works.
+5. Run §2 schema + backfill (rows now owned by OWNER_UID).
+6. Run §3 enable RLS + policies.
+7. Owner reloads → confirms data still visible (now via session); confirm a server
+   ingest (e.g. Tasker push) still writes a row.
+8. `LifeOSAuth.setRequired(true)` → make auth required (remove the pre-RLS fallback).
+9. Rotate publishable key.
 
 ## 8. Rollback
 

@@ -205,7 +205,8 @@ async function sbWrite(metric, data) {
       'Content-Type': 'application/json',
       Prefer: 'return=minimal',
     },
-    body: JSON.stringify({ data }),
+    // Phase 10 RLS: stamp owner (OWNER_UID unset pre-cutover -> omitted -> no change).
+    body: JSON.stringify({ data, user_id: process.env.OWNER_UID }),
   });
   if (!r.ok) return { error: `${table}: ${await r.text()}` };
   return { ok: true, table };
@@ -288,7 +289,7 @@ async function executeTool(name, input) {
         const r = await fetch(`${SUPA_URL}/rest/v1/events`, {
           method: 'POST',
           headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-          body: JSON.stringify(row),
+          body: JSON.stringify({ ...row, user_id: process.env.OWNER_UID }),
         });
         if (r.ok) {
           // stash the briefing where the SW can read it, then push a tickle to subscribed devices
@@ -296,7 +297,7 @@ async function executeTool(name, input) {
             await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
               method: 'POST',
               headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
-              body: JSON.stringify({ key: 'push:briefing:v1', data: { text: input.text, at: new Date().toISOString(), date: new Date().toISOString().slice(0, 10) }, updated_at: new Date().toISOString() }),
+              body: JSON.stringify({ key: 'push:briefing:v1', data: { text: input.text, at: new Date().toISOString(), date: new Date().toISOString().slice(0, 10) }, updated_at: new Date().toISOString(), user_id: process.env.OWNER_UID }),
             });
             await sendPushToAll();
           } catch (e) { /* push failure must never fail the briefing */ }
@@ -316,7 +317,7 @@ async function executeTool(name, input) {
         const r = await fetch(`${SUPA_URL}/rest/v1/events`, {
           method: 'POST',
           headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-          body: JSON.stringify(row),
+          body: JSON.stringify({ ...row, user_id: process.env.OWNER_UID }),
         });
         return r.ok ? { ok: true } : { error: await r.text() };
       }

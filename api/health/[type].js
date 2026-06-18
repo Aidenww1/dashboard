@@ -69,7 +69,10 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         Prefer: 'return=minimal',
       },
-      body: JSON.stringify({ data: body }),
+      // Phase 10 RLS: stamp the owner so service-role inserts satisfy the
+      // user_id NOT NULL policy. Pre-cutover OWNER_UID is unset -> undefined ->
+      // omitted by JSON.stringify -> identical to today. Set OWNER_UID env at cutover.
+      body: JSON.stringify({ data: body, user_id: process.env.OWNER_UID }),
     });
     if (!r.ok) {
       const err = await r.text();

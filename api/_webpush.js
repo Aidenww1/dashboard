@@ -89,7 +89,7 @@ export async function sendPushToAll() {
     await fetch(`${SUPA_URL}/rest/v1/app_state?on_conflict=key`, {
       method: 'POST',
       headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
-      body: JSON.stringify({ key: 'push:subs:v1', data: { subs: keep }, updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ key: 'push:subs:v1', data: { subs: keep }, updated_at: new Date().toISOString(), user_id: process.env.OWNER_UID }),
     });
   }
   return { sent, total: subs.length };

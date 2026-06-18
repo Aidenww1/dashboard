@@ -14,7 +14,8 @@ async function insertEvent(row) {
       'Content-Type': 'application/json',
       Prefer: 'return=representation',
     },
-    body: JSON.stringify(row),
+    // Phase 10 RLS: stamp owner (OWNER_UID unset pre-cutover -> omitted -> no change).
+    body: JSON.stringify({ ...row, user_id: process.env.OWNER_UID }),
   });
   if (!r.ok) throw new Error(await r.text());
   const rows = await r.json();

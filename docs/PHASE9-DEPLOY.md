@@ -53,6 +53,7 @@ Server-only (NEVER shipped to client). Confirm each is set before deploy:
 | `GOOGLE_CLIENT_ID` | gcal-nlp | calendar OAuth |
 | `SLEEP_INGEST_TOKEN` | sleep-ingest | endpoint auth |
 | `CRON_SECRET` | health-ai/agent cron | cron auth |
+| `OWNER_UID` | all Supabase-insert routes | **Phase 10 only** — set = auth user id before enabling RLS (see PHASE10-AUTH-RLS.md §6). Unset pre-cutover = no effect. |
 
 Client uses only the Supabase **publishable** key (`sb_publishable_…`, already in
 client code — safe by design, RLS-protected once Phase 10 lands).
