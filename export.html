@@ -607,11 +607,30 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
     }).catch(function (e) { setCloudStatus('Could not load backups: ' + (e.message || e), true); });
   });
 
-  function downloadCurrentState() {
+  // Pure backup/restore round-trip (shared by download + cloud restore, and
+  // unit-tested in tests/backup.test.js). snapshot() captures every localStorage
+  // key (parsed where it's JSON, raw string otherwise); applySnapshot() writes
+  // them back so applySnapshot(snapshot()) is an identity on stored values.
+  function snapshot() {
     var all = {};
     Object.keys(localStorage).forEach(function (k) {
       try { all[k] = JSON.parse(localStorage.getItem(k)); } catch (e) { all[k] = localStorage.getItem(k); }
     });
+    return all;
+  }
+  function applySnapshot(snap) {
+    if (!snap || typeof snap !== 'object') return 0;
+    var n = 0;
+    Object.keys(snap).forEach(function (k) {
+      try { localStorage.setItem(k, typeof snap[k] === 'string' ? snap[k] : JSON.stringify(snap[k])); n++; } catch (e) {}
+    });
+    return n;
+  }
+  window.__snapshot = snapshot;             // test hooks (pure)
+  window.__applySnapshot = applySnapshot;
+
+  function downloadCurrentState() {
+    var all = snapshot();
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' }));
     a.download = 'pre_restore_state_' + Date.now() + '.json';
@@ -629,9 +648,7 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
         var snap = rows[0] && rows[0].data && rows[0].data.snapshot;
         if (!snap || typeof snap !== 'object' || !Object.keys(snap).length) throw new Error('Backup slot is empty');
         downloadCurrentState();
-        Object.keys(snap).forEach(function (k) {
-          try { localStorage.setItem(k, typeof snap[k] === 'string' ? snap[k] : JSON.stringify(snap[k])); } catch (e) {}
-        });
+        applySnapshot(snap);
         setCloudStatus('Restored ' + Object.keys(snap).length + ' keys from ' + date + '. Reloading…');
         setTimeout(function () { location.reload(); }, 1200);
       })
