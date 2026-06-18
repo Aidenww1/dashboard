@@ -103,8 +103,11 @@
             return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(cfg.publicKey) });
           });
         }).then(function (sub) {
+          var tok = window.LifeOSAuth && window.LifeOSAuth.token && window.LifeOSAuth.token();
+          var hdrs = { 'Content-Type': 'application/json' };
+          if (tok) hdrs.Authorization = 'Bearer ' + tok; // Phase 10: authenticates POST once PUSH_REQUIRE_AUTH is on
           return fetch('/api/push-subscribe', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: hdrs,
             body: JSON.stringify({ subscription: sub.toJSON() }),
           }).then(function (r) { return r.ok ? 'ok' : 'error'; });
         });
@@ -118,7 +121,10 @@
         if (!sub) return false;
         var endpoint = sub.endpoint;
         return sub.unsubscribe().then(function () {
-          return fetch('/api/push-subscribe', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: endpoint }) }).then(function () { return true; });
+          var tok = window.LifeOSAuth && window.LifeOSAuth.token && window.LifeOSAuth.token();
+          var hdrs = { 'Content-Type': 'application/json' };
+          if (tok) hdrs.Authorization = 'Bearer ' + tok; // Phase 10: authenticates DELETE once enforced
+          return fetch('/api/push-subscribe', { method: 'DELETE', headers: hdrs, body: JSON.stringify({ endpoint: endpoint }) }).then(function () { return true; });
         });
       });
     }).catch(function () { return false; });

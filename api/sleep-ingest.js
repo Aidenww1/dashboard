@@ -1,7 +1,10 @@
 import { checkIngestToken } from './_ingest-auth.js';
 
-const SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
-const SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+const SUPA_URL = process.env.SUPABASE_URL || 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+// Service key (server-only, bypasses RLS) so server ingest keeps writing after the
+// Phase 10 RLS cutover. Falls back to the publishable key pre-cutover if the env
+// isn't set, so behaviour is unchanged until the service key is configured.
+const SUPA_KEY = process.env.SUPABASE_SERVICE_KEY || 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
 const SLEEP_KEY = 'sleep:logs';
 
 async function supaGet(key) {

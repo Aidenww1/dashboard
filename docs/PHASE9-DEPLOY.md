@@ -53,6 +53,8 @@ Server-only (NEVER shipped to client). Confirm each is set before deploy:
 | `GOOGLE_CLIENT_ID` | gcal-nlp | calendar OAuth |
 | `SLEEP_INGEST_TOKEN` | sleep-ingest | endpoint auth — **now required** (fails closed if unset) |
 | `HEALTH_INGEST_TOKEN` | health/[type] ingest | **set + add to Tasker** to lock the open health endpoint (Phase 10) |
+| `PUSH_REQUIRE_AUTH` | push-subscribe | **Phase 10** — set (any value) after login works to require a session on push register/unregister |
+| `SUPABASE_ANON_KEY` | push-subscribe session check | optional; defaults to the publishable key for `/auth/v1/user` validation |
 | `CRON_SECRET` | health-ai/agent cron | cron auth |
 | `OWNER_UID` | all Supabase-insert routes | **Phase 10 only** — set = auth user id before enabling RLS (see PHASE10-AUTH-RLS.md §6). Unset pre-cutover = no effect. |
 

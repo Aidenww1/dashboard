@@ -132,14 +132,17 @@ MUST stamp `user_id = OWNER_UID` on insert so reads (which may go through RLS) m
   can't write. At cutover, switch `api/sleep-ingest.js` to `SUPABASE_SERVICE_KEY`
   (server-only, bypasses RLS) so server ingest keeps working. (Already stamps
   user_id.)
-- **[HIGH, cutover] push-subscribe.js is unauthenticated** (service key, no auth). A
-  POST registers any push subscription into `push:subs:v1`; an attacker could add
-  THEIR endpoint and receive the owner's AI briefing pushes (personal health/finance
-  data), or DELETE to drop the owner's subs. It's browser-called, so the right fix is
-  the **user session** (gate POST/DELETE on a valid Supabase session at the auth
-  cutover), not an ingest token. GET (returns the VAPID public key) can stay open.
-  Until then this is a known pre-RLS exposure. Same applies to the read endpoints
-  (`health/read/[type]`, `life-context`) which RLS will protect.
+- **[HIGH, STAGED] push-subscribe.js was unauthenticated** (service key). A POST
+  registers any push subscription into `push:subs:v1`; an attacker could add THEIR
+  endpoint and receive the owner's AI briefing pushes, or DELETE the owner's subs.
+  Staged fix: `verifySession()` validates the `Authorization: Bearer <session JWT>`
+  via Supabase `/auth/v1/user`; POST/DELETE are gated **only when `PUSH_REQUIRE_AUTH`
+  is set** (GET of the VAPID key stays open). `pwa.js` now attaches the session token
+  to its POST/DELETE (null pre-login → unchanged). **Cutover: set `PUSH_REQUIRE_AUTH`
+  after login works.** Read endpoints (`health/read/[type]`, `life-context`) get RLS.
+- **[MEDIUM, STAGED] sleep-ingest now prefers the service key** —
+  `process.env.SUPABASE_SERVICE_KEY || <publishable>` so it keeps writing post-RLS;
+  falls back to publishable until the env is set (unchanged pre-cutover).
 - **[LOW, accepted] auth gate not focus-trapped / `auth:required` flag is localStorage
   (tamperable)** — acceptable: the gate is UX, RLS server-side is the real boundary;
   single-user on own device.
