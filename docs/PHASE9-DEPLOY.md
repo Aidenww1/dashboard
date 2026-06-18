@@ -57,6 +57,18 @@ Server-only (NEVER shipped to client). Confirm each is set before deploy:
 Client uses only the Supabase **publishable** key (`sb_publishable_…`, already in
 client code — safe by design, RLS-protected once Phase 10 lands).
 
+## 3b. Pre-flight verification (done autonomously)
+
+- All 11 `api/*.js` serverless functions are valid ESM (`node --check --input-type=module`
+  passes for each). They use `import`/`export`; Vercel's Node builder treats them as
+  ESM via syntax detection.
+- `package.json` is intentionally **type-less**. Do NOT add `"type":"module"` — it
+  would break the CommonJS test suite (`tests/*.test.js` use `require`) and
+  `dates.js`'s `module.exports` dual-export, while the api functions already work as
+  ESM without it. (If a future @vercel/node ever fails ESM syntax-detection, the
+  surgical fix is renaming api files to `.mjs`, not flipping the package type.)
+- `node tests/run.js` → 124/124 green.
+
 ## 4. Known risks before deploy
 
 - **No Auth/RLS yet (Phase 10).** Supabase tables are reachable with the publishable
