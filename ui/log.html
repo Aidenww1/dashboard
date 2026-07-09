@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Log — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  /* ============================================================
+     Page-local Log styles (Phase 3). Scoped under body[data-page="log"]
+     and the .lg- prefix so nothing leaks to Today/More/Coach/Money.
+     Uses ONLY shared tokens + shared component classes; this block is
+     layout/arrangement, not a new visual language.
+     ============================================================ */
+  body[data-page="log"] .content { max-width: 1390px; padding-top: 0; }
+  body[data-page="log"] .page-head { margin-bottom: 8px; }
+  body[data-page="log"] .page-date { margin-top: 0; }
+  body[data-page="log"] .page-head-r { min-width: min(58vw, 820px); }
+  body[data-page="log"] .search { max-width: 760px; }
+  body[data-page="log"] .lg-seg-wrap { padding: 0 0 12px; position: relative; z-index: 1; }
+  body[data-page="log"] .lg-seg-scroll { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  body[data-page="log"] .lg-seg-scroll::-webkit-scrollbar { display: none; }
+  body[data-page="log"] .lg-seg-scroll .segmented { width: min(100%, 880px); min-height: 60px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); background: rgba(16,18,22,0.82); border-color: rgba(255,255,255,0.08); border-radius: 10px; padding: 6px; gap: 5px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 50px rgba(0,0,0,0.16); }
+  body[data-page="log"] .segmented [role="tab"] { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-size: 14px; border-radius: 8px; color: var(--text-2); }
+  body[data-page="log"] .segmented [role="tab"] svg { width: 21px; height: 21px; color: currentColor; flex-shrink: 0; }
+  body[data-page="log"] .segmented [role="tab"][aria-selected="true"] { background: linear-gradient(90deg, rgba(155,108,255,0.46), rgba(125,73,220,0.28)); color: #F6F0FF; box-shadow: inset 0 0 0 1px rgba(185,140,255,0.14), 0 10px 24px rgba(108,56,190,0.22); }
+  body[data-page="log"] .lg-panel { display: flex; flex-direction: column; gap: var(--s4); }
+  body[data-page="log"] .lg-panel[hidden] { display: none; }
+  body[data-page="log"] .lg-add { min-height: 48px; font-size: 15px; }
+  /* entry row: title/sub on left, value + edit/delete on right */
+  body[data-page="log"] .lg-entry { display: flex; align-items: center; gap: var(--s3); min-height: 48px; }
+  body[data-page="log"] .lg-entry .row-main { min-width: 0; flex: 1; }
+  body[data-page="log"] .lg-entry .row-end { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; }
+  body[data-page="log"] .lg-entry .val { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+  body[data-page="log"] .lg-ic-btn { width: 36px; height: 36px; min-height: 36px; border-radius: var(--r-control); background: none; border: none; color: var(--text-3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+  body[data-page="log"] .lg-ic-btn:hover { background: var(--surface-raised); color: var(--text); }
+  body[data-page="log"] .lg-ic-btn svg { width: 18px; height: 18px; }
+  body[data-page="log"] .lg-list-head { font-size: 12px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; padding: var(--s2) var(--s1); }
+  body[data-page="log"] .lg-foot { padding: var(--s2) var(--s1); font-size: 13px; color: var(--text-3); }
+  body[data-page="log"] .lg-foot a { color: var(--accent); text-decoration: none; }
+  /* choice sheet (body segment): big buttons stacked */
+  body[data-page="log"] .lg-choice { display: flex; flex-direction: column; gap: var(--s2); }
+  /* form rows inside sheets reuse shared .field/.input/.label */
+  body[data-page="log"] .sheet textarea.input { height: auto; min-height: 72px; padding: var(--s2) var(--s3); resize: vertical; line-height: 1.4; }
+  /* switch row reuses shared .toggle */
+  body[data-page="log"] .lg-switch-row { display: flex; align-items: center; gap: var(--s3); min-height: 48px; }
+  body[data-page="log"] .lg-switch-row .row-main { min-width: 0; flex: 1; }
+  body[data-page="log"] .lg-food-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
+  body[data-page="log"] .lg-food-grid .card { min-height: 0; padding: 18px 20px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01) 38%, rgba(32,43,50,0.055)), var(--surface); }
+  body[data-page="log"] .lg-span-4 { grid-column: span 4; }
+  body[data-page="log"] .lg-span-5 { grid-column: span 5; }
+  body[data-page="log"] .lg-span-6 { grid-column: span 6; }
+  body[data-page="log"] .lg-span-7 { grid-column: span 7; }
+  body[data-page="log"] .lg-card-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  body[data-page="log"] .lg-card-title { font-size: 20px; line-height: 1.15; font-weight: 500; color: var(--text); }
+  body[data-page="log"] .lg-card-sub { color: var(--text-3); font-size: 14px; line-height: 1.4; }
+  body[data-page="log"] .lg-card-link { color: var(--accent); text-decoration: none; font-size: 13px; font-weight: 600; }
+  body[data-page="log"] .min-0 { min-width: 0; }
+  body[data-page="log"] .lg-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  body[data-page="log"] .lg-action { min-height: 88px; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.018); border-radius: 8px; padding: 13px; display: flex; align-items: center; gap: 14px; color: var(--text); text-decoration: none; cursor: pointer; text-align: left; font: inherit; }
+  body[data-page="log"] .lg-action:hover { background: rgba(255,255,255,0.045); border-color: rgba(185,140,255,0.2); }
+  body[data-page="log"] .lg-action .ico { width: 42px; height: 42px; color: var(--accent); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  body[data-page="log"] .lg-action .ico svg { width: 36px; height: 36px; }
+  body[data-page="log"] .lg-action strong { display: block; font-size: 15px; font-weight: 600; }
+  body[data-page="log"] .lg-action span:last-child { color: var(--text-3); font-size: 13px; }
+  body[data-page="log"] .lg-nutri-main { display: flex; align-items: baseline; gap: 8px; margin: 6px 0; }
+  body[data-page="log"] .lg-nutri-main .big { font-size: 29px; font-weight: 500; letter-spacing: 0; }
+  body[data-page="log"] .lg-left { margin-left: auto; color: var(--green); font-size: 13px; font-weight: 600; }
+  body[data-page="log"] .lg-macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  body[data-page="log"] .lg-macro { border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); border-radius: 8px; padding: 8px 10px; }
+  body[data-page="log"] .lg-macro .between { display: block; }
+  body[data-page="log"] .lg-macro .num { display: block; margin-top: 3px; white-space: nowrap; font-size: 13px; line-height: 1.15; }
+  body[data-page="log"] .lg-macro .bar { height: 6px; margin-top: 7px; }
+  body[data-page="log"] .lg-mini-macros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  body[data-page="log"] .lg-meal-row { display: grid; grid-template-columns: 46px 86px 1fr 34px; gap: 12px; align-items: center; min-height: 74px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-meal-row:last-child { border-bottom: none; }
+  body[data-page="log"] .lg-food-thumb { width: 46px; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.9); background: radial-gradient(circle at 28% 18%, rgba(255,255,255,0.38), transparent 24%), linear-gradient(135deg, var(--c1), var(--c2)); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16); }
+  body[data-page="log"] .lg-edit { width: 32px; height: 32px; min-height: 32px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.025); color: var(--text-2); display: inline-flex; align-items: center; justify-content: center; }
+  body[data-page="log"] .lg-edit svg { width: 15px; height: 15px; }
+  body[data-page="log"] .lg-timeline-row { display: grid; grid-template-columns: 52px 18px 24px 72px minmax(0,1fr) auto 28px; gap: 9px; align-items: center; min-height: 42px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-timeline-row:last-child { border-bottom: none; }
+  body[data-page="log"] .lg-time { color: var(--text-3); font-variant-numeric: tabular-nums; }
+  body[data-page="log"] .lg-food-mark { color: var(--accent); line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+  body[data-page="log"] .lg-food-mark svg { width: 20px; height: 20px; }
+  body[data-page="log"] .lg-timeline-row > span:nth-child(4),
+  body[data-page="log"] .lg-timeline-row > span:nth-child(5) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body[data-page="log"] .lg-template-row { display: grid; grid-template-columns: 42px 1fr 74px; gap: 12px; align-items: center; min-height: 56px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-template-row:last-child { border-bottom: none; }
+  body[data-page="log"] .lg-summary-card { display: grid; grid-template-columns: 58px 1fr; gap: 14px; align-items: center; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,0.018); }
+  body[data-page="log"] .lg-orb { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(155,108,255,0.55), rgba(155,108,255,0.18)); color: #F3ECFF; }
+  body[data-page="log"] .lg-check-row { display: flex; align-items: center; gap: 12px; min-height: 38px; color: var(--text-2); }
+  body[data-page="log"] .lg-check-row svg { width: 18px; height: 18px; color: var(--green); flex-shrink: 0; }
+  body[data-page="log"] .lg-body-wrap { display: flex; flex-direction: column; gap: 12px; }
+  body[data-page="log"] .lg-subtabs { display: flex; align-items: center; gap: 18px; padding: 0 20px; min-height: 44px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-subtabs button { border: 0; background: none; color: var(--text-2); font: inherit; min-height: 44px; padding: 0 0 2px; cursor: pointer; position: relative; }
+  body[data-page="log"] .lg-subtabs button[aria-selected="true"] { color: var(--accent); }
+  body[data-page="log"] .lg-subtabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+  body[data-page="log"] .lg-body-hero { padding: 8px 20px 10px; }
+  body[data-page="log"] .lg-body-copy { display: flex; justify-content: space-between; gap: 18px; color: var(--text-3); font-size: 13px; margin: 0 0 8px; }
+  body[data-page="log"] .lg-body-copy a { color: var(--accent); text-decoration: none; }
+  body[data-page="log"] .lg-body-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.015); }
+  body[data-page="log"] .lg-body-stat { min-height: 64px; padding: 9px 16px; display: grid; grid-template-columns: 34px minmax(0,1fr) 76px; align-items: center; gap: 12px; border-right: 1px solid var(--border); }
+  body[data-page="log"] .lg-body-stat:last-child { border-right: 0; }
+  body[data-page="log"] .lg-body-ic { color: var(--accent); width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; }
+  body[data-page="log"] .lg-body-ic svg { width: 24px; height: 24px; }
+  body[data-page="log"] .lg-body-val { font-size: 21px; line-height: 1.05; font-weight: 500; color: var(--text); }
+  body[data-page="log"] .lg-body-val small { font-size: 13px; color: var(--text-2); font-weight: 400; }
+  body[data-page="log"] .lg-trend { color: var(--green); font-size: 12px; margin-left: 6px; white-space: nowrap; }
+  body[data-page="log"] .lg-mini-spark { width: 72px; height: 28px; opacity: 0.95; }
+  body[data-page="log"] .lg-body-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
+  body[data-page="log"] .lg-body-grid .card { min-height: 0; padding: 16px 20px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01) 38%, rgba(32,43,50,0.055)), var(--surface); }
+  body[data-page="log"] .lg-body-grid > .card:nth-child(-n+3) { padding-top: 14px; padding-bottom: 14px; gap: 6px; }
+  body[data-page="log"] .lg-body-grid .lg-nutri-main { margin: 0; }
+  body[data-page="log"] .lg-body-grid .lg-nutri-main .big { font-size: 26px; }
+  body[data-page="log"] .lg-body-action { min-height: 58px; border: 1px dashed rgba(155,108,255,0.42); background: linear-gradient(135deg, rgba(155,108,255,0.12), rgba(155,108,255,0.025)); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 14px; color: var(--text); cursor: pointer; font: inherit; text-align: left; }
+  body[data-page="log"] .lg-plus { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--on-accent); display: inline-flex; align-items: center; justify-content: center; font-size: 28px; line-height: 1; }
+  body[data-page="log"] .lg-goal-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+  body[data-page="log"] .lg-body-row { display: grid; grid-template-columns: 28px minmax(0,1fr) auto auto 18px; gap: 12px; align-items: center; min-height: 28px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-body-row:last-child { border-bottom: 0; }
+  body[data-page="log"] .lg-body-grid > .card:nth-child(n+4) { padding-top: 14px; padding-bottom: 14px; gap: 7px; }
+  body[data-page="log"] .lg-recovery-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+  body[data-page="log"] .lg-recovery-tile { border: 1px solid var(--border); border-radius: 8px; padding: 8px; min-height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
+  body[data-page="log"] .lg-recovery-tile svg { width: 22px; height: 22px; color: var(--accent); }
+  body[data-page="log"] .lg-bars { display: flex; align-items: end; gap: 4px; height: 20px; }
+  body[data-page="log"] .lg-bars i { width: 5px; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.95; }
+  body[data-page="log"] .lg-chart { height: 104px; margin-top: 2px; }
+  body[data-page="log"] .lg-chart svg { width: 100%; height: 100%; overflow: visible; }
+  body[data-page="log"] .lg-chip-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  body[data-page="log"] .lg-chip-row .segmented { padding: 2px; }
+  body[data-page="log"] .lg-photo-card { position: relative; overflow: hidden; border-radius: 8px; min-height: 172px; background: #15171b; }
+  body[data-page="log"] .lg-photo-card img { width: 100%; height: 126px; object-fit: cover; display: block; }
+  body[data-page="log"] .lg-photo-card::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(255,255,255,0.82); transform: translateX(-50%); }
+  body[data-page="log"] .lg-photo-label { position: absolute; bottom: 8px; padding: 5px 8px; border-radius: 6px; background: rgba(0,0,0,0.48); color: var(--text); font-size: 12px; line-height: 1.25; }
+  body[data-page="log"] .lg-photo-label.left { left: 8px; }
+  body[data-page="log"] .lg-photo-label.right { right: 8px; text-align: right; }
+  body[data-page="log"] .lg-photo-handle { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.88); color: #1b1b22; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  body[data-page="log"] .lg-attention { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  body[data-page="log"] .lg-alert { display: grid; grid-template-columns: 36px minmax(0,1fr) 18px; gap: 12px; align-items: center; min-height: 56px; }
+  body[data-page="log"] .lg-alert svg { width: 24px; height: 24px; color: var(--amber); }
+  /* ---- Body subtab views (Composition / Recovery / Labs / Photos) ---- */
+  body[data-page="log"] .lg-subtabs-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 20px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-subtabs-row .lg-subtabs { border-bottom: 0; padding: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  body[data-page="log"] .lg-subtabs-row .lg-subtabs::-webkit-scrollbar { display: none; }
+  body[data-page="log"] .lg-sub-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  body[data-page="log"] .lg-sub-note { color: var(--text-3); font-size: 13px; white-space: nowrap; }
+  body[data-page="log"] .lg-sub-note a { color: var(--accent); text-decoration: none; }
+  body[data-page="log"] .lg-statgrid { display: grid; gap: 12px; }
+  body[data-page="log"] .lg-statgrid.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body[data-page="log"] .lg-statgrid.c6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  body[data-page="log"] .lg-statgrid .card { min-height: 0; padding: 14px 16px; background: linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01) 38%, rgba(32,43,50,0.055)), var(--surface); }
+  body[data-page="log"] .lg-statcard { display: grid; grid-template-columns: 32px minmax(0,1fr) 72px; align-items: center; gap: 10px; }
+  body[data-page="log"] .lg-statcard .lg-body-ic { align-self: start; }
+  body[data-page="log"] .lg-kpi .kpi-top { display: flex; align-items: center; gap: 8px; color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  body[data-page="log"] .lg-kpi .kpi-top .lg-body-ic { width: 20px; height: 20px; }
+  body[data-page="log"] .lg-kpi .kpi-top .lg-body-ic svg { width: 18px; height: 18px; }
+  body[data-page="log"] .lg-kpi .kpi-val { font-size: 22px; font-weight: 500; color: var(--text); margin-top: 6px; }
+  body[data-page="log"] .lg-kpi .kpi-sub { font-size: 12px; margin-top: 2px; }
+  body[data-page="log"] .lg-cols2, body[data-page="log"] .lg-cols3, body[data-page="log"] .lg-cols4 { display: grid; gap: 12px; align-items: start; }
+  body[data-page="log"] .lg-cols2 { grid-template-columns: 1fr 1.45fr; }
+  body[data-page="log"] .lg-cols3 { grid-template-columns: 1.5fr 1fr 1fr; }
+  body[data-page="log"] .lg-cols4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body[data-page="log"] .lg-cols2 > .col, body[data-page="log"] .lg-cols3 > .col, body[data-page="log"] .lg-cols4 > .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  body[data-page="log"] .lg-signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  body[data-page="log"] .lg-meas-row { display: grid; grid-template-columns: 26px minmax(0,1fr) auto 78px; gap: 10px; align-items: center; min-height: 34px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-meas-row:last-child { border-bottom: 0; }
+  body[data-page="log"] .lg-meas-row .lg-body-ic { width: 22px; height: 22px; }
+  body[data-page="log"] .lg-meas-row .lg-body-ic svg { width: 20px; height: 20px; }
+  body[data-page="log"] .lg-delta { font-size: 12px; white-space: nowrap; text-align: right; }
+  body[data-page="log"] .lg-note-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: rgba(155,108,255,0.06); color: var(--text-2); font-size: 13px; }
+  body[data-page="log"] .lg-note-card svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+  body[data-page="log"] .lg-kv-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; border-bottom: 1px solid var(--border); }
+  body[data-page="log"] .lg-kv-row:last-child { border-bottom: 0; }
+  body[data-page="log"] .lg-kv-row .k { color: var(--text-2); }
+  body[data-page="log"] .lg-factor-row { display: grid; grid-template-columns: 130px minmax(0,1fr) 64px; gap: 10px; align-items: center; min-height: 38px; }
+  body[data-page="log"] .lg-factor-row .fr-label { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+  body[data-page="log"] .lg-factor-row .fr-label svg { width: 18px; height: 18px; color: var(--accent); }
+  body[data-page="log"] .lg-factor-row .fr-state { text-align: right; font-size: 12px; }
+  body[data-page="log"] .lg-chip-set { display: flex; flex-wrap: wrap; gap: 8px; }
+  body[data-page="log"] .lg-mini-chip { padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; font-size: 12px; color: var(--text-2); background: rgba(255,255,255,0.02); display: inline-flex; align-items: center; gap: 6px; }
+  body[data-page="log"] .lg-mini-chip svg { width: 14px; height: 14px; color: var(--accent); }
+  body[data-page="log"] .lg-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 12px; text-align: center; }
+  body[data-page="log"] .lg-week span { display: block; font-size: 11px; color: var(--text-3); margin-bottom: 4px; }
+  body[data-page="log"] .lg-week svg { width: 16px; height: 16px; }
+  body[data-page="log"] .lg-lab-row { display: grid; grid-template-columns: minmax(0,1fr) 72px 64px 130px; gap: 10px; align-items: center; min-height: 40px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  body[data-page="log"] .lg-lab-row:last-child { border-bottom: 0; }
+  body[data-page="log"] .lg-lab-head { color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  body[data-page="log"] .lg-check-item { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 8px; align-items: center; min-height: 34px; color: var(--text-2); font-size: 13px; }
+  body[data-page="log"] .lg-check-item svg { width: 18px; height: 18px; color: var(--accent); }
+  body[data-page="log"] .lg-check-item .box { width: 17px; height: 17px; border: 1.6px solid var(--text-3); border-radius: 4px; }
+  body[data-page="log"] .lg-photo-thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  body[data-page="log"] .lg-thumb { border-radius: 8px; overflow: hidden; background: #15171b; aspect-ratio: 3 / 4; position: relative; }
+  body[data-page="log"] .lg-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  body[data-page="log"] .lg-thumb .th-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 5px 7px; font-size: 11px; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: var(--text); }
+  body[data-page="log"] .lg-gallery { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+  body[data-page="log"] .lg-gallery .lg-thumb { aspect-ratio: 1 / 1; }
+  body[data-page="log"] .lg-upload-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  body[data-page="log"] .lg-upload-cell { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; gap: 12px; align-items: center; }
+  body[data-page="log"] .lg-upload-cell .ico { width: 40px; height: 40px; border-radius: 10px; background: rgba(155,108,255,0.12); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+  body[data-page="log"] .lg-upload-cell .ico svg { width: 22px; height: 22px; }
+  body[data-page="log"] .lg-guide-row { display: grid; grid-template-columns: 22px 92px minmax(0,1fr); gap: 8px; align-items: center; min-height: 34px; font-size: 13px; color: var(--text-2); }
+  body[data-page="log"] .lg-guide-row svg { width: 18px; height: 18px; color: var(--accent); }
+  body[data-page="log"] .lg-metric-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding-top: 12px; margin-top: 4px; border-top: 1px solid var(--border); text-align: center; }
+  body[data-page="log"] .lg-photo-actions { display: flex; flex-direction: column; gap: 10px; }
+  body[data-page="log"] .lg-card-title > svg { width: 18px; height: 18px; flex-shrink: 0; }
+  body[data-page="log"] .lg-card-sub > svg { width: 15px; height: 15px; vertical-align: -3px; }
+  body[data-page="log"] .lg-orb svg { width: 22px; height: 22px; }
+  body[data-page="log"] .lg-sub-note svg { width: 15px; height: 15px; vertical-align: -3px; }
+  body[data-page="log"] .lg-photo-actions .btn svg { width: 18px; height: 18px; vertical-align: -3px; margin-right: 6px; }
+  body[data-page="log"] .lg-kv-row .num svg { width: 14px; height: 14px; vertical-align: -2px; }
+  body[data-page="log"] .lg-signal-head svg { width: 18px; height: 18px; flex-shrink: 0; }
+  @media (max-width: 1180px) {
+    body[data-page="log"] .lg-cols2, body[data-page="log"] .lg-cols3, body[data-page="log"] .lg-cols4 { grid-template-columns: 1fr 1fr; }
+    body[data-page="log"] .lg-statgrid.c4, body[data-page="log"] .lg-statgrid.c6 { grid-template-columns: repeat(3, 1fr); }
+    body[data-page="log"] .lg-gallery { grid-template-columns: repeat(4, 1fr); }
+    body[data-page="log"] .lg-food-grid { grid-template-columns: repeat(6, 1fr); }
+    body[data-page="log"] .lg-span-4, body[data-page="log"] .lg-span-5, body[data-page="log"] .lg-span-6, body[data-page="log"] .lg-span-7 { grid-column: span 6; }
+    body[data-page="log"] .lg-body-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body[data-page="log"] .lg-body-stat:nth-child(2) { border-right: 0; }
+    body[data-page="log"] .lg-body-grid { grid-template-columns: repeat(6, 1fr); }
+  }
+  @media (max-width: 900px) {
+    body[data-page="log"] .page-head-r { min-width: 0; }
+    body[data-page="log"] .lg-seg-scroll .segmented { width: max-content; min-width: 100%; display: inline-flex; }
+    body[data-page="log"] .lg-action-grid, body[data-page="log"] .lg-macro-grid { grid-template-columns: 1fr; }
+    body[data-page="log"] .lg-meal-row { grid-template-columns: 46px 1fr 34px; }
+    body[data-page="log"] .lg-meal-row > div:nth-child(2) { display: none; }
+    body[data-page="log"] .lg-timeline-row { grid-template-columns: 48px 18px minmax(0,1fr) auto 28px; }
+    body[data-page="log"] .lg-timeline-row .lg-food-mark,
+    body[data-page="log"] .lg-timeline-row > span:nth-child(4) { display: none; }
+    body[data-page="log"] .lg-body-copy, body[data-page="log"] .lg-subtabs { overflow-x: auto; }
+    body[data-page="log"] .lg-body-stats, body[data-page="log"] .lg-recovery-grid, body[data-page="log"] .lg-attention { grid-template-columns: 1fr; }
+    body[data-page="log"] .lg-body-stat { border-right: 0; border-bottom: 1px solid var(--border); }
+    body[data-page="log"] .lg-body-stat:last-child { border-bottom: 0; }
+    body[data-page="log"] .lg-body-row { grid-template-columns: 28px minmax(0,1fr) auto 18px; }
+    body[data-page="log"] .lg-body-row > span:nth-child(4) { display: none; }
+    body[data-page="log"] .lg-cols2, body[data-page="log"] .lg-cols3, body[data-page="log"] .lg-cols4 { grid-template-columns: 1fr; }
+    body[data-page="log"] .lg-statgrid.c4, body[data-page="log"] .lg-statgrid.c6 { grid-template-columns: 1fr; }
+    body[data-page="log"] .lg-signal-grid, body[data-page="log"] .lg-upload-bar { grid-template-columns: 1fr; }
+    body[data-page="log"] .lg-gallery { grid-template-columns: repeat(2, 1fr); }
+    body[data-page="log"] .lg-subtabs-row { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 16px; }
+    body[data-page="log"] .lg-metric-strip { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body data-page="log">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l">
+          <h1 class="t-page">Log</h1>
+          <div class="page-date" id="date">Fast capture for everything</div>
+        </div>
+        <div class="page-head-r">
+          <label class="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="qlog" placeholder="Quick log anything..." aria-label="Quick log" autocomplete="off">
+            <span class="kbd">K</span>
+          </label>
+          <button class="btn-icon" aria-label="Share log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.7 15.4 6.3M8.6 13.3l6.8 4.4"/></svg></button>
+        </div>
+      </header>
+
+      <div class="lg-seg-wrap">
+        <div class="lg-seg-scroll">
+          <div class="segmented" role="tablist" id="seg" aria-label="Log segment"></div>
+        </div>
+      </div>
+
+      <div id="panels"></div>
+    </div>
+  </main>
+</div>
+
+<!-- real engine (read-only reuse of LifeOS.log + canonical readers) -->
+<script src="../dates.js"></script>
+<script src="../lifeos-core.js"></script>
+<script src="../bus.js"></script>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+/* ============================================================
+   Phase 3 — Log: the universal capture surface.
+   Each segment writes the SAME localStorage stores the module pages
+   and Today read (via LifeOS.log + direct store edits), so the
+   operator, Today and the module pages never disagree.
+   Quick capture + today's entries with edit/delete live here; deep
+   editing (food DB, workout sets, skin routine) stays in the module
+   page, linked from each segment.
+   Visual language: shared component classes only (.card/.row/.btn/
+   .toggle/.field/.input/.segmented/.sheet/.empty/.section-error).
+   ============================================================ */
+(function () {
+  'use strict';
+  var UI = window.UI;
+  var L = window.LifeOS;
+  if (!L || !UI) return;
+
+  /* ---- tiny store helpers (match legacy log.html semantics) ---- */
+  function lsget(k, fb) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch (_) { return fb; } }
+  function lsset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} }
+  function fire() { try { window.dispatchEvent(new CustomEvent('lifeos:logged', { detail: { src: 'log' } })); } catch (_) {} }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function today() { return (L.todayStr) ? L.todayStr() : (function (d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(new Date()); }
+  function offset(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function ntKey() { var d = new Date(); if (d.getHours() < 6) d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function fmtDur(min) { return Math.floor(min / 60) + 'h ' + (min % 60) + 'm'; }
+  function byDateDesc(a, b) { return String(b.date).localeCompare(String(a.date)); }
+
+  /* ============================================================
+     Shared sheet (production): uses shared .sheet/.backdrop classes +
+     tokens, with page-local open/close + focus management. Mirrors the
+     behavior of ui.js overlay(): Escape closes, backdrop closes, focus
+     traps and restores to a SAFE target (active segment tab, never a
+     node inside a panel that gets re-rendered after save).
+     ============================================================ */
+  var FOCUSABLE = 'a[href],button:not([disabled]),input,select,textarea,[tabindex]:not([tabindex="-1"])';
+  function openSheet(opts) {
+    opts = opts || {};
+    var safeFocus = document.querySelector('#seg [aria-selected="true"]') || document.getElementById('seg');
+    var panel = document.createElement('div');
+    panel.className = 'sheet';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', opts.title || 'Sheet');
+    panel.innerHTML = '<div class="sheet-grab"></div>'
+      + '<div class="t-h2" style="margin-bottom:var(--s4)">' + esc(opts.title || '') + '</div>'
+      + (opts.body || '');
+    var backdrop = document.createElement('div');
+    backdrop.className = 'backdrop';
+    document.body.appendChild(backdrop);
+    document.body.appendChild(panel);
+    var closed = false;
+    function close() {
+      if (closed) return; closed = true;
+      panel.classList.remove('open'); backdrop.classList.remove('open');
+      document.removeEventListener('keydown', onKey);
+      setTimeout(function () { panel.remove(); backdrop.remove(); }, 240);
+      if (safeFocus && safeFocus.focus) { try { safeFocus.focus({ preventScroll: true }); } catch (_) {} }
+      if (typeof opts.onClose === 'function') { try { opts.onClose(); } catch (_) {} }
+    }
+    function trap(e) {
+      if (e.key !== 'Tab') return;
+      var f = panel.querySelectorAll(FOCUSABLE);
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    function onKey(e) { if (e.key === 'Escape') close(); else trap(e); }
+    backdrop.addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    requestAnimationFrame(function () {
+      backdrop.classList.add('open'); panel.classList.add('open');
+      var f = panel.querySelector(FOCUSABLE); if (f) { try { f.focus(); } catch (_) {} }
+    });
+    if (typeof opts.onMount === 'function') { try { opts.onMount(panel, close); } catch (e) {} }
+    return close;
+  }
+
+  /* choice sheet (used by Body: pick Weight vs Sleep) */
+  function choiceSheet(title, options) {
+    var body = '<div class="lg-choice">' + options.map(function (o, i) {
+      return '<button class="btn btn-secondary btn-block" data-i="' + i + '" style="min-height:48px">' + esc(o.label) + '</button>';
+    }).join('') + '</div>';
+    openSheet({ title: title, body: body, onMount: function (panel, close) {
+      options.forEach(function (o, i) {
+        var b = panel.querySelector('[data-i="' + i + '"]');
+        if (b) b.addEventListener('click', function () { close(); if (o.onTap) o.onTap(); });
+      });
+    } });
+  }
+
+  /* ============================================================
+     Markup helpers (shared classes only).
+     ============================================================ */
+  function summaryCard(rowsHtml) {
+    return '<div class="card"><div class="stack" style="gap:var(--s2)">' + rowsHtml + '</div></div>';
+  }
+  function metricLine(label, value) {
+    return '<div class="between"><span class="t-cap">' + esc(label) + '</span><span class="num" style="font-weight:600">' + esc(value) + '</span></div>';
+  }
+  function entryRow(e) {
+    var menu = '';
+    if (e.editable !== false) {
+      menu = '<button class="lg-ic-btn" data-edit="' + esc(e.id) + '" aria-label="Edit entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/><circle cx="5" cy="12" r="1.4"/></svg></button>'
+        + '<button class="lg-ic-btn" data-del="' + esc(e.id) + '" aria-label="Delete entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6"/></svg></button>';
+    }
+    return '<div class="lg-entry" data-id="' + esc(e.id) + '">'
+      + '<div class="row-main"><div class="row-title">' + esc(e.title) + '</div>'
+      + (e.sub ? '<div class="row-sub">' + esc(e.sub) + '</div>' : '') + '</div>'
+      + '<div class="row-end">' + (e.value ? '<span class="val">' + esc(e.value) + '</span>' : '') + menu + '</div>'
+      + '</div>';
+  }
+  function linkRow(label, href, sub) {
+    return '<a class="row nav-row" href="' + href + '"><div class="row-main"><div class="row-title">' + esc(label) + '</div>' + (sub ? '<div class="row-sub">' + esc(sub) + '</div>' : '') + '</div></a>';
+  }
+  function emptyState(iconSvg, title, sub, btnLabel) {
+    return '<div class="empty">' + iconSvg + '<span class="empty-title">' + esc(title) + '</span><span>' + esc(sub) + '</span>'
+      + (btnLabel ? '<button class="btn btn-secondary btn-sm lg-empty-add" style="margin-top:var(--s3)">' + esc(btnLabel) + '</button>' : '') + '</div>';
+  }
+  function sectionErr(msg) {
+    return '<div class="section-error"><svg class="se-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg><span>Couldn\'t load this segment.</span><button class="btn btn-secondary btn-sm lg-retry">Retry</button></div>';
+  }
+  function addBtn(label) { return '<button class="btn btn-primary btn-block lg-add" data-add>+ ' + esc(label) + '</button>'; }
+
+  /* ============================================================
+     Sheets (forms). Match legacy field sets + validation.
+     ============================================================ */
+  function mealSheet(pre) {
+    pre = pre || {};
+    var v = function (x) { return x != null && x !== '' ? x : ''; };
+    var body = '<div class="field"><span class="label">Meal</span><input class="input" id="m-name" type="text" placeholder="e.g. Chicken bowl" value="' + esc(pre.name || '') + '"></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Calories</span><input class="input num" id="m-cal" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.calories) + '"></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:var(--s3);margin-top:var(--s3)">'
+      + '<div class="field"><span class="label">Protein (g)</span><input class="input num" id="m-pro" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.protein) + '"></div>'
+      + '<div class="field"><span class="label">Carbs (g)</span><input class="input num" id="m-carb" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.carbs) + '"></div>'
+      + '<div class="field"><span class="label">Fat (g)</span><input class="input num" id="m-fat" type="number" inputmode="numeric" placeholder="0" value="' + v(pre.fat) + '"></div>'
+      + '</div>'
+      + '<button class="btn btn-primary btn-block lg-add" id="m-save" style="margin-top:var(--s4)">' + (pre.id ? 'Save changes' : 'Log meal') + '</button>';
+    openSheet({
+      title: pre.id ? 'Edit meal' : 'Log meal', body: body,
+      onMount: function (panel, close) {
+        panel.querySelector('#m-save').addEventListener('click', function () {
+          var name = panel.querySelector('#m-name').value.trim();
+          if (!name) { UI.toast('Meal name required'); return; }
+          var cal = parseFloat(panel.querySelector('#m-cal').value) || 0;
+          var pro = parseFloat(panel.querySelector('#m-pro').value) || 0;
+          var carb = parseFloat(panel.querySelector('#m-carb').value) || 0;
+          var fat = parseFloat(panel.querySelector('#m-fat').value) || 0;
+          if (pre.id) {
+            var arr = lsget('nt:logs', []), e = arr.find(function (l) { return String(l.id) === String(pre.id); });
+            if (e) { e.name = name; e.calories = Math.round(cal); e.protein = Math.round(pro); e.carbs = Math.round(carb); e.fat = Math.round(fat); lsset('nt:logs', arr); fire(); }
+            close(); UI.toast('Meal updated'); paint('food'); return;
+          }
+          var r = L.log({ type: 'meal', name: name, calories: cal, protein: pro, carbs: carb, fat: fat });
+          close(); UI.toast(r.message || 'Saved'); paint('food');
+        });
+      }
+    });
+  }
+  function weightSheet(pre) {
+    pre = pre || {};
+    var body = '<div class="field"><span class="label">Weight (kg)</span><input class="input num" id="w-kg" type="number" inputmode="decimal" step="0.1" placeholder="0.0" value="' + (pre.weight != null ? pre.weight : '') + '"></div>'
+      + '<button class="btn btn-primary btn-block lg-add" id="w-save" style="margin-top:var(--s4)">Log weight</button>';
+    openSheet({
+      title: 'Log weight', body: body,
+      onMount: function (panel, close) {
+        panel.querySelector('#w-save').addEventListener('click', function () {
+          var r = L.log({ type: 'weight', kg: parseFloat(panel.querySelector('#w-kg').value) });
+          if (!r.ok) { UI.toast(r.message); return; }
+          close(); UI.toast(r.message); paint('body');
+        });
+      }
+    });
+  }
+  function sleepSheet(pre) {
+    pre = pre || {};
+    var hrs = pre.duration ? (pre.duration / 60) : '';
+    var body = '<div class="field"><span class="label">Hours slept</span><input class="input num" id="s-hrs" type="number" inputmode="decimal" step="0.25" placeholder="7.5" value="' + (hrs !== '' ? hrs : '') + '"></div>'
+      + '<button class="btn btn-primary btn-block lg-add" id="s-save" style="margin-top:var(--s4)">Log sleep</button>';
+    openSheet({
+      title: 'Log sleep', body: body,
+      onMount: function (panel, close) {
+        panel.querySelector('#s-save').addEventListener('click', function () {
+          var r = L.log({ type: 'sleep', hours: parseFloat(panel.querySelector('#s-hrs').value) });
+          if (!r.ok) { UI.toast(r.message); return; }
+          close(); UI.toast(r.message); paint('body');
+        });
+      }
+    });
+  }
+  function moodSheet(pre) {
+    pre = pre || {};
+    var opts = '';
+    for (var i = 1; i <= 5; i++) opts += '<option value="' + i + '"' + (pre.mood === i ? ' selected' : '') + '>' + i + ' / 5</option>';
+    var body = '<div class="field"><span class="label">Mood</span><select class="select" id="md-v">' + opts + '</select></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Note (optional)</span><textarea class="input" id="md-n" placeholder="What\'s on your mind">' + esc(pre.note || '') + '</textarea></div>'
+      + '<button class="btn btn-primary btn-block lg-add" id="md-save" style="margin-top:var(--s4)">Log mood</button>';
+    openSheet({
+      title: 'Log mood', body: body,
+      onMount: function (panel, close) {
+        panel.querySelector('#md-save').addEventListener('click', function () {
+          var r = L.log({ type: 'mood', mood: +panel.querySelector('#md-v').value, note: panel.querySelector('#md-n').value.trim() });
+          if (!r.ok) { UI.toast(r.message); return; }
+          close(); UI.toast(r.message); paint('mind');
+        });
+      }
+    });
+  }
+  function skinSheet(pre) {
+    pre = pre || {};
+    var opts = '';
+    for (var i = 1; i <= 5; i++) opts += '<option value="' + i + '"' + (pre.rating === i ? ' selected' : '') + '>' + i + ' / 5</option>';
+    var body = '<div class="field"><span class="label">Skin rating</span><select class="select" id="sk-r">' + opts + '</select></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Concerns (optional)</span><input class="input" id="sk-c" type="text" placeholder="e.g. dry, breakout on chin" value="' + esc(concernStr(pre.concerns)) + '"></div>'
+      + '<button class="btn btn-primary btn-block lg-add" id="sk-save" style="margin-top:var(--s4)">Log skin</button>';
+    openSheet({
+      title: 'Log skin', body: body,
+      onMount: function (panel, close) {
+        panel.querySelector('#sk-save').addEventListener('click', function () {
+          var t = today(), arr = lsget('skin:logs', []) || [];
+          if (pre.id != null) arr = arr.filter(function (l) { return String(l.id) !== String(pre.id); });
+          var cval = panel.querySelector('#sk-c').value.trim();
+          arr.push({ id: Date.now(), date: t, rating: +panel.querySelector('#sk-r').value, concerns: cval ? cval.split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [] });
+          lsset('skin:logs', arr); fire();
+          close(); UI.toast('Skin logged'); paint('skin');
+        });
+      }
+    });
+  }
+  function concernStr(c) { return Array.isArray(c) ? c.join(', ') : (c || ''); }
+
+  /* ============================================================
+     Segment controllers. Each: { label, render(panel), add(prefill) }.
+     del/edit handled inline via data attributes (see wireEntries).
+     ============================================================ */
+  var ICONS = {
+    food: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 9-11 1 6-1 11-2 18z"/></svg>',
+    body: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><path d="M6 3v18M18 3v18M6 12h12"/></svg>',
+    training: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><path d="M3 12h18M7 8v8M17 8v8"/></svg>',
+    skin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><circle cx="12" cy="12" r="9"/><path d="M8 14c1 1.5 2.5 2 4 2s3-.5 4-2"/></svg>',
+    water: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z"/></svg>',
+    supps: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><path d="m10.5 20.5 9-9a3.5 3.5 0 0 0-5-5l-9 9a3.5 3.5 0 0 0 5 5z"/><path d="m8.5 8.5 7 7"/></svg>',
+    mind: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><path d="M9 3a4 4 0 0 0-2 7.5V13h10v-2.5A4 4 0 0 0 15 3a3 3 0 0 0-6 0z"/><path d="M9 13v4a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-4"/></svg>',
+    habits: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="empty-ic"><path d="M5 12l4 4 10-10"/></svg>',
+  };
+
+  var TAB_ICONS = {
+    food: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3v8M11 3v8M7 7h4M9 11v10"/><path d="M17 3v18M14 3h3a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-3"/></svg>',
+    body: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="4" width="8" height="16" rx="4"/><path d="M6 9h12M6 15h12"/></svg>',
+    training: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h18M6 9v6M18 9v6M9 7v10M15 7v10"/></svg>',
+    skin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 8 16H4L12 3z"/><path d="M12 9v4M12 16h.01"/></svg>',
+    water: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3c4 5 6 8.3 6 11a6 6 0 0 1-12 0c0-2.7 2-6 6-11z"/></svg>',
+    supps: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m10.5 20.5 9-9a3.5 3.5 0 0 0-5-5l-9 9a3.5 3.5 0 0 0 5 5z"/><path d="m8.5 8.5 7 7"/></svg>'
+  };
+
+  var FOOD_SAMPLES = [
+    { sample: true, meal: 'Breakfast', time: '08:15', name: 'Oats + Whey + Banana', calories: 512, protein: 31, carbs: 70, fat: 12, c1: '#d8b36a', c2: '#7c3b1f' },
+    { sample: true, meal: 'Lunch', time: '13:02', name: 'Chicken bowl', calories: 684, protein: 45, carbs: 66, fat: 18, c1: '#40c878', c2: '#b65b2c' },
+    { sample: true, meal: 'Snack', time: '16:45', name: 'Greek yogurt + Berries', calories: 243, protein: 20, carbs: 16, fat: 6, c1: '#dce7f2', c2: '#5f78d3' }
+  ];
+
+  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+  function pct(n, d) { return d > 0 ? clamp(Math.round((Number(n) || 0) / d * 100), 0, 100) : 0; }
+  function num(n) { return Math.round(Number(n) || 0).toLocaleString(); }
+  function foodDateKey(l) {
+    var d = String((l && (l.dateKey || l.date)) || '').replace(/\//g, '-').slice(0, 10);
+    if (d) return d;
+    var raw = l && (l.ts || l.createdAt || l.timeStamp);
+    if (!raw) return '';
+    var dt = new Date(raw);
+    return isNaN(dt.getTime()) ? '' : dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+  }
+  function foodStamp(l) {
+    var raw = l && (l.ts || l.createdAt || l.timeStamp || l.date || l.dateKey);
+    var dt = new Date(raw);
+    return isNaN(dt.getTime()) ? 0 : dt.getTime();
+  }
+  function foodTime(l, idx) {
+    if (l && l.time) return String(l.time).slice(0, 5);
+    var raw = l && (l.ts || l.createdAt || l.timeStamp);
+    var dt = raw ? new Date(raw) : null;
+    if (dt && !isNaN(dt.getTime())) return String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+    return ['08:15', '13:02', '16:45', '18:30'][idx % 4];
+  }
+  function mealKind(l, idx) {
+    if (l && l.meal) return l.meal;
+    var h = parseInt(foodTime(l, idx).split(':')[0], 10);
+    if (h < 11) return 'Breakfast';
+    if (h < 15) return 'Lunch';
+    if (h < 18) return 'Snack';
+    return 'Dinner';
+  }
+  function mealMeta(m) {
+    return num(m.calories) + ' kcal'
+      + ' &middot; ' + num(m.protein) + 'P'
+      + ' &middot; ' + num(m.carbs) + 'C'
+      + ' &middot; ' + num(m.fat) + 'F';
+  }
+  function foodThumb(m, i) {
+    var c = [
+      ['#d8b36a', '#7c3b1f'],
+      ['#40c878', '#b65b2c'],
+      ['#dce7f2', '#5f78d3'],
+      ['#f3d28a', '#c07b2f']
+    ][i % 4];
+    var initials = String(m.name || 'Food').split(/\s+/).filter(function (x) { return /^[A-Za-z0-9]/.test(x); }).slice(0, 2).map(function (x) { return x[0]; }).join('').toUpperCase();
+    return '<div class="lg-food-thumb" style="--c1:' + esc(m.c1 || c[0]) + ';--c2:' + esc(m.c2 || c[1]) + '">' + esc(initials || 'F') + '</div>';
+  }
+  function macroTile(label, value, target, unit) {
+    var p = pct(value, target);
+    return '<div class="lg-macro"><div class="between"><span class="t-cap">' + esc(label) + '</span><span class="num">' + num(value) + ' / ' + num(target) + esc(unit || '') + '</span></div><div class="bar"><i style="width:' + p + '%"></i></div><div class="t-cap" style="margin-top:6px;text-align:right">' + p + '%</div></div>';
+  }
+  function mealRow(m, i, editable) {
+    var editAttr = editable && !m.sample && m.id != null ? 'data-edit="' + esc(m.id) + '"' : 'data-template-i="' + i + '"';
+    return '<div class="lg-meal-row">'
+      + foodThumb(m, i)
+      + '<div><div class="t-cap" style="color:var(--text)">' + esc(mealKind(m, i)) + '</div><div class="t-cap">' + esc(foodTime(m, i)) + '</div></div>'
+      + '<div class="min-0"><div style="font-weight:500">' + esc(m.name || 'Meal') + '</div><div class="t-cap">' + mealMeta(m) + '</div></div>'
+      + '<button class="lg-edit" ' + editAttr + ' aria-label="Edit meal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="m16.5 3.5 4 4L7 21H3v-4L16.5 3.5z"/></svg></button>'
+      + '</div>';
+  }
+  function timelineRow(m, i, editable) {
+    var editAttr = editable && !m.sample && m.id != null ? 'data-edit="' + esc(m.id) + '"' : 'data-template-i="' + i + '"';
+    return '<div class="lg-timeline-row">'
+      + '<span class="lg-time">' + esc(foodTime(m, i)) + '</span>'
+      + '<span class="dot ' + (i % 2 ? 'green' : 'violet') + '"></span>'
+      + '<span class="lg-food-mark">' + TAB_ICONS.food + '</span>'
+      + '<span>' + esc(mealKind(m, i)) + '</span>'
+      + '<span class="min-0">' + esc(m.name || 'Meal') + '</span>'
+      + '<span class="num">' + num(m.calories) + ' kcal</span>'
+      + '<button class="lg-ic-btn" ' + editAttr + ' aria-label="Edit timeline item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="m16.5 3.5 4 4L7 21H3v-4L16.5 3.5z"/></svg></button>'
+      + '</div>';
+  }
+
+  function renderFoodPanel(p) {
+    var key = ntKey();
+    var allLogs = (lsget('nt:logs', []) || []);
+    var logs = allLogs.filter(function (l) { return foodDateKey(l) === key; }).sort(function (a, b) { return foodStamp(b) - foodStamp(a); });
+    var display = logs.length ? logs : allLogs.slice().sort(function (a, b) { return foodStamp(b) - foodStamp(a); }).slice(0, 3);
+    if (!display.length) display = FOOD_SAMPLES.slice();
+    var tot = logs.reduce(function (a, l) {
+      a.c += Number(l.calories) || 0;
+      a.pr += Number(l.protein) || 0;
+      a.cb += Number(l.carbs) || 0;
+      a.f += Number(l.fat) || 0;
+      a.fi += Number(l.fiber) || 0;
+      a.su += Number(l.sugar) || 0;
+      return a;
+    }, { c: 0, pr: 0, cb: 0, f: 0, fi: 0, su: 0 });
+    var tgt = lsget('nt:targets', {}) || {};
+    var ct = tgt.calories || 2600, pt = tgt.protein || 200, carbT = tgt.carbs || 260, fatT = tgt.fat || 80, fiberT = tgt.fiber || 30, sugarT = tgt.sugar || 80;
+    var calLeft = Math.max(0, ct - tot.c);
+    var templates = [], seen = {};
+    display.concat(FOOD_SAMPLES).forEach(function (m) {
+      var name = String(m.name || '').trim();
+      if (!name || seen[name]) return;
+      seen[name] = true; templates.push(m);
+    });
+    templates = templates.slice(0, 4);
+
+    var cam = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="14" rx="2.5"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>';
+    var search = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>';
+    var grid = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>';
+    var barcode = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5v14M8 5v14M11 5v14M15 5v14M20 5v14"/><path d="M3 8V5h3M18 5h3v3M3 16v3h3M18 19h3v-3"/></svg>';
+
+    var html = '<div class="lg-food-grid">';
+    html += '<section class="card lg-span-4">'
+      + '<div><div class="lg-card-title">Log food</div><div class="lg-card-sub">Quickly log meals and snacks</div></div>'
+      + '<div class="lg-action-grid">'
+      + '<a class="lg-action" href="../nutrition.html#ai"><span class="ico">' + cam + '</span><span><strong>Photo meal</strong><span>Snap and analyze</span></span></a>'
+      + '<button class="lg-action" data-add><span class="ico">' + search + '</span><span><strong>Search food</strong><span>Find in database</span></span></button>'
+      + '<button class="lg-action" data-template-i="0"><span class="ico">' + grid + '</span><span><strong>Use template</strong><span>My saved meals</span></span></button>'
+      + '<a class="lg-action" href="../nutrition.html#barcode"><span class="ico">' + barcode + '</span><span><strong>Barcode scanner</strong><span>Scan packaged food</span></span></a>'
+      + '</div></section>';
+    html += '<section class="card lg-span-4">'
+      + '<div class="lg-card-row"><div class="lg-card-title">Today\'s nutrition</div><a class="btn btn-secondary btn-sm" href="../nutrition.html#targets">Edit targets</a></div>'
+      + '<div class="t-cap">Calories</div><div class="lg-nutri-main"><span class="big">' + num(tot.c) + '</span><span class="t-h2">/ ' + num(ct) + '</span><span class="lg-left">' + num(calLeft) + ' left</span></div>'
+      + '<div class="bar"><i style="width:' + pct(tot.c, ct) + '%"></i></div>'
+      + '<div class="lg-macro-grid">' + macroTile('Protein', tot.pr, pt, 'g') + macroTile('Carbs', tot.cb, carbT, 'g') + macroTile('Fat', tot.f, fatT, 'g') + '</div>'
+      + '<div class="lg-mini-macros">' + macroTile('Fiber', tot.fi, fiberT, 'g') + macroTile('Sugar', tot.su, sugarT, 'g') + '</div>'
+      + '</section>';
+    html += '<section class="card lg-span-4">'
+      + '<div class="lg-card-row"><div class="lg-card-title">Recent meals</div><a class="btn btn-secondary btn-sm" href="../nutrition.html">View all</a></div>'
+      + '<div data-entries>' + display.slice(0, 3).map(function (m, i) { return mealRow(m, i, logs.indexOf(m) >= 0); }).join('') + '</div>'
+      + '<button class="btn btn-ghost btn-block" data-add style="color:var(--accent);margin-top:4px">+ Add meal</button>'
+      + '</section>';
+    html += '<section class="card lg-span-4">'
+      + '<div class="lg-card-row"><div class="lg-card-title">Food timeline</div><button class="btn btn-secondary btn-sm">Today</button></div>'
+      + '<div data-entries>' + display.slice(0, 5).map(function (m, i) { return timelineRow(m, i, logs.indexOf(m) >= 0); }).join('') + '</div>'
+      + '<a class="lg-card-link" href="../nutrition.html" style="align-self:center;margin-top:8px">View full food log</a>'
+      + '</section>';
+    html += '<section class="card lg-span-4">'
+      + '<div class="lg-card-row"><div class="lg-card-title">Frequent foods / meal templates</div><a class="lg-card-link" href="../nutrition.html#templates">Manage</a></div>'
+      + '<div>' + templates.map(function (m, i) { return '<div class="lg-template-row">' + foodThumb(m, i) + '<div class="min-0"><div style="font-weight:500">' + esc(m.name || 'Meal') + '</div><div class="t-cap">' + mealMeta(m) + '</div></div><button class="btn btn-secondary btn-sm" data-template-i="' + i + '">Log</button></div>'; }).join('') + '</div>'
+      + '<a class="lg-card-link" href="../nutrition.html#templates" style="align-self:center;margin-top:8px">View all templates</a>'
+      + '</section>';
+    var proteinOk = tot.pr >= pt, calOk = tot.c <= ct;
+    html += '<section class="card lg-span-4">'
+      + '<div class="lg-card-title">Daily summary</div>'
+      + '<div class="lg-summary-card"><div class="lg-orb"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/></svg></div><div><div style="font-weight:600">You\'re doing great</div><div class="lg-card-sub">' + (logs.length ? 'Balanced macros so far. Keep logging the rest of the day.' : 'Start with one meal to build today\'s picture.') + '</div></div></div>'
+      + '<div class="lg-check-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>' + (proteinOk ? 'Hit your protein goal' : 'Add more protein') + '</span></div>'
+      + '<div class="lg-check-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>' + (calOk ? 'Good calorie balance' : 'Over calorie target') + '</span></div>'
+      + '<div class="lg-check-row"><svg style="color:var(--text-3)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg><span>Add more fiber</span></div>'
+      + '<a class="lg-card-link" href="../nutrition.html#insights" style="align-self:center;margin-top:auto">View all insights</a>'
+      + '</section></div>';
+
+    p.innerHTML = html;
+    wireAdd(p, function () { mealSheet(); });
+    wireEntries(p, 'food');
+    p.querySelectorAll('[data-template-i]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var m = templates[Number(b.getAttribute('data-template-i'))] || display[0] || FOOD_SAMPLES[0];
+        mealSheet({ name: m.name || '', calories: m.calories || '', protein: m.protein || '', carbs: m.carbs || '', fat: m.fat || '' });
+      });
+    });
+  }
+
+  function latestByDate(arr, key) {
+    return (arr || []).filter(Boolean).slice().sort(function (a, b) {
+      return String(b[key] || '').localeCompare(String(a[key] || ''));
+    })[0] || null;
+  }
+  function metricDeltaText(cur, prev, unit, better) {
+    if (cur == null || prev == null || cur === prev) return '';
+    var diff = Number(cur) - Number(prev);
+    var good = better === 'down' ? diff < 0 : diff > 0;
+    return '<span class="lg-trend" style="color:' + (good ? 'var(--green)' : 'var(--amber)') + '">' + (diff > 0 ? 'up ' : 'down ') + Math.abs(diff).toFixed(unit === '%' ? 1 : 1) + ' ' + esc(unit) + '</span>';
+  }
+  function spark(vals, color) {
+    vals = (vals && vals.length ? vals : [78.9, 78.6, 78.5, 78.1, 77.8, 77.2, 76.9]).map(Number);
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    var span = max - min || 1;
+    var pts = vals.map(function (v, i) {
+      var x = vals.length === 1 ? 38 : i * (76 / (vals.length - 1));
+      var y = 25 - ((v - min) / span * 20);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return '<svg class="lg-mini-spark" viewBox="0 0 76 30" fill="none"><path d="M0 30 L0 25 ' + pts.replace(/ /g, ' L') + ' L76 30 Z" fill="' + color + '" opacity=".16"/><polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  function bodyStat(icon, label, value, unit, delta, vals) {
+    return '<div class="lg-body-stat"><span class="lg-body-ic">' + icon + '</span><div class="min-0"><div class="t-cap" style="color:var(--text)">' + esc(label) + '</div><div class="lg-body-val">' + esc(value) + ' <small>' + esc(unit) + '</small>' + delta + '</div></div>' + spark(vals, '#a970ff') + '</div>';
+  }
+  function bodyChart(vals) {
+    vals = vals && vals.length ? vals : [81, 80.5, 80, 79.8, 79.7, 79.3, 78.7, 78.6, 78, 77.4, 76.9];
+    vals = vals.map(Number);
+    var min = Math.min.apply(null, vals) - 0.8, max = Math.max.apply(null, vals) + 0.8, span = max - min || 1;
+    var pts = vals.map(function (v, i) {
+      var x = 22 + (i * (360 / Math.max(1, vals.length - 1)));
+      var y = 122 - ((v - min) / span * 92);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return '<div class="lg-chart"><svg viewBox="0 0 410 150" fill="none" preserveAspectRatio="none">'
+      + '<path d="M22 30H398M22 62H398M22 94H398M22 126H398" stroke="rgba(255,255,255,.055)"/>'
+      + '<path d="M22 126 ' + pts.replace(/ /g, ' L') + ' L398 126 Z" fill="rgba(155,108,255,.16)"/>'
+      + '<polyline points="' + pts + '" fill="none" stroke="#a970ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + vals.map(function (_v, i) {
+        var p = pts.split(' ')[i].split(',');
+        return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.2" fill="#a970ff"/>';
+      }).join('')
+      + '<text x="22" y="145" fill="rgba(255,255,255,.55)" font-size="11">May 9</text><text x="188" y="145" fill="rgba(255,255,255,.55)" font-size="11">May 12</text><text x="338" y="145" fill="rgba(255,255,255,.55)" font-size="11">May 16</text>'
+      + '</svg></div>';
+  }
+  function recoveryTile(icon, label, value, state, bars) {
+    bars = bars || [6, 9, 13, 22, 8, 18];
+    return '<div class="lg-recovery-tile">' + icon + '<div><div class="t-cap">' + esc(label) + '</div><div style="font-size:18px;color:var(--text)">' + esc(value) + '</div><div style="color:' + (state === 'Moderate' ? 'var(--amber)' : 'var(--green)') + ';font-size:12px">' + esc(state) + '</div></div><div class="lg-bars">' + bars.map(function (h) { return '<i style="height:' + h + 'px"></i>'; }).join('') + '</div></div>';
+  }
+  /* extra chart/card helpers used by the Body subtab views */
+  function statCard(icon, label, value, unit, delta, vals) {
+    return '<section class="card lg-statcard"><span class="lg-body-ic">' + icon + '</span>'
+      + '<div class="min-0"><div class="t-cap" style="color:var(--text-2)">' + esc(label) + '</div>'
+      + '<div class="lg-body-val">' + esc(value) + ' <small>' + esc(unit) + '</small>' + (delta || '') + '</div></div>'
+      + spark(vals, '#a970ff') + '</section>';
+  }
+  function kpiCard(icon, label, valueHtml, subHtml) {
+    return '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + icon + '</span>' + esc(label) + '</div>'
+      + '<div class="kpi-val">' + valueHtml + '</div><div class="kpi-sub">' + subHtml + '</div></section>';
+  }
+  function stateColor(s) { return s === 'Good' ? 'var(--green)' : s === 'Moderate' ? 'var(--amber)' : s === 'Low' ? 'var(--green)' : 'var(--text-2)'; }
+  function recStat(icon, label, value, unit, state, deltaHtml, vals) {
+    return '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + icon + '</span>' + esc(label) + '</div>'
+      + '<div class="lg-body-val" style="margin-top:6px">' + esc(value) + ' <small>' + esc(unit) + '</small></div>'
+      + '<div style="color:' + stateColor(state) + ';font-size:12px;margin-top:2px">' + esc(state) + '</div>'
+      + '<div class="between" style="margin-top:8px"><span class="t-cap">' + deltaHtml + '</span>' + spark(vals, '#a970ff') + '</div></section>';
+  }
+  function barChart(vals, target) {
+    vals = (vals && vals.length ? vals : [7.2, 7.8, 6.9, 7.5, 8.1, 6.4, 7.0, 7.6, 6.8, 7.9, 7.2, 6.5, 7.8, 7.5]).map(Number);
+    var max = Math.max(target || 8, Math.max.apply(null, vals)) * 1.12;
+    var n = vals.length, bw = 376 / n;
+    var bars = vals.map(function (v, i) {
+      var h = (v / max) * 92, x = 22 + i * bw;
+      return '<rect x="' + (x + bw * 0.22).toFixed(1) + '" y="' + (122 - h).toFixed(1) + '" width="' + (bw * 0.56).toFixed(1) + '" height="' + h.toFixed(1) + '" rx="2" fill="#a970ff" opacity="' + (0.55 + 0.45 * (v / max)).toFixed(2) + '"/>';
+    }).join('');
+    var ty = target ? 122 - (target / max * 92) : 0;
+    return '<div class="lg-chart" style="height:150px"><svg viewBox="0 0 410 150" preserveAspectRatio="none">' + bars
+      + (target ? '<path d="M22 ' + ty.toFixed(1) + 'H398" stroke="rgba(255,255,255,.42)" stroke-dasharray="4 4"/>' : '') + '</svg></div>';
+  }
+  function rangeChart(vals, lo, hi) {
+    vals = (vals && vals.length ? vals : [520, 600, 650, 720, 700, 640, 590, 620, 700, 742]).map(Number);
+    var all = vals.concat([lo, hi]);
+    var min = Math.min.apply(null, all) * 0.9, max = Math.max.apply(null, all) * 1.06, span = max - min || 1;
+    function y(v) { return 122 - ((v - min) / span * 92); }
+    var pts = vals.map(function (v, i) { return (22 + i * (376 / Math.max(1, vals.length - 1))).toFixed(1) + ',' + y(v).toFixed(1); }).join(' ');
+    var yhi = y(hi), ylo = y(lo);
+    return '<div class="lg-chart" style="height:150px"><svg viewBox="0 0 410 150" preserveAspectRatio="none">'
+      + '<rect x="22" y="' + yhi.toFixed(1) + '" width="376" height="' + Math.max(0, ylo - yhi).toFixed(1) + '" fill="rgba(94,230,168,.09)"/>'
+      + '<path d="M22 ' + yhi.toFixed(1) + 'H398" stroke="rgba(255,90,90,.5)" stroke-dasharray="4 4"/>'
+      + '<path d="M22 ' + ylo.toFixed(1) + 'H398" stroke="rgba(94,230,168,.5)" stroke-dasharray="4 4"/>'
+      + '<polyline points="' + pts + '" fill="none" stroke="#a970ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+      + vals.map(function (_v, i) { var pp = pts.split(' ')[i].split(','); return '<circle cx="' + pp[0] + '" cy="' + pp[1] + '" r="3" fill="#a970ff"/>'; }).join('')
+      + '</svg></div>';
+  }
+  function ring(pctVal, label) {
+    var r = 34, c = 2 * Math.PI * r, off = c * (1 - pctVal / 100);
+    return '<svg width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="' + r + '" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/>'
+      + '<circle cx="48" cy="48" r="' + r + '" fill="none" stroke="#5ee6a8" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" transform="rotate(-90 48 48)"/>'
+      + '<text x="48" y="45" text-anchor="middle" fill="#F3ECFF" font-size="20" font-weight="600">' + pctVal + '%</text>'
+      + '<text x="48" y="61" text-anchor="middle" fill="rgba(255,255,255,.5)" font-size="10">' + esc(label) + '</text></svg>';
+  }
+  function factorRow(icon, label, pctVal, state) {
+    return '<div class="lg-factor-row"><span class="fr-label">' + icon + esc(label) + '</span>'
+      + '<div class="bar"><i style="width:' + pctVal + '%;background:' + stateColor(state) + '"></i></div>'
+      + '<span class="fr-state" style="color:' + stateColor(state) + '">' + esc(state) + '</span></div>';
+  }
+  function chk(on) { return on ? '<svg viewBox="0 0 24 24" fill="none" stroke="#5ee6a8" stroke-width="2.2"><path d="m5 12 4 4L19 6"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>'; }
+
+  var bodySub = 'overview';
+  function renderBodyPanel(p) {
+    var t = today();
+    var weights = (lsget('po_coach_weights', []) || []).filter(function (e) { return e && e.dateKey && e.weight > 0; }).sort(function (a, b) { return String(a.dateKey).localeCompare(String(b.dateKey)); });
+    var bfLogs = (lsget('health:body:v1', []) || []).filter(function (e) { return e && e.date && e.bf > 0; }).sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+    var meas = (lsget('body:logs', []) || []).filter(Boolean).sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+    var sleeps = (lsget('sleep:logs', []) || []).filter(Boolean).sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+    var latestW = weights[weights.length - 1] || { dateKey: t, weight: 78.4 };
+    var prevW = weights.length > 1 ? weights[weights.length - 2] : { weight: 79.0 };
+    var latestBF = bfLogs[bfLogs.length - 1] || { date: t, bf: 14.2, waist: 83.1 };
+    var prevBF = bfLogs.length > 1 ? bfLogs[bfLogs.length - 2] : { bf: 14.6, waist: 83.9 };
+    var latestM = meas[meas.length - 1] || {};
+    var waist = Number(latestM.waist || latestBF.waist || 83.1);
+    var prevWaist = Number((meas.length > 1 ? meas[meas.length - 2].waist : prevBF.waist) || 83.9);
+    var weight = Number(latestW.weight || 78.4);
+    var bf = Number(latestBF.bf || 14.2);
+    var lbm = weight * (1 - bf / 100);
+    var prevLbm = Number(prevW.weight || 79) * (1 - Number(prevBF.bf || 14.6) / 100);
+    var sleep = sleeps[sleeps.length - 1] || { date: t, duration: 452 };
+    var sleepText = sleep.duration ? fmtDur(sleep.duration) : '7h 32m';
+    var weightVals = weights.slice(-10).map(function (x) { return x.weight; });
+    var bfVals = bfLogs.slice(-10).map(function (x) { return x.bf; });
+    var waistVals = meas.slice(-10).map(function (x) { return x.waist; }).filter(Boolean);
+    var photos = lsget('body:photos:v1', []) || [];
+    var lastPhoto = latestByDate(photos, 'date');
+    var lastPhotoDate = lastPhoto && lastPhoto.date ? lastPhoto.date : 'May 16';
+
+    var scaleIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9a4 4 0 0 1 6 0"/></svg>';
+    var pctIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/><path d="m18 6-12 12"/></svg>';
+    var bodyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="4" r="2"/><path d="M12 6v7M8 21l2-8h4l2 8M8 10l-3 4M16 10l3 4"/></svg>';
+    var waistIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 7c4 2 8 2 12 0M6 17c4-2 8-2 12 0"/><path d="M7 7c1.4 3.2 1.4 6.8 0 10M17 7c-1.4 3.2-1.4 6.8 0 10"/></svg>';
+    var moonIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 15.6A8.8 8.8 0 0 1 8.4 3.5a8.8 8.8 0 1 0 12.1 12.1z"/></svg>';
+    var heartIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.4-9.4-9A5.4 5.4 0 0 1 12 6.1 5.4 5.4 0 0 1 21.4 12C19 16.6 12 21 12 21z"/></svg>';
+    var shoeIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 14.5 10 5l4 4-2 3 8 2.5V18H6.5C4.8 18 4 16.8 4 14.5z"/></svg>';
+
+    var triIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 9 17H3L12 3z"/><path d="M12 9v5M12 17h.01"/></svg>';
+    var photoIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>';
+    var rulerIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="8" width="18" height="8" rx="2"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/></svg>';
+    var pulseIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>';
+    var starIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z"/></svg>';
+    var gaugeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 15l4-3"/></svg>';
+    var infoIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
+    var calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/></svg>';
+    var clockIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+    var checkCircle = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>';
+    var coffeeIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M8 3v2M12 3v2"/></svg>';
+    var cameraIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="14" rx="2.5"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>';
+    var uploadIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>';
+    var pencilIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 20h9"/><path d="m16.5 3.5 4 4L7 21H3v-4L16.5 3.5z"/></svg>';
+    var shieldIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>';
+    var watchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 6l.5-3h5l.5 3M9 18l.5 3h5l.5-3"/></svg>';
+    var bloodIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z"/></svg>';
+    var chev = '<span class="lg-body-ic" style="color:var(--text-3)">&rsaquo;</span>';
+
+    var SUBS = [['overview', 'Overview'], ['composition', 'Composition'], ['recovery', 'Recovery'], ['labs', 'Labs'], ['photos', 'Photos']];
+    function subtabsBar(right) {
+      return '<div class="lg-subtabs-row"><div class="lg-subtabs">'
+        + SUBS.map(function (s) { return '<button data-sub="' + s[0] + '"' + (s[0] === bodySub ? ' aria-selected="true"' : '') + '>' + s[1] + '</button>'; }).join('')
+        + '</div>' + (right || '') + '</div>';
+    }
+
+    /* ---------- Overview ---------- */
+    function overviewView() {
+      var h = '<section class="card" style="padding:0">' + subtabsBar('')
+        + '<div class="lg-body-hero"><div class="lg-body-copy"><span>Body is a mini product inside Log. Overview gives you the essentials and fast logging.</span><span>Go deeper in <a href="../body.html">Composition</a>, <a href="../health.html">Recovery</a>, <a href="../health.html#labs">Labs</a>, and <a href="../body.html#photoSection">Photos</a>.</span></div>'
+        + '<div class="lg-body-stats">'
+        + bodyStat(scaleIcon, 'Weight', weight.toFixed(1), 'kg', metricDeltaText(weight, prevW.weight, 'kg', 'down'), weightVals)
+        + bodyStat(pctIcon, 'Body Fat %', bf.toFixed(1), '%', metricDeltaText(bf, prevBF.bf, '%', 'down'), bfVals)
+        + bodyStat(bodyIcon, 'Lean Body Mass', lbm.toFixed(1), 'kg', metricDeltaText(lbm, prevLbm, 'kg', 'up'), weightVals.map(function (v) { return v * (1 - bf / 100); }))
+        + bodyStat(waistIcon, 'Waist', waist.toFixed(1), 'cm', metricDeltaText(waist, prevWaist, 'cm', 'down'), waistVals)
+        + '</div></div></section>';
+      h += '<div class="lg-body-grid">'
+        + '<section class="card lg-span-4"><div class="lg-card-title">Log measurement</div><div class="lg-card-sub">Quickly record your body metrics.</div><button class="lg-body-action" data-add><span class="lg-plus">+</span><span><strong style="color:var(--accent);font-size:17px">Log measurement</strong><span class="lg-card-sub" style="display:block">Weight, body fat, waist and more</span></span></button></section>'
+        + '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Goal progress</div><a class="btn btn-secondary btn-sm" href="../body.html">Edit goal</a></div><div class="lg-card-sub">Lose fat and maintain muscle</div><div class="lg-nutri-main"><span class="big">68%</span><span class="lg-left" style="margin-left:0">On track</span></div><div class="bar"><i style="width:68%"></i></div><div class="lg-goal-metrics"><div><div class="t-cap">Current</div><div> ' + bf.toFixed(1) + '% BF</div></div><div><div class="t-cap">Goal</div><div>12% BF</div></div><div><div class="t-cap">Estimated</div><div>Jul 18, 2025</div></div></div></section>'
+        + '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Recent body logs</div><a class="btn btn-secondary btn-sm" href="../body.html">View all</a></div><div data-entries>'
+        + '<div class="lg-body-row"><span class="lg-body-ic">' + scaleIcon + '</span><span>Weight</span><span>' + weight.toFixed(1) + ' kg</span><span class="t-cap">Today, 07:45</span><button class="lg-ic-btn" data-edit="w" aria-label="Edit weight">&rsaquo;</button></div>'
+        + '<div class="lg-body-row"><span class="lg-body-ic">' + pctIcon + '</span><span>Body Fat %</span><span>' + bf.toFixed(1) + ' %</span><span class="t-cap">Today, 07:45</span><a class="lg-ic-btn" href="../health.html" aria-label="Open body fat">&rsaquo;</a></div>'
+        + '<div class="lg-body-row"><span class="lg-body-ic">' + waistIcon + '</span><span>Waist</span><span>' + waist.toFixed(1) + ' cm</span><span class="t-cap">Yesterday, 07:30</span><a class="lg-ic-btn" href="../body.html" aria-label="Open waist">&rsaquo;</a></div>'
+        + '<div class="lg-body-row"><span class="lg-body-ic">' + moonIcon + '</span><span>Sleep</span><span>' + esc(sleepText) + '</span><span class="t-cap">Today, 07:30</span><button class="lg-ic-btn" data-edit="s" aria-label="Edit sleep">&rsaquo;</button></div>'
+        + '</div></section>';
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Recovery snapshot</div><a class="btn btn-secondary btn-sm" href="../health.html">View all</a></div><div class="lg-recovery-grid">'
+        + recoveryTile(moonIcon, 'Sleep', sleepText, 'Good', [6, 7, 13, 18, 26, 9])
+        + recoveryTile(heartIcon, 'HRV', '62 ms', 'Good', [14, 10, 12, 9, 13, 11])
+        + recoveryTile(heartIcon, 'Resting HR', '52 bpm', 'Good', [10, 11, 9, 7, 13, 15])
+        + recoveryTile(shoeIcon, 'Steps', '8,432', 'Moderate', [8, 18, 30, 10, 25, 11])
+        + '</div><div class="lg-card-sub" style="margin-top:10px">Keep prioritizing sleep and daily movement.</div></section>';
+      h += '<section class="card lg-span-4"><div class="lg-chip-row"><div class="lg-card-title">Body composition trend</div><div class="segmented"><button role="tab" aria-selected="true">7D</button><button role="tab">30D</button><button role="tab">90D</button><button role="tab">1Y</button></div></div><div class="segmented" style="align-self:flex-start;margin-top:4px"><button role="tab" aria-selected="true">Weight</button><button role="tab">BF%</button><button role="tab">LBM</button></div>' + bodyChart(weightVals) + '<div class="lg-card-sub" style="color:var(--green)">down 1.2 kg in the last 7 days</div></section>';
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Progress photos</div><a class="btn btn-secondary btn-sm" href="../body.html#photoSection">View all</a></div><div class="lg-photo-card"><img src="assets/body-progress-comparison.png" alt="Before and after progress comparison"><div class="lg-photo-label left">Before<br>Apr 16</div><div class="lg-photo-label right">After<br>May 16</div><div class="lg-photo-handle">&lt;&gt;</div></div><div class="between lg-card-sub"><span>Latest set: ' + esc(lastPhotoDate) + '</span><span>Every 4 weeks</span></div></section>';
+      h += '<section class="card lg-span-7"><div class="lg-card-title">Health attention</div><div class="lg-attention"><a class="lg-alert" href="../health.html#labs"><span>' + triIcon + '</span><span><strong style="color:var(--amber)">Bloodwork retest due</strong><span class="lg-card-sub" style="display:block">Fasting lipid panel<br>Due in 5 days</span></span><span>&rsaquo;</span></a><a class="lg-alert" href="../body.html#photoSection"><span>' + photoIcon + '</span><span><strong style="color:var(--amber)">Progress photos overdue</strong><span class="lg-card-sub" style="display:block">Next set was due May 14<br>You are 2 days behind</span></span><span>&rsaquo;</span></a></div></section>';
+      h += '</div>';
+      return h;
+    }
+
+    /* ---------- Composition ---------- */
+    function compositionView() {
+      var M = latestM || {};
+      var measDefs = [
+        ['Chest', M.chest, 103.2, '+0.4 cm', 'var(--green)'],
+        ['Shoulders', M.shoulders, 122.0, '0.0 cm', 'var(--text-3)'],
+        ['Arms', M.arms, 36.4, '+0.2 cm', 'var(--green)'],
+        ['Waist', M.waist || waist, 83.1, '-0.8 cm', 'var(--green)'],
+        ['Hips', M.hips, 97.8, '-0.3 cm', 'var(--green)'],
+        ['Thighs', M.thighs, 61.0, '+0.3 cm', 'var(--green)'],
+        ['Calves', M.calves, 37.5, '0.0 cm', 'var(--text-3)']
+      ];
+      var measRows = measDefs.map(function (m) {
+        return '<div class="lg-meas-row"><span class="lg-body-ic">' + rulerIcon + '</span><span class="t-cap" style="color:var(--text-2)">' + m[0] + '</span><span class="num">' + (Number(m[1]) > 0 ? Number(m[1]).toFixed(1) : m[2].toFixed(1)) + ' cm</span><span class="lg-delta" style="color:' + m[4] + '">' + m[3] + '</span></div>';
+      }).join('');
+      var recentDefs = [['Today, 07:45', 78.4, 14.2], ['Yesterday, 07:30', 78.8, 14.6], ['Wed, May 14, 07:40', 79.2, 14.6], ['Tue, May 13, 07:35', 79.0, 14.5], ['Mon, May 12, 07:50', 79.4, 14.7]];
+      var recentRows = recentDefs.map(function (r) {
+        return '<div class="lg-body-row"><span class="lg-body-ic">' + scaleIcon + '</span><span class="t-cap">' + r[0] + '</span><span class="num">' + r[1].toFixed(1) + ' kg</span><span class="num">' + r[2].toFixed(1) + '% BF</span><span>&rsaquo;</span></div>';
+      }).join('');
+      function signal(icon, label, color, l1, l2) {
+        return '<div><div class="lg-signal-head" style="display:flex;align-items:center;gap:8px;color:' + color + ';font-weight:600">' + icon + label + '</div><div class="lg-card-sub" style="margin-top:6px">' + l1 + '<br>' + l2 + '</div><div class="bar" style="margin-top:8px"><i style="width:70%;background:' + color + '"></i></div></div>';
+      }
+      var h = '<section class="card" style="padding:0">' + subtabsBar('<div class="lg-sub-actions"><button class="btn btn-primary btn-sm" data-add>+ Add log</button><a class="btn btn-secondary btn-sm" href="../body.html">Edit goals</a></div>') + '</section>';
+      h += '<div class="lg-statgrid c4">'
+        + statCard(scaleIcon, 'Weight', weight.toFixed(1), 'kg', metricDeltaText(weight, prevW.weight, 'kg', 'down'), weightVals)
+        + statCard(pctIcon, 'Body Fat %', bf.toFixed(1), '%', metricDeltaText(bf, prevBF.bf, '%', 'down'), bfVals)
+        + statCard(bodyIcon, 'Lean Body Mass', lbm.toFixed(1), 'kg', metricDeltaText(lbm, prevLbm, 'kg', 'up'), weightVals.map(function (v) { return v * (1 - bf / 100); }))
+        + statCard(waistIcon, 'Waist', waist.toFixed(1), 'cm', metricDeltaText(waist, prevWaist, 'cm', 'down'), waistVals)
+        + '</div>';
+      var trendCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Body composition trend</div><span class="lg-mini-chip">7D &#9662;</span></div>'
+        + '<div class="segmented" style="align-self:flex-start;margin-top:4px"><button role="tab" aria-selected="true">Weight</button><button role="tab">Body Fat %</button><button role="tab">LBM</button><button role="tab">Measurements</button></div>'
+        + bodyChart(weightVals) + '<div class="lg-card-sub" style="color:var(--green)">down 1.2 kg in the last 7 days</div></section>';
+      var signalsCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + pulseIcon + 'Body composition signals</div>'
+        + '<div class="lg-signal-grid" style="margin-top:10px">' + signal(bloodIcon, 'Muscle', 'var(--green)', 'Lean mass is trending up.', '+0.3 kg in the last 7 days') + signal(bloodIcon, 'Fat', '#ff8a8a', 'Body fat is trending down.', '-0.4% in the last 7 days') + '</div>'
+        + '<div class="lg-note-card" style="margin-top:12px">' + starIcon + 'You\'re on track. Keep prioritizing strength training and protein.</div></section>';
+      var goalCard = '<section class="card"><div class="lg-card-title">Goal progress</div>'
+        + '<div class="t-cap" style="margin-top:10px;color:var(--text-2)">Body fat %</div><div class="between"><div><div class="t-cap">Current</div><div>' + bf.toFixed(1) + '%</div></div><div style="text-align:right"><div class="t-cap">Goal</div><div>12.0%</div></div></div><div class="bar" style="margin-top:6px"><i style="width:' + pct(100 - (bf - 12) / (14.6 - 12) * 100, 100) + '%;background:var(--green)"></i></div><div class="lg-card-sub" style="color:var(--green)">down 0.4% vs last week</div>'
+        + '<div class="t-cap" style="margin-top:14px;color:var(--text-2)">Weight</div><div class="between"><div><div class="t-cap">Current</div><div>' + weight.toFixed(1) + ' kg</div></div><div style="text-align:right"><div class="t-cap">Goal</div><div>75.0 kg</div></div></div><div class="bar" style="margin-top:6px"><i style="width:' + pct(100 - (weight - 75) / (79 - 75) * 100, 100) + '%;background:var(--accent)"></i></div><div class="lg-card-sub" style="color:var(--green)">down 0.6 kg vs last week</div>'
+        + '<div class="lg-goal-metrics" style="grid-template-columns:1fr 1fr"><div><div class="t-cap">Weekly rate</div><div style="color:var(--green)">down 0.3% BF / wk</div></div><div><div class="t-cap">Estimated timeline</div><div>3&ndash;4 weeks<span class="lg-card-sub" style="display:block">to goal</span></div></div></div></section>';
+      var targetCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Target goals</div><a class="btn btn-secondary btn-sm" href="../body.html">Edit</a></div>'
+        + '<div class="lg-goal-metrics" style="grid-template-columns:1fr 1fr;border-top:0;padding-top:0;margin-top:8px"><div><div class="t-cap">Target body fat %</div><div style="font-size:18px">12.0%</div></div><div><div class="t-cap">Target weight</div><div style="font-size:18px">75.0 kg</div></div></div>'
+        + '<div class="t-cap" style="margin-top:12px;color:var(--text-2)">Measurement targets</div><div class="lg-chip-set" style="margin-top:8px"><span class="lg-mini-chip">Waist &lt; 80 cm</span><span class="lg-mini-chip">Chest &gt; 105 cm</span><span class="lg-mini-chip">Arms &gt; 37 cm</span><span class="lg-mini-chip">+3 more</span></div></section>';
+      var measCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + rulerIcon + 'Measurements</div><a class="btn btn-secondary btn-sm" href="../body.html">View all</a></div>' + measRows + '<div class="lg-card-sub" style="margin-top:8px">Latest: Today, 07:45</div></section>';
+      var recentCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Recent body logs</div><a class="btn btn-secondary btn-sm" href="../body.html">View all</a></div><div>' + recentRows + '</div><div class="lg-card-sub" style="margin-top:8px">Log manually or connect a <a href="watch.html" style="color:var(--accent)">supported device</a>.</div></section>';
+      h += '<div class="lg-cols3"><div class="col">' + trendCard + signalsCard + '</div><div class="col">' + goalCard + targetCard + '</div><div class="col">' + measCard + recentCard + '</div></div>';
+      h += '<div class="lg-note-card" style="border:0;background:none;color:var(--text-3)">' + infoIcon + 'Tip: Log at the same time of day, in similar conditions for the most accurate trends.</div>';
+      return h;
+    }
+
+    /* ---------- Recovery ---------- */
+    function recoveryView() {
+      var h = '<section class="card" style="padding:0">' + subtabsBar('') + '<div class="lg-body-hero" style="padding:10px 20px"><div class="lg-body-copy" style="margin:0"><span>Track your sleep and recovery to understand how well your body is restoring and adapting.</span><span>Data from wearable &middot; Synced 2h ago</span></div></div></section>';
+      h += '<div class="lg-statgrid c6">'
+        + recStat(gaugeIcon, 'Readiness', '72', '', 'Good', '<span style="color:var(--green)">up 6</span> vs yesterday', [8, 10, 9, 12, 11, 13, 14])
+        + recStat(moonIcon, 'Sleep Duration', '7h 32m', '', 'Good', '<span style="color:var(--green)">+1h 02m</span> vs yesterday', [7, 6, 8, 7, 7, 6, 8])
+        + recStat(clockIcon, 'Sleep Debt', '1h 18m', '', 'Moderate', '<span style="color:var(--green)">down 22m</span> vs yesterday', [3, 4, 2, 3, 2, 3, 2])
+        + recStat(heartIcon, 'HRV', '62', 'ms', 'Good', '<span style="color:var(--green)">up 8</span> vs yesterday', [11, 10, 12, 9, 13, 11, 12])
+        + recStat(heartIcon, 'Resting HR', '52', 'bpm', 'Good', '<span style="color:var(--green)">down 3 bpm</span> vs yesterday', [12, 11, 10, 9, 11, 10, 9])
+        + recStat(shoeIcon, 'Steps', '8,432', '', 'Moderate', '<span style="color:var(--amber)">down 1,568</span> vs yesterday', [8, 12, 9, 14, 7, 10, 8])
+        + '</div>';
+      var trendsCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + infoIcon + 'Sleep &amp; Recovery Trends</div><span class="lg-mini-chip">14 days &#9662;</span></div>'
+        + '<div class="segmented" style="align-self:flex-start;margin-top:4px"><button role="tab" aria-selected="true">Sleep</button><button role="tab">Readiness</button><button role="tab">HRV</button><button role="tab">RHR</button><button role="tab">SpO2</button></div>'
+        + '<div class="t-cap" style="margin-top:6px">Sleep Duration (hours)</div>' + barChart([7.2, 7.8, 6.9, 7.5, 8.1, 6.4, 7.0, 7.6, 6.8, 7.9, 6.2, 7.5, 8.0, 7.5], 7)
+        + '<div class="between"><div class="lg-card-sub" style="color:var(--amber)">' + triIcon.replace(/width="1.7"/, 'width="1.4"') + ' You have met your sleep target on 9 of the last 14 days.</div><a class="lg-card-link" href="../health.html">View all trends &rarr;</a></div></section>';
+      var lastNightCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + moonIcon + 'Last Night Summary</div>'
+        + '<div class="lg-kv-row"><span class="k">Bedtime</span><span class="num">11:05 PM</span></div>'
+        + '<div class="lg-kv-row"><span class="k">Wake time</span><span class="num">6:57 AM</span></div>'
+        + '<div class="lg-kv-row"><span class="k">Sleep Duration</span><span class="num">7h 52m <span style="color:var(--green)">Good</span></span></div>'
+        + '<div class="lg-kv-row"><span class="k">Deep Sleep</span><span class="num">1h 48m <span style="color:var(--accent)">23%</span></span></div>'
+        + '<div class="lg-kv-row"><span class="k">REM Sleep</span><span class="num">1h 42m <span style="color:var(--accent)">22%</span></span></div>'
+        + '<div class="lg-kv-row"><span class="k">Sleep Score</span><span class="num">76 <span style="color:var(--green)">Good</span></span></div>'
+        + '<div class="lg-kv-row"><span class="k">Sleep Debt</span><span class="num">1h 18m <span style="color:var(--amber)">Moderate</span></span></div>'
+        + '<a class="lg-card-link" href="../health.html" style="margin-top:8px">View sleep stages &rarr;</a></section>';
+      var wearableCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + watchIcon + 'Wearable Data / Sync Status</div><span class="badge green">Connected</span></div>'
+        + '<div class="lg-summary-card" style="grid-template-columns:1fr;padding:12px"><div style="font-weight:600">Samsung Health</div><div class="lg-card-sub">Galaxy Watch 6</div></div>'
+        + '<div class="lg-kv-row"><span class="k">Last sync</span><span class="num">2h ago ' + checkCircle.replace(/width="1.7"/, 'width="1.4"') + '</span></div>'
+        + '<div class="t-cap" style="margin-top:10px;color:var(--text-2)">Imported metrics</div><div class="lg-chip-set" style="margin-top:8px"><span class="lg-mini-chip">' + moonIcon + 'Sleep</span><span class="lg-mini-chip">' + heartIcon + 'HRV</span><span class="lg-mini-chip">' + heartIcon + 'RHR</span><span class="lg-mini-chip">' + bloodIcon + 'SpO2</span><span class="lg-mini-chip">' + shoeIcon + 'Steps</span></div>'
+        + '<a class="lg-card-link" href="watch.html" style="margin-top:10px">Manage connection &rarr;</a></section>';
+      var factorsCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + pulseIcon + 'Recovery Factors</div>'
+        + factorRow(moonIcon, 'Sleep', 82, 'Good') + factorRow(pulseIcon, 'Strain (Training Load)', 58, 'Moderate') + factorRow(heartIcon, 'Stress', 55, 'Moderate') + factorRow(bodyIcon, 'Soreness', 30, 'Low')
+        + '<a class="lg-card-link" href="../health.html" style="margin-top:10px">View all factors &rarr;</a></section>';
+      var consistencyCard = '<section class="card"><div class="lg-card-title">Sleep Consistency</div><div class="between" style="align-items:center;margin-top:8px">' + ring(81, 'Consistent') + '<div style="text-align:right"><div class="lg-card-sub">Your average sleep window</div><div style="font-size:16px">11:10 PM &ndash; 7:00 AM</div><div class="lg-card-sub" style="color:var(--accent)">7h 50m average duration</div></div></div>'
+        + '<div class="lg-week">' + ['Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu'].map(function (d, i) { return '<div><span>' + d + '</span>' + chk(i !== 5) + '</div>'; }).join('') + '</div>'
+        + '<div class="lg-card-sub" style="margin-top:10px">Consistency improves recovery.</div></section>';
+      var bedtimeCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + infoIcon + 'Bedtime Guidance</div>'
+        + '<div class="lg-summary-card" style="grid-template-columns:40px 1fr;padding:12px;margin-top:8px"><span class="lg-orb" style="width:40px;height:40px">' + coffeeIcon + '</span><div><div class="lg-card-sub">Caffeine cutoff</div><div style="font-size:20px">2:30 PM</div><div class="lg-card-sub">Today</div></div></div>'
+        + '<div class="lg-kv-row" style="margin-top:8px"><span class="k">Wind-down reminder</span><span class="num">9:45 PM</span></div>'
+        + '<a class="lg-card-link" href="../health.html" style="margin-top:10px">View bedtime routine &rarr;</a></section>';
+      var alertsCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + triIcon + 'Health Alerts / Attention</div>'
+        + '<div class="lg-alert" style="min-height:44px"><span>' + triIcon + '</span><span><strong style="color:var(--amber)">Low sleep</strong><span class="lg-card-sub" style="display:block">You are averaging less than 7h of sleep. Aim for 7&ndash;9 hours.</span></span></div>'
+        + '<div class="lg-alert" style="min-height:44px"><span>' + triIcon + '</span><span><strong style="color:var(--amber)">Recovery caution</strong><span class="lg-card-sub" style="display:block">Elevated strain with lower recovery. Consider a lighter day.</span></span></div>'
+        + '<div class="lg-alert" style="min-height:44px"><span style="color:var(--accent)">' + infoIcon + '</span><span><strong style="color:var(--accent)">Wearable sync</strong><span class="lg-card-sub" style="display:block">All good &mdash; last synced 2h ago.</span></span></div>'
+        + '<a class="lg-card-link" href="../health.html" style="margin-top:6px">View all alerts &rarr;</a></section>';
+      h += '<div class="lg-cols3"><div class="col">' + trendsCard + '</div><div class="col">' + lastNightCard + '</div><div class="col">' + wearableCard + '</div></div>';
+      h += '<div class="lg-cols4"><div class="col">' + factorsCard + '</div><div class="col">' + consistencyCard + '</div><div class="col">' + bedtimeCard + '</div><div class="col">' + alertsCard + '</div></div>';
+      return h;
+    }
+
+    /* ---------- Labs ---------- */
+    function labsView() {
+      var h = '<section class="card" style="padding:0">' + subtabsBar('') + '</section>';
+      h += '<div class="lg-statgrid c4">'
+        + kpiCard(calIcon, 'Latest panel date', 'May 14, 2025', '2 days ago')
+        + kpiCard(checkCircle, 'Markers in range', '28 / 34', '<span style="color:var(--green)">82%</span>')
+        + kpiCard(triIcon, 'Watch items', '3', '<span style="color:var(--amber)">Needs monitoring</span>')
+        + kpiCard(calIcon, 'Next retest', 'Jun 11 &ndash; 18, 2025', 'In 4&ndash;11 days')
+        + '</div>';
+      function finding(name, val, status) {
+        var c = status === 'High' ? '#ff8a8a' : status === 'In Range' ? 'var(--green)' : 'var(--amber)';
+        return '<div class="lg-kv-row"><span class="k" style="color:' + c + '">' + name + '</span><span class="num">' + val + ' <span style="color:' + c + '">' + status + '</span></span></div>';
+      }
+      var bloodCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + infoIcon + 'Latest Bloodwork Summary</div>'
+        + '<div class="between" style="align-items:flex-start;margin-top:10px;gap:16px"><div><div class="t-cap">Protocol phase</div><span class="badge violet" style="margin-top:4px">CRUISE</span><div class="t-cap" style="margin-top:12px">Panel</div><div class="lg-card-sub">Comprehensive Metabolic &amp; Hormone Panel</div><div class="t-cap" style="margin-top:12px">Collected</div><div class="lg-card-sub">May 14, 2025</div></div>'
+        + '<div style="flex:1;min-width:0"><div class="t-cap">Key findings</div>' + finding('LDL Cholesterol', '142 mg/dL', 'High') + finding('Estradiol (Sensitive)', '46 pg/mL', 'High') + finding('ALT', '58 U/L', 'High') + finding('Testosterone (Total)', '742 ng/dL', 'In Range') + finding('Hemoglobin', '16.2 g/dL', 'In Range') + '</div></div>'
+        + '<button class="btn btn-secondary btn-block" style="margin-top:12px">View full panel</button></section>';
+      var trendCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Marker Trend</div><span class="lg-mini-chip">Testosterone (Total) &#9662;</span></div>'
+        + '<div class="segmented" style="align-self:flex-end;margin-top:4px"><button role="tab">7D</button><button role="tab">30D</button><button role="tab" aria-selected="true">90D</button><button role="tab">1Y</button><button role="tab">All</button></div>'
+        + rangeChart([480, 560, 610, 700, 690, 620, 580, 610, 700, 742], 300, 1000)
+        + '<div class="between lg-card-sub"><span style="color:#ff8a8a">High &gt; 1,000</span><span>Reference 300 &ndash; 1,000</span><span style="color:var(--green)">Low &lt; 300</span></div></section>';
+      function labRow(marker, cur, status, retest) {
+        var c = status === 'High' ? '#ff8a8a' : status === 'Watch' ? 'var(--amber)' : 'var(--green)';
+        return '<div class="lg-lab-row"><span>' + marker + '</span><span class="num">' + cur + '</span><span style="color:' + c + '">' + status + '</span><span class="lg-card-sub">' + retest + '</span></div>';
+      }
+      var attentionCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + infoIcon + 'Markers Requiring Attention</div>'
+        + '<div class="lg-lab-row lg-lab-head"><span>Marker</span><span>Current</span><span>Status</span><span>Retest</span></div>'
+        + labRow('LDL Cholesterol', '142 mg/dL', 'High', 'Retest in 4&ndash;6 weeks') + labRow('Estradiol (Sensitive)', '46 pg/mL', 'High', 'Retest in 2&ndash;4 weeks') + labRow('ALT', '58 U/L', 'High', 'Retest in 2&ndash;4 weeks') + labRow('AST', '41 U/L', 'Watch', 'Retest in 4&ndash;6 weeks') + labRow('Ferritin', '282 ng/mL', 'Watch', 'Retest in 4&ndash;8 weeks')
+        + '<a class="lg-card-link" href="../health.html#labs" style="margin-top:8px">View all markers &rarr;</a></section>';
+      function histRow(date, panel, n) { return '<div class="lg-lab-row" style="grid-template-columns:100px 1fr 40px 50px"><span class="lg-card-sub">' + date + '</span><span>' + panel + '</span><span style="color:var(--amber)">' + n + '</span><a class="lg-card-link" href="../health.html#labs">View</a></div>'; }
+      var historyCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Panel History</div><a class="btn btn-secondary btn-sm" href="../health.html#labs">View all panels</a></div>'
+        + '<div class="lg-lab-row lg-lab-head" style="grid-template-columns:100px 1fr 40px 50px"><span>Date</span><span>Panel</span><span>Out</span><span></span></div>'
+        + histRow('May 14, 2025', 'CMP &amp; Hormone', 5) + histRow('Apr 16, 2025', 'CMP &amp; Hormone', 4) + histRow('Mar 17, 2025', 'CMP &amp; Hormone', 2) + histRow('Feb 17, 2025', 'CMP &amp; Hormone', 3) + histRow('Jan 20, 2025', 'CMP &amp; Hormone', 3) + '</section>';
+      var retestCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + infoIcon + 'Retest Plan / Reminders</div>'
+        + '<div class="lg-summary-card" style="grid-template-columns:40px 1fr;padding:12px;margin-top:8px"><span class="lg-orb" style="width:40px;height:40px">' + calIcon + '</span><div><div class="lg-card-sub">Next retest window</div><div style="font-size:16px">Jun 11 &ndash; 18, 2025</div><div class="lg-card-sub" style="color:var(--accent)">In 4&ndash;11 days</div></div></div>'
+        + '<div class="lg-kv-row" style="margin-top:8px"><span class="k">Retest CMP &amp; Hormone</span><span class="num">Jun 11</span></div><div class="lg-kv-row"><span class="k">Fasted (10&ndash;12 hrs)</span><span class="num">Required</span></div><div class="lg-kv-row"><span class="k">Morning sample</span><span class="num">Recommended</span></div>'
+        + '<a class="lg-card-link" href="../health.html#labs" style="margin-top:8px">Manage reminders &rarr;</a></section>';
+      var checklist = ['Avoid alcohol 48 hrs prior', 'No intense training 24 hrs prior', 'Fast 10&ndash;12 hours', 'Hydrate (water only)', 'Avoid supplements 24 hrs prior'];
+      var checklistCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + infoIcon + 'Pre-Bloodwork Checklist</div>'
+        + checklist.map(function (c) { return '<div class="lg-check-item"><span class="box"></span><span>' + c + '</span></div>'; }).join('')
+        + '<div class="lg-card-sub" style="margin-top:8px">0 / 5 completed</div></section>';
+      h += '<div class="lg-cols2"><div class="col">' + bloodCard + '</div><div class="col">' + trendCard + '</div></div>';
+      h += '<div class="lg-cols4"><div class="col">' + attentionCard + '</div><div class="col">' + historyCard + '</div><div class="col">' + retestCard + '</div><div class="col">' + checklistCard + '</div></div>';
+      h += '<section class="card"><div class="lg-upload-bar">'
+        + '<div class="lg-upload-cell"><span class="ico">' + uploadIcon + '</span><div><strong>Upload Lab Report</strong><div class="lg-card-sub">Upload a PDF or image and we will extract your markers.</div></div><a class="btn btn-primary btn-sm" href="../health.html#labs">Upload file</a></div>'
+        + '<div class="lg-upload-cell"><span class="ico">' + pencilIcon + '</span><div><strong>Enter Manually</strong><div class="lg-card-sub">Enter your lab values manually if you prefer.</div></div><a class="btn btn-secondary btn-sm" href="../health.html#labs">Enter manually</a></div>'
+        + '<div class="lg-upload-cell"><span class="ico">' + shieldIcon + '</span><div><strong>Your data is private and secure</strong><div class="lg-card-sub">We never share your data. You are in control.</div></div><span></span></div>'
+        + '</div></section>';
+      return h;
+    }
+
+    /* ---------- Photos ---------- */
+    function photosView() {
+      var img = 'assets/body-progress-comparison.png';
+      var thumb = function (cap) { return '<div class="lg-thumb"><img src="' + img + '" alt="progress photo"><span class="th-cap">' + cap + '</span></div>'; };
+      var h = '<section class="card" style="padding:0">' + subtabsBar('<div class="lg-sub-actions"><a class="lg-sub-note" href="../body.html#photoSection">' + infoIcon.replace(/width="1.7"/, 'width="1.4" style="vertical-align:-3px;width:16px;height:16px"') + ' How to take progress photos</a></div>') + '</section>';
+      h += '<div class="lg-statgrid c4">'
+        + kpiCard(calIcon, 'Latest Photo Set', 'May 16, 2025', '7:32 AM')
+        + kpiCard(photoIcon, 'Total Sets', '12', 'Since Apr 1, 2025')
+        + kpiCard(checkCircle, 'Coverage', 'Front 100% &middot; Side 100% &middot; Back 100%', 'All views complete')
+        + kpiCard(clockIcon, 'Next Suggested Check-in', 'May 30 &ndash; Jun 2', 'Every 2 weeks')
+        + '</div>';
+      var compareCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + infoIcon + 'Progress Comparison</div><div class="segmented"><button role="tab" aria-selected="true">Before / After</button><button role="tab">Overlay</button></div></div>'
+        + '<div class="lg-photo-card" style="min-height:280px"><img src="' + img + '" style="height:280px" alt="Before and after progress comparison"><div class="lg-photo-label left">Before<br>Apr 16, 2025<br>' + weight.toFixed(1) + ' kg</div><div class="lg-photo-label right">After<br>May 16, 2025<br>' + weight.toFixed(1) + ' kg</div><div class="lg-photo-handle">&lt;&gt;</div></div>'
+        + '<div class="lg-metric-strip"><div><div class="t-cap">Weight</div><div>0.0 kg</div></div><div><div class="t-cap">Chest</div><div style="color:var(--green)">up 1.2 cm</div></div><div><div class="t-cap">Waist</div><div style="color:var(--green)">down 1.0 cm</div></div><div><div class="t-cap">Shoulders</div><div style="color:var(--green)">up 0.7 cm</div></div><div><div class="t-cap">Arms</div><div style="color:var(--green)">up 0.5 cm</div></div></div>'
+        + '<a class="lg-card-link" href="../body.html#photoSection" style="align-self:center;margin-top:10px">View all insights &rarr;</a></section>';
+      var latestSetCard = '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Latest Set</div><a class="btn btn-secondary btn-sm" href="../body.html#photoSection">View all sets</a></div>'
+        + '<div class="lg-photo-thumbs">' + thumb('Front<br>May 16 &middot; 78.4 kg') + thumb('Side<br>May 16 &middot; 78.4 kg') + thumb('Back<br>May 16 &middot; 78.4 kg') + '</div></section>';
+      var summaryCard2 = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + pulseIcon + 'Your Progress Summary</div>'
+        + '<div class="lg-kv-row"><span class="k">Sets tracked</span><span class="num">12</span></div><div class="lg-kv-row"><span class="k">Time tracked</span><span class="num">6 weeks</span></div><div class="lg-kv-row"><span class="k">Avg. time between sets</span><span class="num">9.2 days</span></div>'
+        + '<div class="lg-kv-row"><span class="k" style="color:var(--green)">Waist down</span><span class="num">1.8 cm</span></div><div class="lg-kv-row"><span class="k" style="color:var(--green)">Chest up</span><span class="num">1.6 cm</span></div><div class="lg-kv-row"><span class="k">Weight change</span><span class="num">0.0 kg</span></div></section>';
+      var captureCard = '<section class="card"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + cameraIcon + 'Capture New Set</div><div class="lg-card-sub">Stay consistent. Track real change.</div>'
+        + '<div class="lg-photo-actions" style="margin-top:10px"><a class="btn btn-primary btn-block" href="../body.html#photoSection">' + cameraIcon + ' Take Photos</a><a class="btn btn-secondary btn-block" href="../body.html#photoSection">' + uploadIcon + ' Upload Photos</a></div>'
+        + '<div class="lg-card-sub" style="margin-top:10px">Tip: Use the same lighting, pose, and distance each time.</div></section>';
+      var guideCard = '<section class="card"><div class="lg-card-title">Capture Guidance</div>'
+        + '<div class="lg-guide-row">' + infoIcon + '<span>Lighting</span><span>Use consistent natural lighting.</span></div>'
+        + '<div class="lg-guide-row">' + infoIcon + '<span>Distance</span><span>Stand ~2&ndash;3 meters from the camera.</span></div>'
+        + '<div class="lg-guide-row">' + infoIcon + '<span>Pose</span><span>Relaxed or flexed &mdash; be consistent.</span></div>'
+        + '<div class="lg-guide-row">' + infoIcon + '<span>Clothing</span><span>Same shorts/underwear preferred.</span></div>'
+        + '<div class="lg-guide-row">' + infoIcon + '<span>Timing</span><span>Same time of day.</span></div>'
+        + '<a class="lg-card-link" href="../body.html#photoSection" style="margin-top:8px">View full guide &rarr;</a></section>';
+      h += '<div class="lg-cols3"><div class="col">' + compareCard + '</div><div class="col">' + latestSetCard + summaryCard2 + '</div><div class="col">' + captureCard + guideCard + '</div></div>';
+      var galleryDefs = [['May 16, 2025', '78.4 kg'], ['May 2, 2025', '78.2 kg'], ['Apr 16, 2025', '78.4 kg'], ['Apr 1, 2025', '77.8 kg'], ['Mar 18, 2025', '77.6 kg'], ['Mar 4, 2025', '77.6 kg']];
+      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Photo Gallery / Timeline</div><div class="lg-chip-set"><span class="lg-mini-chip" style="border-color:var(--accent);color:var(--accent)">All Sets</span><span class="lg-mini-chip">Front</span><span class="lg-mini-chip">Side</span><span class="lg-mini-chip">Back</span><span class="lg-mini-chip">Relaxed</span><span class="lg-mini-chip">Flexed</span></div></div>'
+        + '<div class="lg-gallery">' + galleryDefs.map(function (g) { return '<div class="lg-thumb"><img src="' + img + '" alt="set"><span class="th-cap">' + g[0] + '<br>' + g[1] + '</span></div>'; }).join('') + '</div></section>';
+      return h;
+    }
+
+    var views = { overview: overviewView, composition: compositionView, recovery: recoveryView, labs: labsView, photos: photosView };
+    var builder = views[bodySub] || overviewView;
+    p.innerHTML = '<div class="lg-body-wrap">' + builder() + '</div>';
+
+    p.querySelectorAll('[data-sub]').forEach(function (b) {
+      b.addEventListener('click', function () { bodySub = b.getAttribute('data-sub'); renderBodyPanel(p); });
+    });
+    wireAdd(p, function () {
+      choiceSheet('Log measurement', [
+        { label: 'Weight', onTap: function () { weightSheet(); } },
+        { label: 'Sleep', onTap: function () { sleepSheet(); } },
+      ]);
+    });
+    wireEntries(p, 'body');
+  }
+
+  var C = {
+    food: {
+      label: 'Food',
+      render: function (p) {
+        renderFoodPanel(p);
+        return;
+        var key = ntKey();
+        var logs = (lsget('nt:logs', []) || []).filter(function (l) { return String(l.dateKey || '').replace(/\//g, '-') === key; });
+        var tot = logs.reduce(function (a, l) { a.c += l.calories || 0; a.pr += l.protein || 0; return a; }, { c: 0, pr: 0 });
+        var tgt = lsget('nt:targets', {}) || {}, ct = tgt.calories || 2000, pt = tgt.protein || 150;
+        var html = '';
+        html += summaryCard(metricLine('Calories', Math.round(tot.c) + ' / ' + ct + ' kcal') + metricLine('Protein', Math.round(tot.pr) + ' / ' + pt + ' g'));
+        html += addBtn('Log meal');
+        // Fast non-typing capture: AI photo + barcode (open the flow in the Food module).
+        html += '<div class="inline" style="gap:var(--s2)">'
+          + '<a class="btn btn-secondary lg-add" href="../nutrition.html#ai" style="flex:1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><rect x="3" y="6" width="18" height="14" rx="2.5"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>AI photo</a>'
+          + '<a class="btn btn-secondary lg-add" href="../nutrition.html#barcode" style="flex:1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14"/></svg>Barcode</a>'
+          + '</div>';
+        if (logs.length) {
+          html += '<div class="card"><div class="lg-list-head">Today</div><div class="stack" style="gap:0" data-entries>'
+            + logs.map(function (l) { return entryRow({ id: l.id, title: l.name, sub: Math.round(l.calories || 0) + ' kcal · ' + Math.round(l.protein || 0) + 'g P' }); }).join('')
+            + '</div><div class="lg-foot"><a href="../nutrition.html">Open Food — database, barcode, AI photo, meals, trends</a></div></div>';
+        } else {
+          html += '<div class="card">' + emptyState(ICONS.food, 'No meals logged today', 'Log your first meal to track intake.', 'Log a meal') + '</div>';
+        }
+        p.innerHTML = html;
+        wireAdd(p, function () { mealSheet(); });
+        wireEntries(p, 'food');
+      },
+      add: function (prefill) { mealSheet({ name: prefill || '' }); },
+      del: function (id) {
+        var arr = lsget('nt:logs', []), i = arr.findIndex(function (l) { return String(l.id) === String(id); });
+        if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('nt:logs', arr); fire();
+        return function () { var a = lsget('nt:logs', []); a.push(it); lsset('nt:logs', a); fire(); };
+      },
+      edit: function (id) { var l = (lsget('nt:logs', []) || []).find(function (x) { return String(x.id) === String(id); }); if (l) mealSheet(l); },
+    },
+
+    body: {
+      label: 'Body',
+      render: function (p) {
+        renderBodyPanel(p);
+        return;
+        var t = today();
+        var w = (lsget('po_coach_weights', []) || []).filter(function (e) { return e && e.dateKey === t && e.weight > 0; })[0];
+        var sl = (lsget('sleep:logs', []) || []).filter(function (e) { return e && e.date === t; })[0];
+        var html = '';
+        html += addBtn('Log body');
+        var rows = [];
+        if (w) rows.push(entryRow({ id: 'w', title: 'Weight', value: w.weight + ' kg' }));
+        if (sl) rows.push(entryRow({ id: 's', title: 'Sleep', value: fmtDur(sl.duration) }));
+        if (rows.length) {
+          html += '<div class="card"><div class="lg-list-head">Today</div><div class="stack" style="gap:0" data-entries>' + rows.join('') + '</div></div>';
+        } else {
+          html += '<div class="card">' + emptyState(ICONS.body, 'Nothing logged today', 'Log weight or last night\'s sleep.', 'Log body') + '</div>';
+        }
+        html += '<div class="card"><div class="lg-list-head">More</div><div class="stack" style="gap:0">'
+          + linkRow('Measurements & progress photos', '../body.html')
+          + linkRow('Health metrics (HRV, RHR, steps)', '../health.html')
+          + linkRow('Bloodwork & meds', '../health.html#labs')
+          + linkRow('Wearable', 'watch.html')
+          + '</div></div>';
+        p.innerHTML = html;
+        wireAdd(p, function () {
+          choiceSheet('Log body', [
+            { label: 'Weight', onTap: function () { weightSheet(); } },
+            { label: 'Sleep', onTap: function () { sleepSheet(); } },
+          ]);
+        });
+        wireEntries(p, 'body');
+      },
+      add: function (prefill) {
+        if (prefill && /^[\d.]+$/.test(prefill)) weightSheet({ weight: parseFloat(prefill) });
+        else choiceSheet('Log body', [{ label: 'Weight', onTap: function () { weightSheet(); } }, { label: 'Sleep', onTap: function () { sleepSheet(); } }]);
+      },
+      del: function (id) {
+        var t = today();
+        if (id === 'w') {
+          var arr = lsget('po_coach_weights', []), i = arr.findIndex(function (e) { return e.dateKey === t; });
+          if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('po_coach_weights', arr); fire();
+          return function () { var a = lsget('po_coach_weights', []); a.push(it); a.sort(function (x, y) { return String(x.dateKey).localeCompare(String(y.dateKey)); }); lsset('po_coach_weights', a); fire(); };
+        }
+        var sarr = lsget('sleep:logs', []), si = sarr.findIndex(function (e) { return e.date === t; });
+        if (si < 0) return null; var sit = sarr[si]; sarr.splice(si, 1); lsset('sleep:logs', sarr); fire();
+        return function () { var a = lsget('sleep:logs', []); a.push(sit); lsset('sleep:logs', a); fire(); };
+      },
+      edit: function (id) {
+        var t = today();
+        if (id === 'w') weightSheet((lsget('po_coach_weights', []) || []).filter(function (e) { return e.dateKey === t; })[0]);
+        else sleepSheet((lsget('sleep:logs', []) || []).filter(function (e) { return e.date === t; })[0]);
+      },
+    },
+
+    training: {
+      label: 'Training',
+      render: function (p) {
+        var t = today(), done = lsget('po_coach_workout_done', {}) || {}, on = !!done[t];
+        var n = 0; for (var i = 0; i < 7; i++) if (done[offset(-i)]) n++;
+        var sw = '<div class="lg-switch-row"><div class="row-main"><div class="row-title">Worked out today</div></div>'
+          + '<div class="toggle" role="switch" aria-checked="' + on + '" tabindex="0" data-w></div></div>';
+        var html = '<div class="card">' + sw + '<div style="border-top:1px solid var(--border);margin-top:var(--s1);padding-top:var(--s2)">'
+          + metricLine('This week', n + ' / 7 sessions') + '</div></div>';
+        html += '<div class="card"><div class="lg-list-head">More</div><div class="stack" style="gap:0">'
+          + linkRow('Open Gym — workout, PRs, templates, cardio', '../gym.html') + '</div></div>';
+        p.innerHTML = html;
+        var swEl = p.querySelector('[data-w]');
+        function flip() {
+          var d = lsget('po_coach_workout_done', {}) || {};
+          var nowOn = swEl.getAttribute('aria-checked') !== 'true';
+          if (nowOn) d[t] = true; else delete d[t];
+          lsset('po_coach_workout_done', d); fire();
+          swEl.setAttribute('aria-checked', nowOn ? 'true' : 'false');
+          UI.toast(nowOn ? 'Workout logged' : 'Cleared');
+          paint('training');
+        }
+        swEl.addEventListener('click', flip);
+        swEl.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } });
+      },
+      add: function () { var sw = document.querySelector('[data-w]'); if (sw) { try { sw.focus(); } catch (_) {} } },
+    },
+
+    skin: {
+      label: 'Skin',
+      render: function (p) {
+        var t = today();
+        var todays = (lsget('skin:logs', []) || []).slice().sort(byDateDesc).filter(function (e) { return e.date === t; });
+        var html = '';
+        html += addBtn('Log skin');
+        if (todays.length) {
+          html += '<div class="card"><div class="lg-list-head">Today</div><div class="stack" style="gap:0" data-entries>'
+            + todays.map(function (l) { return entryRow({ id: l.id != null ? l.id : l.date, title: 'Rating ' + (l.rating || '—') + '/5', sub: concernStr(l.concerns) }); }).join('')
+            + '</div></div>';
+        } else {
+          html += '<div class="card">' + emptyState(ICONS.skin, 'No skin check today', 'Rate your skin and note concerns.', 'Log skin') + '</div>';
+        }
+        html += '<div class="card"><div class="lg-list-head">More</div><div class="stack" style="gap:0">'
+          + linkRow('Routine, products, breakouts', '../skin.html')
+          + linkRow('GlowLab — freelance revenue & rate', 'glowlab.html') + '</div></div>';
+        p.innerHTML = html;
+        wireAdd(p, function () { skinSheet(); });
+        wireEntries(p, 'skin');
+      },
+      add: function () { skinSheet(); },
+      del: function (id) {
+        var arr = lsget('skin:logs', []), i = arr.findIndex(function (l) { return String(l.id != null ? l.id : l.date) === String(id); });
+        if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('skin:logs', arr); fire();
+        return function () { var a = lsget('skin:logs', []); a.push(it); lsset('skin:logs', a); fire(); };
+      },
+      edit: function (id) { var l = (lsget('skin:logs', []) || []).find(function (x) { return String(x.id != null ? x.id : x.date) === String(id); }); if (l) skinSheet(l); },
+    },
+
+    water: {
+      label: 'Water',
+      render: function (p) {
+        var t = today(), ws = lsget('po_water_v1', {}) || {}, logs = ws.logs || {}, count = logs[t] || 0;
+        var wKg = (ws.profile || {}).weightKg || 75, bMl = ws.bottleMl || 500, target = Math.max(1, Math.ceil(wKg * 35 / bMl));
+        var pct = Math.max(0, Math.min(100, count / target * 100));
+        var stepper = '<div class="lg-switch-row"><div class="row-main"><div class="row-title">Water</div><div class="row-sub">bottles today (' + bMl + 'ml each)</div></div>'
+          + '<div class="stepper" data-wstep><button type="button" data-d="-1" aria-label="Decrease">&#8722;</button><span class="val">' + count + '</span><button type="button" data-d="1" aria-label="Increase">+</button></div></div>';
+        var html = '<div class="card">' + stepper
+          + '<div class="bar" style="margin-top:var(--s3)"><i style="width:' + pct + '%"></i></div>'
+          + '<div style="margin-top:var(--s3)">' + metricLine('Target', count + ' / ' + target + ' bottles') + '</div></div>';
+        html += '<div class="card"><div class="lg-foot"><a href="../water.html">History &amp; reminders</a></div></div>';
+        p.innerHTML = html;
+        var st = p.querySelector('[data-wstep]'), val = st.querySelector('.val');
+        st.querySelectorAll('[data-d]').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var n = Math.max(0, (parseInt(val.textContent, 10) || 0) + parseInt(b.getAttribute('data-d'), 10));
+            val.textContent = n;
+            var w = lsget('po_water_v1', {}) || {}; w.logs = w.logs || {}; w.logs[t] = n; lsset('po_water_v1', w); fire();
+            paint('water');
+          });
+        });
+      },
+      add: function (prefill) {
+        if (prefill && /^-?\d+$/.test(prefill)) {
+          var t = today(), w = lsget('po_water_v1', {}) || {}; w.logs = w.logs || {}; w.logs[t] = Math.max(0, parseInt(prefill, 10)); lsset('po_water_v1', w); fire(); paint('water');
+        }
+      },
+    },
+
+    supps: {
+      label: 'Supplements',
+      render: function (p) {
+        var items = lsget('stack:items', []) || [], t = today(), taken = lsget('stack:taken:' + t, {}) || {};
+        if (!items.length) {
+          p.innerHTML = '<div class="card">' + emptyState(ICONS.supps, 'No supplement stack', 'Build your stack to track doses.', 'Manage stack') + '</div>'
+            + '<div class="card"><div class="stack" style="gap:0">' + linkRow('Medications', '../health.html#meds') + '</div></div>';
+          wireAdd(p, function () { location.href = '../reminders.html'; });
+          return;
+        }
+        var rows = items.map(function (it) {
+          var on = !!taken[it.id];
+          return '<div class="lg-switch-row" data-s="' + esc(it.id) + '"><div class="row-main"><div class="row-title">' + esc(it.name || 'Supplement') + '</div>'
+            + (it.dose ? '<div class="row-sub">' + esc(it.dose) + '</div>' : '') + '</div>'
+            + '<div class="toggle" role="switch" aria-checked="' + on + '" tabindex="0"></div></div>';
+        }).join('');
+        var done = items.filter(function (it) { return !!taken[it.id]; }).length;
+        var html = '<div class="card"><div class="card-head"><span class="card-title">Due today</span><span class="badge ' + (done === items.length ? 'green' : 'violet') + '">' + done + ' / ' + items.length + '</span></div>'
+          + '<div class="stack" style="gap:0">' + rows + '</div>'
+          + '<div class="lg-foot"><a href="../reminders.html">Manage stack &amp; schedule</a> &middot; <a href="../health.html#meds">Meds</a></div></div>';
+        p.innerHTML = html;
+        p.querySelectorAll('[data-s]').forEach(function (row) {
+          var sw = row.querySelector('.toggle');
+          function flip() {
+            var id = row.getAttribute('data-s');
+            var tk = lsget('stack:taken:' + t, {}) || {};
+            var nowOn = sw.getAttribute('aria-checked') !== 'true';
+            if (nowOn) tk[id] = true; else delete tk[id];
+            lsset('stack:taken:' + t, tk); fire();
+            sw.setAttribute('aria-checked', nowOn ? 'true' : 'false');
+            paint('supps');
+          }
+          sw.addEventListener('click', flip);
+          sw.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } });
+        });
+      },
+      add: function () {
+        var q = (document.getElementById('qlog').value || '').trim();
+        if (q) { var r = L.log({ type: 'supplement', name: q }); UI.toast(r.message || 'Done'); if (r.ok) { document.getElementById('qlog').value = ''; paint('supps'); } }
+      },
+    },
+
+    mind: {
+      label: 'Mind',
+      render: function (p) {
+        var t = today();
+        var m = (lsget('mind:mood:v1', []) || []).filter(function (e) { return e.date === t; })[0];
+        var html = '';
+        html += addBtn('Log mood');
+        if (m) {
+          html += '<div class="card"><div class="lg-list-head">Today</div><div class="stack" style="gap:0" data-entries>'
+            + entryRow({ id: 'm', title: 'Mood', value: m.mood + '/5', sub: m.note || '' }) + '</div></div>';
+        } else {
+          html += '<div class="card">' + emptyState(ICONS.mind, 'No mood logged', 'How are you feeling today?', 'Log mood') + '</div>';
+        }
+        html += '<div class="card"><div class="lg-list-head">More</div><div class="stack" style="gap:0">'
+          + linkRow('Journal, gratitude, meditate', 'mood.html') + '</div></div>';
+        p.innerHTML = html;
+        wireAdd(p, function () { moodSheet(); });
+        wireEntries(p, 'mind');
+      },
+      add: function (prefill) { moodSheet({ note: prefill || '' }); },
+      del: function () {
+        var t = today(), arr = lsget('mind:mood:v1', []), i = arr.findIndex(function (e) { return e.date === t; });
+        if (i < 0) return null; var it = arr[i]; arr.splice(i, 1); lsset('mind:mood:v1', arr); fire();
+        return function () { var a = lsget('mind:mood:v1', []); a.push(it); lsset('mind:mood:v1', a); fire(); };
+      },
+      edit: function () { moodSheet((lsget('mind:mood:v1', []) || []).filter(function (e) { return e.date === today(); })[0]); },
+    },
+
+    habits: {
+      label: 'Habits',
+      render: function (p) {
+        var defs = lsget('habits:v1', []) || [], t = today(), logs = lsget('habits:logs:v1', {}) || {}, doneToday = logs[t] || [];
+        if (!defs.length) {
+          p.innerHTML = '<div class="card">' + emptyState(ICONS.habits, 'No habits yet', 'Create habits to build streaks.', 'Manage habits') + '</div>';
+          wireAdd(p, function () { location.href = '../habits.html'; });
+          return;
+        }
+        var rows = defs.map(function (h) {
+          var id = h.id != null ? h.id : (h.name || h.title);
+          var on = doneToday.some(function (x) { return String(x) === String(id); });
+          return '<div class="lg-switch-row" data-h="' + esc(id) + '"><div class="row-main"><div class="row-title">' + esc(h.name || h.title || 'Habit') + '</div></div>'
+            + '<div class="toggle" role="switch" aria-checked="' + on + '" tabindex="0"></div></div>';
+        }).join('');
+        var done = doneToday.length;
+        var html = '<div class="card"><div class="card-head"><span class="card-title">Today</span><span class="badge violet">' + done + ' / ' + defs.length + '</span></div>'
+          + '<div class="stack" style="gap:0">' + rows + '</div>'
+          + '<div class="lg-foot"><a href="../habits.html">Manage habits &amp; streaks</a></div></div>';
+        p.innerHTML = html;
+        p.querySelectorAll('[data-h]').forEach(function (row) {
+          var sw = row.querySelector('.toggle');
+          function flip() {
+            var id = row.getAttribute('data-h');
+            var lg = lsget('habits:logs:v1', {}) || {}, arr = (lg[t] || []).filter(function (x) { return String(x) !== String(id); });
+            var nowOn = sw.getAttribute('aria-checked') !== 'true';
+            if (nowOn) arr.push(id);
+            lg[t] = arr; lsset('habits:logs:v1', lg); fire();
+            sw.setAttribute('aria-checked', nowOn ? 'true' : 'false');
+            paint('habits');
+          }
+          sw.addEventListener('click', flip);
+          sw.addEventListener('keydown', function (e) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } });
+        });
+      },
+      add: function () { location.href = '../habits.html'; },
+    },
+  };
+
+  /* ============================================================
+     Wiring helpers shared by panels.
+     ============================================================ */
+  function wireAdd(p, fn) {
+    p.querySelectorAll('[data-add]').forEach(function (b) { b.addEventListener('click', fn); });
+    var eb = p.querySelector('.lg-empty-add'); if (eb) eb.addEventListener('click', fn);
+  }
+  function wireEntries(p, segId) {
+    var groups = p.querySelectorAll('[data-entries]'); if (!groups.length) return;
+    groups.forEach(function (g) {
+      g.addEventListener('click', function (e) {
+        var editBtn = e.target.closest('[data-edit]');
+        var delBtn = e.target.closest('[data-del]');
+        var seg = C[segId];
+        if (editBtn) { var eid = editBtn.getAttribute('data-edit'); if (seg.edit) seg.edit(eid); return; }
+        if (delBtn) {
+          var id = delBtn.getAttribute('data-del');
+          var undo = seg.del ? seg.del(id) : null;
+          paint(segId);
+          UI.toast('Deleted', { action: 'Undo', onAction: function () { if (undo) undo(); paint(segId); }, duration: 5000 });
+        }
+      });
+    });
+  }
+
+  /* ============================================================
+     Segment control + panel rendering.
+     ============================================================ */
+  var ORDER = ['food', 'body', 'training', 'skin', 'water', 'supps'];
+  var seg = document.getElementById('seg');
+  var panels = document.getElementById('panels');
+  var hashSeg = String(location.hash || '').replace(/^#/, '');
+  var active = ORDER.indexOf(hashSeg) >= 0 ? hashSeg : ORDER[0];
+
+  function panelOf(id) { return panels.querySelector('[data-panel="' + id + '"]'); }
+  function paint(id) {
+    var p = panelOf(id); if (!p) return;
+    // localStorage reads are synchronous -> render directly, no skeleton flash.
+    try { C[id].render(p); }
+    catch (e) {
+      p.innerHTML = '<div class="card">' + sectionErr(e && e.message) + '</div>';
+      var r = p.querySelector('.lg-retry'); if (r) r.addEventListener('click', function () { paint(id); });
+    }
+  }
+
+  ORDER.forEach(function (id, i) {
+    var b = document.createElement('button');
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+    b.dataset.value = id;
+    b.innerHTML = (TAB_ICONS[id] || '') + '<span>' + esc(C[id].label) + '</span>';
+    b.id = 'seg-' + id;
+    seg.appendChild(b);
+    var pn = document.createElement('section');
+    pn.className = 'lg-panel'; pn.setAttribute('role', 'tabpanel');
+    pn.dataset.panel = id; pn.setAttribute('aria-labelledby', 'seg-' + id);
+    if (i !== 0) pn.hidden = true;
+    panels.appendChild(pn);
+  });
+
+  function select(val) {
+    active = val;
+    seg.querySelectorAll('[role="tab"]').forEach(function (t) {
+      var on = t.dataset.value === val;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.querySelectorAll('.lg-panel').forEach(function (p) { p.hidden = p.dataset.panel !== val; });
+    if (location.hash.replace(/^#/, '') !== val) {
+      try { history.replaceState(null, '', '#' + val); } catch (_) {}
+    }
+    paint(val);
+  }
+  // click + arrow-key nav on the shared segmented control
+  seg.querySelectorAll('[role="tab"]').forEach(function (tab, idx) {
+    var tabs = seg.querySelectorAll('[role="tab"]');
+    tab.addEventListener('click', function () { select(tab.dataset.value); });
+    tab.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' && tabs[idx + 1]) tabs[idx + 1].focus();
+      if (e.key === 'ArrowLeft' && tabs[idx - 1]) tabs[idx - 1].focus();
+      if (e.key === 'Home') tabs[0].focus();
+      if (e.key === 'End') tabs[tabs.length - 1].focus();
+    });
+  });
+
+  /* quick-log field: route into the active segment's add() */
+  var qlog = document.getElementById('qlog');
+  var dateEl = document.getElementById('date');
+  if (dateEl) {
+    try {
+      dateEl.textContent = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
+    } catch (_) {
+      dateEl.textContent = today();
+    }
+  }
+  qlog.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var val = qlog.value.trim();
+    if (!val) { if (C[active] && C[active].add) C[active].add(''); return; }
+    if (C[active] && C[active].add) { C[active].add(val); qlog.value = ''; }
+  });
+
+  /* keep the visible segment fresh when operator/other tabs write */
+  window.addEventListener('lifeos:logged', function (e) {
+    if (e && e.detail && e.detail.src === 'log') return; // own writes already repaint
+    paint(active);
+  });
+
+  function start() { select(active); }
+  if (window.LifeOS) start();
+  else window.addEventListener('lifeos:ready', start, { once: true });
+})();
+</script>
+</body>
+</html>
