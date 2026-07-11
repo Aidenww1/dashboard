@@ -1,4 +1,4 @@
-const CACHE = 'dashboard-v51';
+const CACHE = 'dashboard-v55';
 const SHARE_CACHE = 'share-target-v1';
 const PRECACHE = [
   '/', '/index.html', '/health.html', '/water.html', '/gym.html',
@@ -10,6 +10,9 @@ const PRECACHE = [
   '/photo-store.js', '/errlog.js', '/dates.js', '/cloudsync.js', '/privacy.html',
   '/fix.html', '/fixdata.js', '/ds.html', '/ds.js',
   '/log.html', '/coach.html', '/money.html', '/more.html',
+  '/ui/today.html', '/ui/log.html', '/ui/coach.html', '/ui/money.html', '/ui/more.html',
+  '/ui/glowlab.html', '/ui/tokens.css', '/ui/components.css', '/ui/ui.js', '/ui/shell.js', '/ui/data.js',
+  '/ui/assets/priority-supplements.png', '/ui/assets/body-progress-comparison.png',
   '/auth.js',
 ];
 
@@ -95,6 +98,18 @@ self.addEventListener('fetch', e => {
 
   // Only handle GET requests for same-origin HTML/JS/CSS beyond this point
   if (e.request.method !== 'GET') return;
+  // HTML must be network-first so a new deploy is visible immediately instead
+  // of being hidden behind the previous service-worker cache.
+  const isHtml = e.request.mode === 'navigate' || e.request.destination === 'document' || url.pathname === '/' || /\.html$/.test(url.pathname);
+  if (isHtml) {
+    e.respondWith(
+      fetch(e.request, { cache: 'reload' }).then(res => {
+        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        return res;
+      }).catch(() => caches.match(e.request).then(cached => cached || caches.match('/ui/today.html') || caches.match('/index.html')))
+    );
+    return;
+  }
   // Network first for API calls; cache first for static assets
   const isStatic = /\.(html|js|css|json|svg|png|jpg|webp|woff2?)$/.test(url.pathname);
   if (isStatic) {

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Coach — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="coach"] .content { max-width: 1390px; padding-top: 4px; }
+  body[data-page="coach"] .t-page { font-size: 34px; letter-spacing: -0.03em; }
+  body[data-page="coach"] .page-head-r { min-width: min(46vw, 620px); }
+
+  /* top stat strip */
+  .ch-stat { min-height: 96px; gap: 6px; }
+  .ch-stat .card-title { color: var(--text-3); font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
+  .ch-stat-body { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+  .ch-big { font-size: 30px; font-weight: 700; letter-spacing: -0.025em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ch-sub { font-size: 13px; }
+  .ch-spark { width: 132px; height: 42px; flex-shrink: 0; }
+  .ch-spark svg { width: 100%; height: 100%; overflow: visible; }
+  .ch-icbox { width: 40px; height: 40px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.035); border: 1px solid var(--border); flex-shrink: 0; }
+  .ch-icbox svg { width: 20px; height: 20px; }
+  .ch-chev { color: var(--text-3); font-size: 20px; line-height: 1; }
+  .ch-stat-link { text-decoration: none; color: inherit; }
+
+  /* ask panel */
+  .ch-ask { grid-row: span 3; }
+  .ch-hello { display: flex; gap: var(--s3); align-items: flex-start; margin-top: var(--s2); }
+  .ch-hello .ch-icbox { border-color: var(--accent-border); color: var(--accent); background: var(--accent-soft); }
+  .ch-chips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); margin-top: var(--s4); }
+  .ch-chip { display: flex; align-items: center; gap: var(--s3); min-height: 44px; padding: 0 var(--s3); text-align: left;
+    border-radius: var(--r-control); background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-2); font: inherit; font-size: 13px; cursor: pointer; }
+  .ch-chip:hover { background: var(--surface-hover); color: var(--text); border-color: var(--accent-border); }
+  .ch-chip svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--accent); }
+  .ch-ask-form { display: flex; gap: var(--s2); margin-top: auto; padding-top: var(--s4); }
+  .ch-ask-form .input { height: 52px; }
+  .ch-send { width: 52px; height: 52px; min-height: 52px; padding: 0; flex-shrink: 0; }
+  .ch-send svg { width: 19px; height: 19px; }
+
+  /* briefing / plans lines */
+  .ch-line { display: flex; align-items: center; gap: var(--s3); padding: 7px 0; }
+  .ch-line + .ch-line { border-top: 1px solid var(--border); }
+  .ch-line .ch-lic { width: 20px; height: 20px; flex-shrink: 0; color: var(--text-3); }
+  .ch-line .ch-lic svg { width: 100%; height: 100%; }
+  .ch-line .lbl { width: 96px; flex-shrink: 0; font-size: 13px; font-weight: 500; }
+  .ch-line .val { flex: 1; min-width: 0; color: var(--text-2); font-size: 13px; }
+  .ch-line .end { color: var(--text-3); font-size: 12px; flex-shrink: 0; }
+
+  /* signal tiles */
+  .ch-signals { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s2); }
+  .ch-tile { border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,0.024); padding: var(--s2); display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; }
+  .ch-tile:hover { background: var(--surface-hover); }
+  .ch-tile svg { width: 16px; height: 16px; color: var(--text-3); margin-bottom: 2px; }
+  .ch-tile .n { font-size: 19px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+  /* recommendations */
+  .ch-rec { display: grid; grid-template-columns: 20px 88px 1fr auto; gap: var(--s3); align-items: center; padding: 7px 0; font-size: 13px; }
+  .ch-rec + .ch-rec { border-top: 1px solid var(--border); }
+  .ch-rec svg { width: 18px; height: 18px; }
+  .ch-rec .txt { color: var(--text-3); min-width: 0; }
+  .ch-rec .st { font-size: 12px; font-weight: 600; }
+
+  /* drivers */
+  .ch-driver { display: grid; grid-template-columns: 20px 76px 1fr 62px 48px; gap: var(--s2); align-items: center; padding: 6px 0; }
+  .ch-driver svg { width: 17px; height: 17px; color: var(--text-3); }
+
+  /* follow-up queue */
+  .ch-fu { display: grid; grid-template-columns: 20px 1fr auto auto; gap: var(--s3); align-items: center; padding: 6px 0; font-size: 13px; }
+  .ch-fu + .ch-fu { border-top: 1px solid var(--border); }
+  .ch-fu .idx { width: 20px; height: 20px; border-radius: 5px; background: var(--surface-raised); color: var(--text-3); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
+  .ch-fu .tag, .ch-fu .when { color: var(--text-3); font-size: 12px; }
+  .ch-fu .when { width: 74px; text-align: right; }
+
+  /* footer bar */
+  .ch-foot { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s4); color: var(--text-3); font-size: 13px; }
+  .ch-foot .inline svg { width: 16px; height: 16px; }
+
+  @media (max-width: 1180px) {
+    .ch-signals { grid-template-columns: repeat(3, 1fr); }
+    .ch-ask { grid-row: auto; }
+  }
+  @media (max-width: 900px) {
+    body[data-page="coach"] .content { padding-top: 22px; }
+    .ch-chips { grid-template-columns: 1fr; }
+    .ch-signals { grid-template-columns: repeat(2, 1fr); }
+    .ch-rec { grid-template-columns: 20px 1fr auto; }
+    .ch-rec .txt { display: none; }
+    .ch-driver { grid-template-columns: 20px 68px 1fr 56px; }
+    .ch-driver .lvl { display: none; }
+  }
+</style>
+</head>
+<body data-page="coach">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Coach</h1><div class="page-date" id="date"></div></div>
+        <div class="page-head-r">
+          <label class="search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="q" placeholder="Ask coach anything about your data..." aria-label="Ask coach"></label>
+          <button class="btn btn-primary" id="ask-top"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9l-4.4 3.5 1 5.8L12 15.6 7.9 18.3l1-5.8L4.5 9l5.6-1.4z"/></svg>Ask coach</button>
+        </div>
+      </header>
+      <div class="grid" id="coach"></div>
+    </div>
+  </main>
+</div>
+
+<!-- engine + AI cache + operator (one AI engine, button-triggered) -->
+<script src="../dates.js"></script>
+<script src="../lifeos-core.js"></script>
+<script src="../bus.js"></script>
+<script src="../claude.js"></script>
+<script src="../command.js"></script>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var L = window.LifeOS || {}, D = L.data || {}, root = document.getElementById('coach');
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function ls(k, d) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
+  function icon(p) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
+  function card(cls, html) { var d = document.createElement('section'); d.className = 'card ' + cls; d.innerHTML = html; root.appendChild(d); return d; }
+  function head(t, right) { return '<div class="card-head"><span class="card-title">' + esc(t) + '</span>' + (right || '') + '</div>'; }
+  function headIc(t, ic, right) { return '<div class="card-head"><span class="card-title"><span class="card-ic">' + ic + '</span>' + esc(t) + '</span>' + (right || '') + '</div>'; }
+  function viewAll(href, label) { return '<a class="btn btn-ghost btn-sm" href="' + href + '">' + (label || 'View all') + ' →</a>'; }
+
+  var IC = {
+    spark: '<path d="M12 3l1.7 5L19 9.7l-4.2 3.4.9 5.5L12 15.9 8.3 18.6l.9-5.5L5 9.7 10.3 8z"/>',
+    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/>',
+    alert: '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+    lock: '<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    dumbbell: '<path d="M3 9v6M7 6v12M17 6v12M21 9v6M7 12h10"/>',
+    fork: '<path d="M6 3v7a2 2 0 0 0 4 0V3M8 10v11M18 3c-1.6 1.4-2 3.4-2 5.5 0 1.6.7 2.5 2 2.5v10"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    pill: '<path d="m10.5 20.5 9-9a3.5 3.5 0 0 0-5-5l-9 9a3.5 3.5 0 0 0 5 5z"/><path d="m8.5 8.5 7 7"/>',
+    cal: '<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/>',
+    doc: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+    heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
+    wallet: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/>',
+    flask: '<path d="M9 3h6M10 3v6L4.6 18a2 2 0 0 0 1.7 3h11.4a2 2 0 0 0 1.7-3L14 9V3"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    db: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+    shield: '<path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/>',
+    flame: '<path d="M12 3c3 4 6 5.5 6 9a6 6 0 0 1-12 0c0-2 1-3.5 2.5-5C9 8.5 10 6 12 3z"/>',
+    drop: '<path d="M12 3s6 6.3 6 10.2A6 6 0 0 1 6 13.2C6 9.3 12 3 12 3z"/>',
+    brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8V16a3 3 0 0 0 4 2.8M15 4a3 3 0 0 1 3 3 3 3 0 0 1 1 5.8V16a3 3 0 0 1-4 2.8M12 4v16"/>',
+    trend: '<path d="M3 17l6-6 4 4 8-8"/><path d="M21 7h-5M21 7v5"/>'
+  };
+
+  document.getElementById('date').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+
+  function ask(q) {
+    if (window.LifeOSCmd && LifeOSCmd.ask) LifeOSCmd.ask(q || '');
+    else if (window.UI) UI.toast('AI unavailable — check your connection');
+  }
+  document.getElementById('ask-top').addEventListener('click', function () { ask(document.getElementById('q').value.trim()); });
+  document.getElementById('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') ask(this.value.trim()); });
+
+  // deterministic reads — zero token
+  var rd = {}; try { rd = (L.readiness && L.readiness()) || {}; } catch (e) {}
+  // briefing() returns {date, readiness, lines, push} — we want the lines array
+  var lines = []; try { lines = ((L.briefing && L.briefing()) || {}).lines || []; } catch (e) {}
+  var attention = (D.attention && D.attention()) || [];
+  if (!Array.isArray(attention)) attention = [];
+  var mail = ls('mail:summary:v1'), radar = ls('radar:summary:v1');
+
+  function spark(seed, color) {
+    var s = (seed || []).filter(function (v) { return typeof v === 'number' && !isNaN(v); }).slice(-12);
+    if (s.length < 3) return '';
+    var min = Math.min.apply(null, s), max = Math.max.apply(null, s), rng = max - min || 1;
+    var pts = s.map(function (v, i) { return (i / (s.length - 1) * 100).toFixed(1) + ',' + (44 - (v - min) / rng * 38).toFixed(1); }).join(' ');
+    var last = pts.split(' ').pop().split(',');
+    return '<div class="ch-spark" style="color:' + color + '"><svg viewBox="0 0 100 48" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="1.9" fill="currentColor"/></svg></div>';
+  }
+
+  /* ===== top strip ===== */
+  var rdCol = rd.label === 'Low' ? 'var(--amber)' : 'var(--green)';
+  card('ch-stat col-3 accent-green', head('Readiness score')
+    + '<div class="ch-stat-body"><div><div class="metric-row"><span class="ch-big" style="color:' + rdCol + '">' + (rd.score != null ? rd.score : '—') + '</span><span class="metric-unit">/100</span></div>'
+    + '<div class="ch-sub" style="color:' + rdCol + '">' + esc(rd.label || 'No data') + '</div></div>'
+    + spark(ls('lifeos:hist:readiness', []).map(function (p) { return p.v; }), rdCol) + '</div>');
+
+  var focus = rd.advice || (lines[0] && lines[0].value) || 'Log a few things to unlock guidance';
+  card('ch-stat col-3 accent-violet', head("Today's focus")
+    + '<a class="ch-stat-body ch-stat-link" href="#coach-brief"><span class="ch-icbox" style="color:var(--accent)">' + icon(IC.target) + '</span>'
+    + '<div style="flex:1;min-width:0"><div class="row-title">' + esc(focus) + '</div></div><span class="ch-chev">›</span></a>');
+
+  card('ch-stat col-3 accent-amber', head('Health attention')
+    + '<a class="ch-stat-body ch-stat-link" href="#coach-followup"><div><div class="ch-big">' + attention.length + '</div>'
+    + '<div class="ch-sub" style="color:var(--amber)">' + (attention.length ? 'Items need attention' : 'Nothing pending') + '</div></div><span class="ch-chev">›</span></a>');
+
+  card('ch-stat col-3', head('Coach tokens')
+    + '<div class="ch-stat-body"><span class="ch-icbox" style="color:var(--accent)">' + icon(IC.lock) + '</span>'
+    + '<div style="flex:1;min-width:0"><div class="row-title">No tokens spent until you ask</div><div class="t-cap">Your data stays private</div></div></div>');
+
+  /* ===== ask panel ===== */
+  var prompts = [
+    { q: 'What should I focus on today?', ic: IC.trend },
+    { q: "How's my recovery?", ic: IC.heart },
+    { q: 'What needs attention?', ic: IC.alert },
+    { q: 'How should I adjust training?', ic: IC.dumbbell }
+  ];
+  var ask$ = card('ch-ask col-7 accent-violet', head('Ask Coach')
+    + '<div class="ch-hello"><span class="ch-icbox">' + icon(IC.spark) + '</span>'
+    + '<div><div class="t-h2" style="font-size:17px">Ask anything about your health, training, or lifestyle.</div>'
+    + '<div class="t-2" style="margin-top:4px">Full context plus the operator — risky actions ask before running. AI runs only when you tap.</div></div></div>'
+    + '<div class="ch-chips">' + prompts.map(function (p) { return '<button class="ch-chip" data-q="' + esc(p.q) + '">' + icon(p.ic) + esc(p.q) + '</button>'; }).join('') + '</div>'
+    + '<form class="ch-ask-form" id="ask-form"><input class="input" id="ask-in" placeholder="Ask anything..." aria-label="Ask coach">'
+    + '<button class="btn btn-primary ch-send" type="submit" aria-label="Send">' + icon('<path d="M4 12h15M13 6l6 6-6 6"/>') + '</button></form>');
+  ask$.querySelectorAll('[data-q]').forEach(function (b) { b.addEventListener('click', function () { ask(b.getAttribute('data-q')); }); });
+  ask$.querySelector('#ask-form').addEventListener('submit', function (e) { e.preventDefault(); ask(ask$.querySelector('#ask-in').value.trim()); });
+
+  /* ===== today's briefing ===== */
+  var brief = card('col-5', headIc("Today's briefing", icon(IC.doc), viewAll('../review.html', 'View full plan')));
+  brief.id = 'coach-brief';
+  brief.insertAdjacentHTML('beforeend', lines.length
+    ? lines.map(function (l) { return '<div class="ch-line"><span class="ch-lic">' + icon(IC.doc) + '</span><span class="lbl">' + esc(l.label) + '</span><span class="val">' + esc(l.value) + '</span></div>'; }).join('')
+    : '<div class="empty"><span class="empty-title">Not enough data yet</span><span>Log a few days and the briefing fills in.</span></div>');
+
+  /* ===== signals & inbox ===== */
+  function tile(href, ic, label, n, sub) {
+    return '<a class="ch-tile" href="' + href + '">' + icon(ic) + '<span class="t-cap">' + esc(label) + '</span><span class="n">' + n + '</span><span class="t-cap">' + esc(sub) + '</span></a>';
+  }
+  // mail:summary:v1 stores counts (needs_reply, total_inbox); radar:summary:v1 stores shown[]
+  var mailN = (mail && (mail.needs_reply || 0)) || 0;
+  var radarN = (radar && ((radar.shown && radar.shown.length) || radar.total_found || 0)) || 0;
+  var moneyD = (D.money && D.money()) || {};
+  var openTasksN = ls('tasks:v1', []).filter(function (t) { return t && !t.done; }).length;
+  card('col-5', headIc('Signals & inbox', icon(IC.spark))
+    + '<div class="ch-signals">'
+    + tile('../mail.html', IC.mail, 'Inbox', mailN, 'New items')
+    + tile('../radar.html', IC.target, 'Opportunities', radarN, 'Actionable')
+    + tile('tasks.html', IC.doc, 'Tasks', openTasksN, 'Open')
+    + tile('../health.html', IC.heart, 'Body alerts', attention.length, 'Monitor')
+    + tile('money.html', IC.wallet, 'Money', moneyD.accounts || 0, 'Accounts')
+    + '</div>');
+
+  /* ===== recent plans ===== */
+  var plans = ls('coach:plans:v1', []);
+  card('col-5', headIc('Recent plans', icon(IC.cal), viewAll('../review.html'))
+    + (plans.length
+      ? plans.slice(0, 4).map(function (p) { return '<div class="ch-line"><span class="ch-lic">' + icon(IC.doc) + '</span><span class="val">' + esc(p.title) + '</span><span class="end">' + esc(p.status || '') + '</span></div>'; }).join('')
+      : '<div class="empty"><span class="empty-title">No saved plans</span><span>Ask the coach for a plan and save it here.</span></div>'));
+
+  /* ===== recommendations by area ===== */
+  var recIcons = { Training: IC.dumbbell, Nutrition: IC.fork, Recovery: IC.moon, Sleep: IC.moon, Supplements: IC.pill, Labs: IC.flask, Money: IC.wallet, Schedule: IC.cal };
+  var recCol = { Training: 'var(--blue)', Nutrition: 'var(--green)', Recovery: 'var(--accent)', Sleep: 'var(--accent)', Supplements: 'var(--amber)', Labs: 'var(--red)', Money: 'var(--green)', Schedule: 'var(--text-3)' };
+  card('col-4', headIc('Recommendations by area', icon(IC.spark), viewAll('#coach-brief'))
+    + (lines.length
+      ? lines.slice(0, 5).map(function (l) {
+          var k = l.label, c = recCol[k] || 'var(--text-3)';
+          return '<div class="ch-rec"><span style="color:' + c + '">' + icon(recIcons[k] || IC.doc) + '</span>'
+            + '<span>' + esc(k) + '</span><span class="txt">' + esc(l.value) + '</span></div>';
+        }).join('')
+      : '<div class="empty"><span>Nothing to recommend yet.</span></div>'));
+
+  /* ===== readiness drivers ===== */
+  var dIcons = { Sleep: IC.moon, HRV: IC.heart, Soreness: IC.dumbbell, Calories: IC.flame, Hydration: IC.drop, Stress: IC.brain, Training: IC.dumbbell };
+  var parts = rd.parts || [];
+  card('col-4', headIc('Readiness drivers', icon(IC.heart), viewAll('log.html#recovery', 'View details'))
+    + (parts.length
+      ? parts.map(function (p) {
+          var w = p.max ? Math.round(p.pts / p.max * 100) : 0;
+          var c = w >= 66 ? 'var(--green)' : (w >= 33 ? 'var(--amber)' : 'var(--red)');
+          var lvl = w >= 66 ? 'Good' : (w >= 33 ? 'Okay' : 'Low');
+          return '<div class="ch-driver">' + icon(dIcons[p.label] || IC.trend)
+            + '<span class="t-cap">' + esc(p.label || p.key) + '</span>'
+            + '<div class="bar"><i style="width:' + w + '%;background:' + c + '"></i></div>'
+            + '<span class="t-cap num" style="text-align:right">' + p.pts + '/' + p.max + '</span>'
+            + '<span class="t-cap lvl" style="color:' + c + ';text-align:right">' + lvl + '</span></div>';
+        }).join('')
+      : '<div class="empty"><span>No readiness inputs logged.</span></div>'));
+
+  /* ===== follow-up queue ===== */
+  var fu = card('col-4', headIc('Follow-up queue', icon(IC.clock), attention.length ? '<span class="badge amber">' + attention.length + '</span>' : ''));
+  fu.id = 'coach-followup';
+  fu.insertAdjacentHTML('beforeend', attention.length
+    ? attention.slice(0, 6).map(function (a, i) {
+        return '<div class="ch-fu"><span class="idx">' + (i + 1) + '</span><span>' + esc(a.title) + '</span>'
+          + '<span class="tag">' + esc(a.tag || '') + '</span><span class="when">' + esc(a.when || a.sub || '') + '</span></div>';
+      }).join('')
+    : '<div class="empty"><span class="empty-title">Queue clear</span><span>Nothing needs a follow-up.</span></div>');
+
+  /* ===== footer ===== */
+  card('ch-foot col-12', '<span class="inline">' + icon(IC.clock) + 'Last updated: ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</span>'
+    + '<span class="inline">' + icon(IC.db) + 'Data stays on device unless you ask</span>'
+    + '<span class="inline" style="color:var(--text-2)">' + icon(IC.shield) + 'Risky actions require your confirmation before running.</span>');
+})();
+</script>
+</body>
+</html>
