@@ -2494,12 +2494,15 @@
 
   /* ============================================================
      Training panel — subtabbed view (Overview / Strength / Cardio /
-     Progress / History). Every figure derives from the real gym
-     stores: po_coach_v1 (exercises + per-set logs), po_coach_workout_done,
-     gym:cardio:v1, gym:prs:v1, gym:templates:v1, gym:rest:v1, plus
-     health:metrics:v1 (HRV/RHR) and the lifeos-core readiness/deload
-     engine. Empty stores render honest empty states; deep editing
-     lives in ../gym.html.
+     Progress / History) plus an in-panel workout session mode that
+     replaces the old gym.html flow: set logging (weight/reps/RPE),
+     the same prescription engine, rest timer, PR auto-detection,
+     exercise add/edit/delete and templates. Every figure derives
+     from the real gym stores: po_coach_v1 (exercises + per-set
+     logs), po_coach_workout_done, gym:cardio:v1, gym:prs:v1,
+     gym:templates:v1, gym:rest:v1, plus health:metrics:v1 (HRV/RHR)
+     and the lifeos-core readiness/deload engine. Store shapes match
+     gym.html exactly so both UIs stay interchangeable.
      ============================================================ */
   var trainSub = 'overview';
   var trainExSel = null;
@@ -2510,6 +2513,14 @@
   var trainProgRange = 16;
   var trainCardTab = 'all';
   var trainModSel = null;
+  var trainView = null;        /* null = subtab views, 'session' | 'templates' */
+  var trainSession = null;     /* { queue:[exId], cur:exId } */
+  var trainExEdit;             /* undefined = closed, null = new, exId = edit */
+  var trainRepSel = null;
+  var trainRpeSel = null;
+  var trainWSel = null;        /* typed weight survives pill-click rerenders */
+  var trainRestUntil = 0;
+  var trainRestLabel = '';
   function renderTrainingPanel(p) {
     var dumbIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h18M6 9v6M18 9v6M9 7v10M15 7v10"/></svg>';
     var playIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z" fill="currentColor" stroke="none"/></svg>';
@@ -2521,15 +2532,16 @@
     var trophyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M9 20h6M12 15v5"/></svg>';
     var runIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="15" cy="5" r="2"/><path d="M9 20l3-4-2-4 4-2 2 3 3 1M6 12l3-3 4 1"/></svg>';
     var clockIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+    var pencilIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m13.5 6.5 3 3"/></svg>';
     var upIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="#5ee6a8" stroke-width="2"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
     var flatIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><path d="M5 12h14"/></svg>';
     var downIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
-    var moonIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 15.6A8.8 8.8 0 0 1 8.4 3.5a8.8 8.8 0 1 0 12.1 12.1z"/></svg>';
 
     var t = today();
     var st = lsget('po_coach_v1', {}) || {};
     var exs = Array.isArray(st.exercises) ? st.exercises : [];
-    var logs = (st.logs && typeof st.logs === 'object') ? st.logs : {};
+    var logs = (st.logs && typeof st.logs === 'object' && !Array.isArray(st.logs)) ? st.logs : {};
+    st.exercises = exs; st.logs = logs;
     var units = st.units === 'lb' ? 'lb' : 'kg';
     var done = lsget('po_coach_workout_done', {}) || {};
     var cardio = (lsget('gym:cardio:v1', []) || []).filter(function (c) { return c && c.date; });
@@ -2538,6 +2550,23 @@
     var restM = lsget('gym:rest:v1', {}) || {};
     var metrics = lsget('health:metrics:v1', []) || [];
 
+    function saveSt() { lsset('po_coach_v1', st); }
+    function uid() { return 'ex_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+    function roundToStep(v, s) { s = s || 2.5; return Math.round(v / s) * s; }
+    function restSecFor(ex) { return (ex && restM[ex.id]) || Number(restM.default) || 180; }
+    function guessMuscle(name) {
+      var n = String(name).toLowerCase();
+      if (/chest|bench|press|pec|fly|flye/.test(n)) return 'chest';
+      if (/row|pull|lat|deadlift|dead.lift|chin|pulldown/.test(n)) return 'back';
+      if (/shoulder|delt|lateral|ohp|overhead|military|arnold/.test(n)) return 'shoulders';
+      if (/curl|tricep|bicep|skullcrusher|pushdown/.test(n)) return 'arms';
+      if (/squat|quad|leg press|hack|lunge/.test(n)) return 'quads';
+      if (/hip|glute|rdl|romanian|sumo|hip thrust/.test(n)) return 'hips';
+      if (/calf|calve|gastro|soleus/.test(n)) return 'calves';
+      if (/neck/.test(n)) return 'neck';
+      if (/crunch|plank|\babs?\b|core|sit.up/.test(n)) return 'core';
+      return '';
+    }
     function lastMetric(field) {
       for (var i = metrics.length - 1; i >= 0; i--) { if (metrics[i] && metrics[i][field] > 0) return metrics[i][field]; }
       return null;
@@ -2561,9 +2590,7 @@
     function weekVol(wk) { var v = 0; for (var i = 0; i < 7; i++) v += volFor(dsAgo(wk * 7 + i)); return Math.round(v); }
     var vol7 = weekVol(0), volPrev = weekVol(1);
     var volSeries = []; for (var wv = 7; wv >= 0; wv--) volSeries.push(weekVol(wv));
-    function sessionsIn(n) { var c = 0; for (var i = 0; i < n; i++) { var ds = dsAgo(i); if (byDay[ds] || done[ds]) c++; } return c; }
     var trainedToday = !!(byDay[t] || done[t]);
-    /* current calendar week (Mon-based) */
     var dowNow = (new Date().getDay() + 6) % 7;
     var sessThisWk = 0;
     for (var dw = 0; dw <= dowNow; dw++) { var dws = dsAgo(dw); if (byDay[dws] || done[dws]) sessThisWk++; }
@@ -2591,8 +2618,8 @@
       var arr = (logs[exId] || []).slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
       return arr.length ? arr[arr.length - 1] : null;
     }
-    /* prescription — mirrors gym.html getRx() so both views agree */
-    function rxFor(ex) {
+    /* prescription — full port of gym.html getRx() so both UIs agree */
+    function rxFull(ex) {
       var arr = (logs[ex.id] || []).slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
       if (!arr.length) return null;
       var last = arr[arr.length - 1];
@@ -2602,17 +2629,32 @@
       var stuck = 0;
       for (var i = arr.length - 1; i >= 0; i--) { if ((Number(arr[i].weight) || 0) === w) stuck++; else break; }
       if (ex.bw) {
-        if (reps >= upgradeAt) return { dir: 'up', label: '+1 rep' };
-        if (reps >= repMin) return { dir: 'flat', label: 'Add a rep' };
-        return { dir: 'flat', label: 'Repeat' };
+        if (reps >= upgradeAt) return { type: 'up', weight: 0, reps: reps + 1, tag: 'Push for more', reason: reps + ' reps — strong. Push for ' + (reps + 1) + ' next time.' };
+        if (reps >= repMin) return { type: 'hold', weight: 0, reps: reps + 1, tag: 'Add a rep', reason: reps + ' reps. Push for ' + (reps + 1) + ' next session.' };
+        return { type: 'hold', weight: 0, reps: repMin, tag: 'Repeat', reason: reps + ' reps fell short. Repeat until you hit ' + repMin + '+.' };
       }
-      if (stuck >= 3 && reps < repMin) return { dir: 'down', label: 'Deload soon' };
+      if (stuck >= 3 && reps < repMin) {
+        var dlw = roundToStep(w * 0.9, step);
+        return { type: 'down', weight: dlw, reps: repMax, tag: 'Deload', reason: 'Stuck at ' + w + units + ' for ' + stuck + ' sessions. Drop 10%, reset, build back cleaner.' };
+      }
       if (reps >= upgradeAt) {
-        if (rpe && rpe >= 10) return { dir: 'flat', label: 'Own it first' };
-        return { dir: 'up', label: '+' + step + ' ' + units + ' next session' };
+        if (rpe && rpe >= 10) return { type: 'hold', weight: w, reps: reps, tag: 'Own it first', reason: reps + ' reps at RPE 10 — that was a grind. Repeat ' + w + units + ' until it feels like an 8, then add weight.' };
+        var room = rpe && rpe <= 7 ? ' RPE ' + rpe + ' says you have room.' : '';
+        return { type: 'up', weight: w + step, reps: repMin, tag: 'Add weight', reason: 'You hit ' + reps + ' reps — time to add ' + step + units + '.' + room };
       }
-      if (reps >= repMin) return { dir: 'up', label: '+1 rep' };
-      return { dir: 'flat', label: 'Keep load' };
+      if (reps >= repMin) {
+        var room2 = rpe && rpe <= 7 ? ' RPE ' + rpe + ' — you have more in the tank.' : (rpe && rpe >= 9 ? ' RPE ' + rpe + ' — close to limit, one clean rep is enough.' : '');
+        return { type: 'hold', weight: w, reps: reps + 1, tag: 'Add a rep', reason: reps + ' reps in target. Stay at ' + w + units + ', push for ' + (reps + 1) + '.' + room2 };
+      }
+      return { type: 'hold', weight: w, reps: repMin, tag: 'Repeat', reason: reps + ' reps short of ' + repMin + '-' + upgradeAt + '. Repeat ' + w + units + ' until you hit ' + repMin + '+ clean.' };
+    }
+    function rxShort(ex) {
+      var rx = rxFull(ex);
+      if (!rx) return null;
+      var dir = rx.type === 'up' ? 'up' : rx.type === 'down' ? 'down' : 'flat';
+      var label = rx.type === 'up' && !ex.bw ? '+' + (Number(ex.step) || 2.5) + ' ' + units + ' next session'
+        : rx.type === 'down' ? 'Deload soon' : rx.tag;
+      return { dir: dir, label: label };
     }
     var cut30 = dsAgo(30);
     var exVol = {};
@@ -2628,7 +2670,7 @@
     }
     var exById = {}; exs.forEach(function (e) { exById[e.id] = e; });
     var hasStrength = Object.keys(byDay).length > 0;
-    var hasAny = hasStrength || cardio.length > 0;
+    var hasAny = hasStrength || cardio.length > 0 || Object.keys(done).length > 0;
     var prsList = Object.keys(prsMap).map(function (k) { return prsMap[k]; })
       .filter(function (pr) { return pr && pr.date; })
       .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
@@ -2658,13 +2700,13 @@
     var SUBS = [['overview', 'Overview'], ['strength', 'Strength'], ['cardio', 'Cardio'], ['progress', 'Progress'], ['history', 'History']];
     function subtabsBar(right) {
       return '<div class="lg-subtabs-row"><div class="lg-subtabs">'
-        + SUBS.map(function (s) { return '<button data-sub="' + s[0] + '"' + (s[0] === trainSub ? ' aria-selected="true"' : '') + '>' + s[1] + '</button>'; }).join('')
+        + SUBS.map(function (s) { return '<button data-sub="' + s[0] + '"' + (s[0] === trainSub && !trainView ? ' aria-selected="true"' : '') + '>' + s[1] + '</button>'; }).join('')
         + '</div>' + (right || '') + '</div>';
     }
-    function emptyCard(title, sub, href, cta) {
+    function emptyCard(title, sub, cta, attr) {
       return '<section class="card"><div class="lg-card-title">' + esc(title) + '</div>'
         + '<div class="lg-card-sub" style="margin-top:6px">' + esc(sub) + '</div>'
-        + '<a class="btn btn-primary btn-sm" style="margin-top:12px;align-self:flex-start" href="' + href + '">' + esc(cta) + '</a></section>';
+        + '<button class="btn btn-primary btn-sm" style="margin-top:12px;align-self:flex-start" ' + attr + '>' + esc(cta) + '</button></section>';
     }
     function coachRows() {
       var rows = '';
@@ -2683,12 +2725,12 @@
       var rows = '';
       ids.slice(0, cap || 5).forEach(function (id) {
         var ex = exById[id]; if (!ex) return;
-        var rx = rxFor(ex); if (!rx) return;
+        var rx = rxShort(ex); if (!rx) return;
         var col = rx.dir === 'up' ? 'var(--green)' : rx.dir === 'down' ? 'var(--amber)' : 'var(--text-2)';
         var ic = rx.dir === 'up' ? upIcon : rx.dir === 'down' ? downIcon : flatIcon;
-        rows += '<div class="lg-trow lg-prog"><span>' + esc(ex.name) + '</span>'
+        rows += '<button class="lg-trow lg-prog" data-sess-start-ex="' + esc(id) + '" style="width:100%;background:none;border:0;border-bottom:1px solid var(--border);cursor:pointer;font:inherit;color:inherit;text-align:left"><span>' + esc(ex.name) + '</span>'
           + '<span class="lg-card-sub" style="color:' + col + ';text-align:right">' + esc(rx.label) + '</span>'
-          + '<span class="lg-updot">' + ic + '</span></div>';
+          + '<span class="lg-updot">' + ic + '</span></button>';
       });
       return rows;
     }
@@ -2697,11 +2739,11 @@
       return list.map(function (ex, i) {
         var ll = lastLog(ex.id);
         var lastTxt = ll ? (ex.bw ? (ll.reps + ' reps') : ((Number(ll.weight) || 0) + ' ' + units + ' &times; ' + ll.reps)) : '&mdash;';
-        return '<div class="lg-trow lg-fw"><span class="t-cap">' + (i + 1) + '</span>'
+        return '<button class="lg-trow lg-fw" data-sess-start-ex="' + esc(ex.id) + '" style="width:100%;background:none;border:0;border-bottom:1px solid var(--border);cursor:pointer;font:inherit;color:inherit;text-align:left"><span class="t-cap">' + (i + 1) + '</span>'
           + '<span class="t-cap">' + esc(ex.muscle || (ex.bw ? 'Bodyweight' : '')) + '</span>'
           + '<span style="font-weight:500">' + esc(ex.name) + '</span>'
           + '<span class="t-cap num">' + (ex.repMin || 6) + '&ndash;' + (ex.repMax || 8) + '</span>'
-          + '<span class="t-cap num" style="text-align:right">' + lastTxt + '</span></div>';
+          + '<span class="t-cap num" style="text-align:right">' + lastTxt + '</span></button>';
       }).join('');
     }
     function fwHead() {
@@ -2720,7 +2762,7 @@
       var tabs = topExIds.map(function (id) {
         return '<button role="tab" data-ex="' + esc(id) + '"' + (id === selId ? ' aria-selected="true"' : '') + '>' + esc((exById[id] || {}).name || 'Exercise') + '</button>';
       }).join('');
-      return '<section class="card ' + span + '"><div class="lg-card-row"><div class="lg-card-title">Exercise performance</div><a class="lg-card-link" href="../gym.html">View all &rarr;</a></div>'
+      return '<section class="card ' + span + '"><div class="lg-card-row"><div class="lg-card-title">Exercise performance</div><button class="lg-card-link" data-sub-goto="strength" style="background:none;border:0;cursor:pointer">View all &rarr;</button></div>'
         + '<div class="segmented lg-chip-seg" style="align-self:flex-start;margin-top:4px">' + tabs + '</div>'
         + '<div class="between" style="margin-top:10px"><div><div class="lg-lab-head">Est. 1RM</div><div class="lg-body-val" style="font-size:20px">' + (latest ? latest.v : '&mdash;') + ' <small>' + units + '</small>'
         + (latest && prev && latest.v !== prev.v ? ' <span style="font-size:12px;color:' + (latest.v > prev.v ? 'var(--green)' : 'var(--amber)') + '">' + (latest.v > prev.v ? '+' : '') + Math.round((latest.v - prev.v) * 10) / 10 + ' ' + units + '</span>' : '')
@@ -2741,11 +2783,170 @@
       return m;
     }
 
+    /* ---------- write-path: identical shapes to gym.html ---------- */
+    function doLogSet(ex, w, reps, rpe) {
+      var arr = logs[ex.id] || (logs[ex.id] = []);
+      arr.push({ weight: ex.bw ? 0 : w, reps: reps, rpe: rpe || null, date: new Date().toISOString() });
+      saveSt();
+      if (!done[t]) { done[t] = { ts: new Date().toISOString(), notes: '' }; lsset('po_coach_workout_done', done); }
+      if (!ex.bw && w > 0 && reps > 0) {
+        var e = Math.round(w * (1 + reps / 30));
+        var sup = lsget('gym:prs:suppressed:v1', []) || [];
+        if (sup.indexOf(ex.id + '|' + w + '|' + reps) < 0) {
+          var cur = prsMap[ex.id];
+          if (!cur || e > (cur.e1rm || 0)) {
+            prsMap[ex.id] = { e1rm: e, weight: w, reps: reps, date: t, name: ex.name, isNew: true };
+            lsset('gym:prs:v1', prsMap);
+            UI.toast('New PR — ' + ex.name + ' ' + e + ' ' + units + ' est. 1RM');
+          }
+        }
+      }
+      if (window.addEvent) { try { window.addEvent('workout.set', ['training'], { exercise: ex.name, muscle: ex.muscle || '', kg: w, reps: reps, rpe: rpe || null, bw: !!ex.bw }).catch(function () {}); } catch (e2) {} }
+      fire();
+    }
+    function beep() {
+      try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [0, 0.25].forEach(function (tt) {
+          var o = ctx.createOscillator(), g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = 880; g.gain.value = 0.08;
+          o.start(ctx.currentTime + tt); o.stop(ctx.currentTime + tt + 0.15);
+        });
+      } catch (e) {}
+      try { if (navigator.vibrate) navigator.vibrate([180, 80, 180]); } catch (e) {}
+    }
+
+    /* ---------- Workout session view (replaces gym.html logging) ---------- */
+    function sessionView() {
+      if (!trainSession) trainSession = { queue: exs.map(function (e) { return e.id; }), cur: null };
+      if (!exs.length && trainExEdit === undefined) trainExEdit = null;
+      var h = '<section class="card" style="padding:0">' + subtabsBar('<div class="lg-sub-actions"><button class="btn btn-secondary btn-sm" data-end-session>End session</button></div>') + '</section>';
+      var q = (trainSession && trainSession.queue || []).filter(function (id) { return exById[id]; });
+      if (!q.length) q = exs.map(function (e) { return e.id; });
+      var curId = trainSession && exById[trainSession.cur] ? trainSession.cur : q[0];
+      trainSession.cur = curId || null;
+      var todaySets = byDay[t] || [];
+      var setsPerEx = {};
+      todaySets.forEach(function (x) { setsPerEx[x.ex.id] = (setsPerEx[x.ex.id] || 0) + 1; });
+
+      /* summary */
+      h += '<div class="lg-statgrid c3">'
+        + kpiCard(calIcon, 'Session', esc(typeof dateLabel === 'function' ? dateLabel(t) : t), trainedToday ? '<span style="color:var(--green)">In progress</span>' : 'Log your first set')
+        + kpiCard(gridIcon, 'Sets today', String(todaySets.length), Object.keys(setsPerEx).length + ' exercise' + (Object.keys(setsPerEx).length === 1 ? '' : 's'))
+        + kpiCard(dumbIcon, 'Volume today', fmtVol(volFor(t)) + ' <small>' + units + '</small>', 'load &times; reps')
+        + '</div>';
+
+      /* exercise editor */
+      if (trainExEdit !== undefined) {
+        var ed = trainExEdit ? exById[trainExEdit] : null;
+        h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">' + (ed ? 'Edit exercise' : 'Add exercise') + '</div>'
+          + (ed ? '<button class="btn btn-danger btn-sm" data-del-ex="' + esc(ed.id) + '">Delete</button>' : '') + '</div>'
+          + '<div class="grid" style="grid-template-columns:2fr 1fr;gap:10px;margin-top:10px">'
+          + '<div class="field"><span class="label">Name</span><input class="input" id="ex-name" value="' + esc(ed ? ed.name : '') + '" placeholder="e.g. Incline bench press"></div>'
+          + '<div class="field"><span class="label">Muscle</span><input class="input" id="ex-muscle" value="' + esc(ed ? (ed.muscle || '') : '') + '" placeholder="auto"></div>'
+          + '</div>'
+          + '<div class="grid" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:10px">'
+          + '<div class="field"><span class="label">Rep min</span><input class="input num" id="ex-repmin" type="number" value="' + (ed ? (ed.repMin || 6) : 6) + '"></div>'
+          + '<div class="field"><span class="label">Rep max</span><input class="input num" id="ex-repmax" type="number" value="' + (ed ? (ed.repMax || 8) : 8) + '"></div>'
+          + '<div class="field"><span class="label">Step (' + units + ')</span><input class="input num" id="ex-step" type="number" step="0.5" value="' + (ed ? (ed.step || 2.5) : 2.5) + '"></div>'
+          + '<div class="field"><span class="label">Start ' + units + '</span><input class="input num" id="ex-start" type="number" value="' + (ed ? (ed.startWeight || 0) : 0) + '"></div>'
+          + '</div>'
+          + '<label class="lg-check-item" style="margin-top:10px;cursor:pointer"><input type="checkbox" id="ex-bw"' + (ed && ed.bw ? ' checked' : '') + ' style="width:16px;height:16px"> Bodyweight exercise (no load)</label>'
+          + '<div class="inline" style="gap:10px;margin-top:12px"><button class="btn btn-primary" data-save-ex="' + esc(ed ? ed.id : '__new') + '" style="flex:1">Save exercise</button><button class="btn btn-secondary" data-cancel-ex>Cancel</button></div></section>';
+      }
+
+      /* exercise picker chips */
+      var chips = q.map(function (id) {
+        var ex = exById[id];
+        var n = setsPerEx[id] || 0;
+        return '<button class="lg-mini-chip" data-sess-ex="' + esc(id) + '" style="cursor:pointer;min-height:36px;' + (id === curId ? 'border-color:rgba(185,140,255,.55);background:rgba(155,108,255,.14);color:var(--text)' : '') + '">' + esc(ex.name)
+          + (n ? ' <span class="badge violet num" style="min-width:18px;text-align:center">' + n + '</span>' : '') + '</button>';
+      }).join('');
+      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Exercises</div><button class="btn btn-secondary btn-sm" data-edit-ex="__new">+ Add exercise</button></div>'
+        + '<div class="lg-chip-set" style="margin-top:6px">' + (chips || '<span class="lg-card-sub">No exercises yet — add your first one.</span>') + '</div></section>';
+
+      var cur = exById[curId];
+      if (cur) {
+        var ll = lastLog(cur.id);
+        var rx = rxFull(cur);
+        var defW = trainWSel != null ? trainWSel : rx && !cur.bw ? rx.weight : ll ? (Number(ll.weight) || 0) : (Number(cur.startWeight) || 0);
+        var defReps = trainRepSel != null ? trainRepSel : (rx ? rx.reps : (Number(cur.repMin) || 6));
+        var maxPill = Math.min(20, Math.max((Number(cur.repMax) || 8) + 4, 12));
+        var repPills = '';
+        for (var rp = 1; rp <= maxPill; rp++) {
+          repPills += '<button class="lg-mini-chip num" data-rep="' + rp + '" style="cursor:pointer;min-width:38px;min-height:38px;justify-content:center;' + (rp === defReps ? 'border-color:rgba(185,140,255,.55);background:rgba(155,108,255,.16);color:var(--text)' : '') + '">' + rp + '</button>';
+        }
+        var rpePills = [6, 7, 8, 9, 10].map(function (rv) {
+          return '<button class="lg-mini-chip num" data-rpe="' + rv + '" style="cursor:pointer;min-width:38px;min-height:38px;justify-content:center;' + (rv === trainRpeSel ? 'border-color:rgba(185,140,255,.55);background:rgba(155,108,255,.16);color:var(--text)' : '') + '">' + rv + '</button>';
+        }).join('');
+        var tagCol = rx ? (rx.type === 'up' ? 'var(--green)' : rx.type === 'down' ? 'var(--amber)' : 'var(--accent)') : 'var(--text-3)';
+        h += '<section class="card"><div class="lg-card-row"><div><div class="lg-card-title">' + esc(cur.name) + '</div>'
+          + '<div class="lg-card-sub">' + esc(cur.muscle || (cur.bw ? 'bodyweight' : '')) + ' &middot; target ' + (cur.repMin || 6) + '&ndash;' + (cur.repMax || 8) + ' reps'
+          + (ll ? ' &middot; last: ' + (cur.bw ? ll.reps + ' reps' : (Number(ll.weight) || 0) + ' ' + units + ' &times; ' + ll.reps) + (ll.rpe ? ' @ RPE ' + ll.rpe : '') : ' &middot; not logged yet') + '</div></div>'
+          + '<button class="lg-ic-btn" data-edit-ex="' + esc(cur.id) + '" aria-label="Edit exercise">' + pencilIcon + '</button></div>'
+          + (rx ? '<div class="lg-note-card" style="margin-top:6px"><strong style="color:' + tagCol + ';margin-right:6px;white-space:nowrap">' + esc(rx.tag) + '</strong> ' + esc(rx.reason) + '</div>' : '')
+          + (cur.bw ? '' : '<div class="lg-lab-head" style="margin-top:12px">Weight (' + units + ')</div>'
+            + '<div class="inline" style="gap:8px;margin-top:6px"><button class="btn btn-secondary" data-w-dec style="min-width:52px">&minus;' + (cur.step || 2.5) + '</button>'
+            + '<input class="input num" id="sess-w" type="number" step="' + (cur.step || 2.5) + '" value="' + defW + '" style="text-align:center;font-size:18px;max-width:120px">'
+            + '<button class="btn btn-secondary" data-w-inc style="min-width:52px">+' + (cur.step || 2.5) + '</button></div>')
+          + '<div class="lg-lab-head" style="margin-top:12px">Reps</div><div class="lg-chip-set" style="margin-top:6px">' + repPills + '</div>'
+          + '<div class="lg-lab-head" style="margin-top:12px">RPE (effort, optional)</div><div class="lg-chip-set" style="margin-top:6px">' + rpePills + '</div>'
+          + '<button class="btn btn-primary btn-block" data-log-set style="margin-top:14px">Log set</button></section>';
+
+        /* rest timer */
+        if (trainRestUntil > Date.now()) {
+          h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + clockIcon + ' Rest &middot; ' + esc(trainRestLabel) + '</div>'
+            + '<button class="btn btn-secondary btn-sm" data-skip-rest>Skip</button></div>'
+            + '<div class="lg-body-val" style="font-size:32px;text-align:center;margin:6px 0" id="rest-remaining"></div></section>';
+        }
+      }
+
+      /* today's sets */
+      var groups = {};
+      todaySets.forEach(function (x) {
+        (groups[x.ex.id] = groups[x.ex.id] || { ex: x.ex, sets: [] }).sets.push(x.set);
+      });
+      var setRows = Object.keys(groups).map(function (k) {
+        var g = groups[k];
+        var rows = g.sets.map(function (s) {
+          var idx = (logs[g.ex.id] || []).indexOf(s);
+          return '<div class="lg-trow" style="grid-template-columns:1fr auto auto;min-height:34px"><span class="lg-card-sub">' + (g.ex.bw ? s.reps + ' reps' : (Number(s.weight) || 0) + ' ' + units + ' &times; ' + s.reps) + (s.rpe ? ' @ RPE ' + s.rpe : '') + '</span>'
+            + '<span class="t-cap">' + esc(String(s.date).slice(11, 16) || '') + '</span>'
+            + '<button class="lg-ic-btn" data-del-set="' + esc(g.ex.id) + '|' + idx + '" aria-label="Delete set">&times;</button></div>';
+        }).join('');
+        return '<div style="margin-top:8px"><div style="font-weight:600;font-size:13px">' + esc(g.ex.name) + ' <span class="t-cap">' + g.sets.length + ' set' + (g.sets.length === 1 ? '' : 's') + '</span></div>' + rows + '</div>';
+      }).join('');
+      h += '<section class="card"><div class="lg-card-title">Today’s sets</div>'
+        + (setRows || '<div class="lg-card-sub" style="margin-top:8px">Nothing logged yet — pick an exercise and log your first set.</div>') + '</section>';
+      return h;
+    }
+
+    /* ---------- Templates view ---------- */
+    function templatesView() {
+      var h = '<section class="card" style="padding:0">' + subtabsBar('<div class="lg-sub-actions"><button class="btn btn-secondary btn-sm" data-end-session>Back</button></div>') + '</section>';
+      var cards = tpls.map(function (tp) {
+        var names = (tp.exercises || []).map(function (e2) { return e2.name; });
+        return '<section class="card"><div class="lg-card-row"><div class="lg-card-title">' + esc(tp.name) + '</div>'
+          + '<button class="lg-ic-btn" data-del-tpl="' + esc(tp.id) + '" aria-label="Delete template">&times;</button></div>'
+          + '<div class="lg-card-sub">' + names.length + ' exercises' + (tp.createdAt ? ' &middot; saved ' + esc(tp.createdAt) : '') + '</div>'
+          + '<div class="lg-card-sub" style="margin-top:4px">' + esc(names.slice(0, 4).join(', ')) + (names.length > 4 ? '…' : '') + '</div>'
+          + '<button class="btn btn-primary btn-sm" data-start-tpl="' + esc(tp.id) + '" style="margin-top:10px;align-self:flex-start">&#9654; Start this workout</button></section>';
+      }).join('');
+      h += '<div class="lg-body-grid">' + (cards ? '<div class="col lg-span-6" style="display:flex;flex-direction:column;gap:12px">' + cards + '</div>' : '')
+        + '<section class="card ' + (cards ? 'lg-span-6' : 'lg-span-12') + '"><div class="lg-card-title">Save current setup as template</div>'
+        + '<div class="lg-card-sub" style="margin-top:4px">Saves your ' + exs.length + ' current exercises as a reusable workout.</div>'
+        + '<div class="field" style="margin-top:10px"><span class="label">Template name</span><input class="input" id="tpl-name" placeholder="e.g. Full Body A"></div>'
+        + '<button class="btn btn-primary" data-save-tpl style="margin-top:12px;align-self:flex-start">Save template</button>'
+        + (cards ? '' : '<div class="lg-card-sub" style="margin-top:10px">No templates yet.</div>') + '</section></div>';
+      return h;
+    }
+
     /* ---------- Overview ---------- */
     function overviewView() {
       var h = '<section class="card" style="padding:0">' + subtabsBar('') + '</section>';
-      if (!hasAny) {
-        h += emptyCard('No training logged yet', 'Log sets in the Gym module (or cardio below) and this dashboard computes volume, PRs and trends from your real data.', '../gym.html', 'Open Gym');
+      if (!hasAny && !exs.length) {
+        h += emptyCard('No training logged yet', 'Start a session, add your exercises and log sets right here. Volume, PRs and trends all compute from your real data.', 'Start your first session', 'data-start-session');
         return h;
       }
       h += '<div class="lg-statgrid c4">'
@@ -2759,31 +2960,31 @@
         + '<div class="lg-card-sub">' + (hrv != null ? 'HRV ' + hrv + ' ms' : '') + (hrv != null && rhr != null ? '<br>' : '') + (rhr != null ? 'RHR ' + rhr + ' bpm' : '') + (hrv == null && rhr == null ? esc(rd.advice || 'Log sleep + mood to fuel this') : '') + '</div></div>'
         + (rd.score != null ? ring(rd.score, '') : '') + '</div></section>'
         + '<section class="card lg-kpi"><div class="lg-card-row" style="margin:0"><div class="kpi-top"><span class="lg-body-ic">' + calIcon + '</span>Weekly cadence</div></div>'
-        + '<div class="kpi-val" style="font-size:17px">' + esc(rotLabel) + '</div><div class="kpi-sub">' + (rotation.length > 1 ? 'Rotation: ' + esc(rotation.join(' &middot; ').replace(/&middot;/g, '·')) : 'Flexible schedule') + '</div>'
+        + '<div class="kpi-val" style="font-size:17px">' + esc(rotLabel) + '</div><div class="kpi-sub">' + (rotation.length > 1 ? 'Rotation: ' + esc(rotation.join(' · ')) : 'Flexible schedule') + '</div>'
         + '<div class="kpi-sub">' + Math.min(sessThisWk, weekGoal) + ' of ' + weekGoal + ' sessions completed</div>' + pbar(sessThisWk / weekGoal * 100) + '</section>'
         + '</div>';
 
       h += '<div class="lg-body-grid">';
       h += '<section class="card lg-span-3"><div class="lg-card-title">Log workout</div><div class="lg-act3" style="grid-template-columns:1fr">'
-        + '<a class="lg-act-tile" href="../gym.html" style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + playIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>Start session</strong><span style="font-size:11px;color:var(--text-3)">Track workout</span></span></a>'
-        + '<a class="lg-act-tile" href="../gym.html#templates" style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + gridIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>Choose template</strong><span style="font-size:11px;color:var(--text-3)">' + (tpls.length ? tpls.length + ' saved' : 'Pick a workout') + '</span></span></a>'
+        + '<button class="lg-act-tile" data-start-session style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + playIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>' + (trainedToday ? 'Resume session' : 'Start session') + '</strong><span style="font-size:11px;color:var(--text-3)">Track workout</span></span></button>'
+        + '<button class="lg-act-tile" data-view-templates style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + gridIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>Templates</strong><span style="font-size:11px;color:var(--text-3)">' + (tpls.length ? tpls.length + ' saved' : 'Pick a workout') + '</span></span></button>'
         + '<button class="lg-act-tile" data-goto-cardio style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + cardioIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>Log cardio</strong><span style="font-size:11px;color:var(--text-3)">Track cardio session</span></span></button>'
         + '</div></section>';
 
       var restDef = Number(restM.default) || 180;
       h += '<section class="card lg-span-5"><div class="lg-card-row"><div class="lg-card-title">' + esc(rotLabel.indexOf('Full') === 0 ? 'Full body framework' : 'Training framework') + '</div><span class="t-cap">' + exs.length + ' exercises</span></div>'
-        + (exs.length ? fwHead() + frameworkRows(8) + (exs.length > 8 ? '<div class="lg-card-sub" style="margin-top:6px">+' + (exs.length - 8) + ' more in the Gym module</div>' : '')
-          : '<div class="lg-card-sub" style="margin-top:8px">Add exercises in the Gym module to build your framework.</div>')
-        + '<div class="inline" style="gap:10px;margin-top:12px"><a class="btn btn-primary" style="flex:1;text-align:center" href="../gym.html">Start session</a>'
-        + '<a class="btn btn-secondary" href="../gym.html" style="display:inline-flex;align-items:center;gap:6px">' + clockIcon.replace('stroke-width="1.7"', 'stroke-width="1.7" style="width:15px;height:15px"') + ' Rest timer &middot; ' + Math.round(restDef / 60) + ' min</a></div>'
-        + '<div class="lg-card-sub" style="margin-top:8px">Repeat this framework ' + weekGoal + 'x per week. Loads and reps adjust from your logged results.</div></section>';
+        + (exs.length ? fwHead() + frameworkRows(8) + (exs.length > 8 ? '<div class="lg-card-sub" style="margin-top:6px">+' + (exs.length - 8) + ' more in the Strength tab</div>' : '')
+          : '<div class="lg-card-sub" style="margin-top:8px">Add exercises to build your framework.</div>')
+        + '<div class="inline" style="gap:10px;margin-top:12px"><button class="btn btn-primary" data-start-session style="flex:1">' + (trainedToday ? 'Resume session' : 'Start session') + '</button>'
+        + '<span class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;cursor:default">' + clockIcon.replace('stroke-width="1.7"', 'stroke-width="1.7" style="width:15px;height:15px"') + ' Rest ' + Math.round(restDef / 60) + ' min</span></div>'
+        + '<div class="lg-card-sub" style="margin-top:8px">Tap an exercise to jump straight into logging it. Repeat this framework ' + weekGoal + 'x per week.</div></section>';
 
       h += perfCard('lg-span-4');
       h += '</div>';
 
       h += '<div class="lg-body-grid">';
       var sugg = suggestionRows(topExIds.concat(exs.map(function (e) { return e.id; }).filter(function (id) { return topExIds.indexOf(id) < 0; })), 5);
-      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Progression suggestions</div><a class="lg-card-link" href="../gym.html">View all &rarr;</a></div>'
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Progression suggestions</div><button class="lg-card-link" data-sub-goto="strength" style="background:none;border:0;cursor:pointer">View all &rarr;</button></div>'
         + (sugg || '<div class="lg-card-sub" style="margin-top:8px">Log sets and per-lift suggestions appear here.</div>')
         + '<div class="lg-card-sub" style="margin-top:8px">Suggestions based on your reps, RPE and rep targets per lift.</div></section>';
 
@@ -2828,9 +3029,9 @@
 
     /* ---------- Strength ---------- */
     function strengthView() {
-      var h = '<section class="card" style="padding:0">' + subtabsBar('') + '</section>';
-      if (!hasStrength) {
-        h += emptyCard('No strength data yet', 'Log sets in the Gym module and this view builds itself from your history.', '../gym.html', 'Open Gym');
+      var h = '<section class="card" style="padding:0">' + subtabsBar('<div class="lg-sub-actions"><button class="btn btn-primary btn-sm" data-start-session>' + (trainedToday ? 'Resume session' : 'Start session') + '</button></div>') + '</section>';
+      if (!hasStrength && !exs.length) {
+        h += emptyCard('No strength data yet', 'Start a session, add exercises and log sets — this view builds itself from your history.', 'Start your first session', 'data-start-session');
         return h;
       }
       var sets7 = 0; for (var i = 0; i < 7; i++) sets7 += (byDay[dsAgo(i)] || []).length;
@@ -2847,15 +3048,18 @@
       h += '<div class="lg-body-grid">';
       var allRows = exs.map(function (ex, i) {
         var ll = lastLog(ex.id);
-        var rx = rxFor(ex);
+        var rx = rxShort(ex);
         var lastTxt = ll ? (ex.bw ? (ll.reps + ' reps') : ((Number(ll.weight) || 0) + ' ' + units + ' &times; ' + ll.reps)) + (ll.rpe ? ' @ RPE ' + ll.rpe : '') : '&mdash;';
         var col = rx ? (rx.dir === 'up' ? 'var(--green)' : rx.dir === 'down' ? 'var(--amber)' : 'var(--text-2)') : 'var(--text-3)';
-        return '<div class="lg-trow" style="grid-template-columns:16px 1fr 110px minmax(0,1fr)"><span class="t-cap">' + (i + 1) + '</span>'
-          + '<span style="font-weight:500">' + esc(ex.name) + '<span class="lg-card-sub" style="display:block">' + esc(ex.muscle || '') + ' &middot; ' + (ex.repMin || 6) + '&ndash;' + (ex.repMax || 8) + ' reps</span></span>'
+        return '<div class="lg-trow" style="grid-template-columns:16px minmax(0,1fr) 110px minmax(0,1fr) 34px"><span class="t-cap">' + (i + 1) + '</span>'
+          + '<button data-sess-start-ex="' + esc(ex.id) + '" style="background:none;border:0;cursor:pointer;font:inherit;color:inherit;text-align:left;padding:0"><span style="font-weight:500">' + esc(ex.name) + '</span><span class="lg-card-sub" style="display:block">' + esc(ex.muscle || '') + ' &middot; ' + (ex.repMin || 6) + '&ndash;' + (ex.repMax || 8) + ' reps</span></button>'
           + '<span class="t-cap num">' + lastTxt + '</span>'
-          + '<span class="lg-card-sub" style="color:' + col + ';text-align:right">' + (rx ? esc(rx.label) : 'not logged yet') + '</span></div>';
+          + '<span class="lg-card-sub" style="color:' + col + ';text-align:right">' + (rx ? esc(rx.label) : 'not logged yet') + '</span>'
+          + '<button class="lg-ic-btn" data-edit-ex-launch="' + esc(ex.id) + '" aria-label="Edit exercise" style="width:30px;height:30px;min-height:30px">' + pencilIcon + '</button></div>';
       }).join('');
-      h += '<section class="card lg-span-7"><div class="lg-card-row"><div class="lg-card-title">All exercises</div><a class="lg-card-link" href="../gym.html">Edit in Gym &rarr;</a></div>' + allRows + '</section>';
+      h += '<section class="card lg-span-7"><div class="lg-card-row"><div class="lg-card-title">All exercises</div><button class="btn btn-secondary btn-sm" data-add-ex-launch>+ Add exercise</button></div>'
+        + (allRows || '<div class="lg-card-sub" style="margin-top:8px">No exercises yet.</div>')
+        + '<div class="lg-card-sub" style="margin-top:8px">Tap an exercise to log it; pencil to edit.</div></section>';
       h += '<div class="col lg-span-5" style="display:flex;flex-direction:column;gap:12px">' + perfCard('')
         + '<section class="card"><div class="lg-card-title">Progression suggestions</div>' + (suggestionRows(exs.map(function (e) { return e.id; }), 6) || '<div class="lg-card-sub" style="margin-top:8px">Log sets to see suggestions.</div>') + '</section></div>';
       h += '</div>';
@@ -2868,9 +3072,9 @@
         return '<div class="lg-hist-row"><div class="min-0"><div class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(dk) : dk) + '</div>'
           + '<div style="font-weight:600;margin:2px 0">' + esc(names.slice(0, 3).join(', ')) + (names.length > 3 ? ' +' + (names.length - 3) : '') + '</div>'
           + '<div class="t-cap">' + sets.length + ' sets &middot; ' + fmtVol(volFor(dk)) + ' ' + units + '</div></div>'
-          + '<a class="lg-edit" href="../gym.html" aria-label="Open in Gym"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M19 5l-8 8M11 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg></a></div>';
+          + '<button class="lg-edit" data-hist-open="s:' + dk + '" aria-label="Open in history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M19 5l-8 8M11 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg></button></div>';
       }).join('');
-      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Recent strength sessions</div><a class="lg-card-link" href="../gym.html">Open Gym &rarr;</a></div>' + histRows + '</section>';
+      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Recent strength sessions</div><button class="lg-card-link" data-sub-goto="history" style="background:none;border:0;cursor:pointer">Full history &rarr;</button></div>' + (histRows || '<div class="lg-card-sub" style="margin-top:8px">No sessions yet.</div>') + '</section>';
       return h;
     }
 
@@ -2896,7 +3100,6 @@
         + '</div>';
 
       h += '<div class="lg-body-grid">';
-      /* log form */
       h += '<section class="card lg-span-4"><div class="lg-card-title">Log cardio session</div>'
         + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">'
         + '<div class="field"><span class="label">Type</span><select class="select" id="cd-type"><option value="run">Run</option><option value="bike">Cycle</option><option value="row">Row</option><option value="swim">Swim</option><option value="walk">Walk</option><option value="hiit">HIIT</option><option value="other">Other</option></select></div>'
@@ -2907,10 +3110,8 @@
         + '<div class="field"><span class="label">Pace</span><input class="input" id="cd-pace" disabled placeholder="auto from time + km"></div>'
         + '</div>'
         + '<div class="field" style="margin-top:10px"><span class="label">Notes</span><input class="input" id="cd-notes" placeholder="Felt great, easy effort..."></div>'
-        + '<button class="btn btn-primary btn-block" id="cd-save" style="margin-top:12px">Log cardio session</button>'
-        + '<div class="lg-card-sub" style="text-align:center;margin-top:8px">Saves to the same store the Gym module uses.</div></section>';
+        + '<button class="btn btn-primary btn-block" id="cd-save" style="margin-top:12px">Log cardio session</button></section>';
 
-      /* recent cardio performance */
       var perfTabs = [['all', 'All'], ['run', 'Run'], ['bike', 'Cycle']];
       var typesPresent = {};
       cardio.forEach(function (c) { typesPresent[c.type || 'other'] = 1; });
@@ -2938,7 +3139,6 @@
       h += '</div>';
 
       h += '<div class="lg-body-grid">';
-      /* fatigue & recovery from readiness engine */
       var parts = Array.isArray(rd.parts) ? rd.parts : [];
       var fRows = parts.map(function (pt) {
         var pct = pt.max ? pt.pts / pt.max : 0;
@@ -2951,7 +3151,6 @@
           : '<div class="lg-card-sub" style="margin-top:8px">Log sleep and mood to build your readiness breakdown.</div>' + fRows)
         + (rd.advice ? '<div class="lg-note-card" style="margin-top:10px"><span class="lg-lab-head" style="margin-right:4px">Guidance</span>' + esc(rd.advice) + '</div>' : '') + '</section>';
 
-      /* modality trend */
       var modTypes = Object.keys(typesPresent).sort();
       var mSel = trainModSel && typesPresent[trainModSel] ? trainModSel : modTypes[0];
       var mPool30 = cardio.filter(function (c) { return (c.type || 'other') === mSel && c.date >= dsAgo(29); });
@@ -2973,7 +3172,6 @@
           + (mBars.some(function (v) { return v > 0; }) ? barChart(mBars, 0) : '<div class="lg-card-sub" style="margin-top:8px">Nothing in the last 8 weeks.</div>')
           : '<div class="lg-card-sub" style="margin-top:8px">Log cardio to see per-modality trends.</div>') + '</section>';
 
-      /* zone distribution — estimated from each session's avg HR */
       var ZONES = [['Z5', 180, 999, '#ff5a5a'], ['Z4', 160, 179, '#ff9f43'], ['Z3', 140, 159, '#ffd43b'], ['Z2', 120, 139, '#5ee6a8'], ['Z1', 0, 119, '#4dabf7']];
       var zoned = card7.filter(function (c) { return Number(c.hr) > 0 && Number(c.duration) > 0; });
       var zTot = zoned.reduce(function (a, c) { return a + Number(c.duration); }, 0);
@@ -2993,7 +3191,6 @@
       h += '</div>';
 
       h += '<div class="lg-body-grid">';
-      /* trends */
       var wkKm = [], wkHr = [];
       for (var w2 = 7; w2 >= 0; w2--) {
         var lo2 = dsAgo(w2 * 7 + 6), hi2 = dsAgo(w2 * 7);
@@ -3013,9 +3210,8 @@
         + '<div><div class="lg-lab-head">Avg HR</div><div class="lg-body-val" style="font-size:18px">' + (wkHr[wkHr.length - 1] || '&mdash;') + (wkHr[wkHr.length - 1] ? ' <small>bpm</small>' : '') + '</div><div class="t-cap">&nbsp;</div>' + (hrSeries.length >= 2 ? spark(hrSeries, '#b98cff') : '') + '</div></div>'
         + '<div class="lg-note-card" style="margin-top:12px"><span class="lg-lab-head" style="margin-right:4px">Trend summary</span>' + esc(trendTxt) + '</div></section>';
 
-      /* recent sessions w/ repeat + delete */
       var recent = cardio.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 8);
-      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Recent sessions</div><a class="lg-card-link" href="../gym.html#cardio">Open in Gym &rarr;</a></div>'
+      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Recent sessions</div><button class="lg-card-link" data-sub-goto="history" style="background:none;border:0;cursor:pointer">Full history &rarr;</button></div>'
         + (recent.length ? recent.map(function (c) {
             var bits = [c.duration ? c.duration + ' min' : null, c.distance ? c.distance + ' km' : null, c.hr ? c.hr + ' bpm' : null].filter(Boolean).join(' &middot; ');
             return '<div class="lg-trow" style="grid-template-columns:22px 1fr auto auto auto;gap:8px"><span style="color:var(--accent);display:inline-flex">' + runIcon + '</span>'
@@ -3027,7 +3223,6 @@
         + '</section>';
       h += '</div>';
 
-      /* weekly breakdown */
       var DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       var wkCells = '';
       var wkTotal = 0;
@@ -3052,7 +3247,7 @@
     function progressView() {
       var h = '<section class="card" style="padding:0">' + subtabsBar('') + '</section>';
       if (!hasStrength && !cardio.length) {
-        h += emptyCard('No progress data yet', 'Log training in the Gym module and progress charts build themselves from your history.', '../gym.html', 'Open Gym');
+        h += emptyCard('No progress data yet', 'Log training and progress charts build themselves from your history.', 'Start a session', 'data-start-session');
         return h;
       }
       var cut28 = dsAgo(28);
@@ -3084,7 +3279,6 @@
         + (rd.score != null ? ring(rd.score, '') : '') + '</div></section>'
         + '</div>';
 
-      /* progress overview big chart */
       var nWeeks = trainProgRange;
       function seriesFor(metric) {
         var out = [];
@@ -3133,7 +3327,6 @@
         + '<div class="lg-card-sub" style="margin-top:8px">PRs are auto-detected from your logged sets.</div></section>';
       h += '</div>';
 
-      /* muscle volume heat table, 8 weeks */
       var weeks = [];
       for (var hw = 7; hw >= 0; hw--) weeks.push(muscleWeek(hw));
       var allMus = {};
@@ -3157,14 +3350,14 @@
         + (musNames.length ? '<div class="lg-heat">' + heatHead + heatRows + '</div>'
           + '<div class="between" style="margin-top:10px"><span class="t-cap">Lower</span><div style="flex:1;height:6px;margin:0 10px;border-radius:3px;background:linear-gradient(90deg,rgba(155,108,255,.12),rgba(155,108,255,.8))"></div><span class="t-cap">Higher</span></div>'
           + '<div class="lg-card-sub" style="margin-top:6px">Total volume = load &times; reps. Darker = more volume.</div>'
-          : '<div class="lg-card-sub" style="margin-top:8px">Tag exercises with a muscle group in the Gym module to see this table.</div>') + '</section>';
+          : '<div class="lg-card-sub" style="margin-top:8px">Tag exercises with a muscle group (pencil icon in Strength) to see this table.</div>') + '</section>';
 
       var msRows = prsList.slice(0, 6).map(function (pr) {
         return '<div class="lg-trow" style="grid-template-columns:24px 1fr auto"><span style="color:#ffd43b;display:inline-flex">' + trophyIcon + '</span>'
           + '<span>' + esc(pr.name || 'PR') + ' PR<span class="lg-card-sub" style="display:block">' + pr.weight + units + ' &times; ' + pr.reps + ' &middot; est. ' + pr.e1rm + ' ' + units + '</span></span>'
           + '<span class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(pr.date) : pr.date) + '</span></div>';
       }).join('');
-      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Milestones &amp; PR timeline</div><a class="lg-card-link" href="../gym.html">View all &rarr;</a></div>'
+      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Milestones &amp; PR timeline</div></div>'
         + (msRows || '<div class="lg-card-sub" style="margin-top:8px">No PRs detected yet.</div>') + '</section>';
 
       var wkMin8 = [], wkKm8 = [];
@@ -3176,7 +3369,7 @@
       }
       var paceAll = cardio.filter(function (c) { return Number(c.duration) > 0 && Number(c.distance) > 0 && c.date >= dsAgo(6); });
       var wkPace = paceAll.length ? fmtPace(paceAll.reduce(function (a, c) { return a + Number(c.duration); }, 0), paceAll.reduce(function (a, c) { return a + Number(c.distance); }, 0)) : null;
-      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Cardio progress</div><a class="lg-card-link" data-goto-cardio style="background:none;border:0;cursor:pointer">View &rarr;</a></div>'
+      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Cardio progress</div><button class="lg-card-link" data-goto-cardio style="background:none;border:0;cursor:pointer">View &rarr;</button></div>'
         + '<div class="lg-lab-head" style="margin-top:4px">Weekly minutes</div><div class="lg-body-val" style="font-size:20px">' + wkMin8[7] + ' <small>min</small> ' + (deltaHtml(wkMin8[7], wkMin8[6], 'vs prior week') || '') + '</div>' + spark(wkMin8, '#5ee6a8')
         + '<div class="lg-lab-head" style="margin-top:10px">Distance (week)</div><div class="lg-body-val" style="font-size:20px">' + wkKm8[7] + ' <small>km</small></div>' + spark(wkKm8, '#4dabf7')
         + '<div class="lg-lab-head" style="margin-top:10px">Avg pace (week)</div><div class="lg-body-val" style="font-size:20px">' + (wkPace ? wkPace + ' <small>/km</small>' : '&mdash;') + '</div></section>';
@@ -3191,7 +3384,7 @@
     function historyView() {
       var h = '<section class="card" style="padding:0">' + subtabsBar('') + '</section>';
       if (!hasAny) {
-        h += emptyCard('No history yet', 'Your logged sessions appear here once you train.', '../gym.html', 'Open Gym');
+        h += emptyCard('No history yet', 'Your logged sessions appear here once you train.', 'Start a session', 'data-start-session');
         return h;
       }
       var ym = t.slice(0, 7);
@@ -3211,7 +3404,6 @@
         + kpiCard(trophyIcon, 'PRs this month', String(monthPRs.length), monthPRs.length ? esc(monthPRs.slice(0, 3).map(function (x) { return x.name; }).join(', ')) : 'none yet')
         + '</div>';
 
-      /* merged timeline of strength days + cardio sessions */
       var items = [];
       Object.keys(byDay).forEach(function (dk) {
         var sets = byDay[dk];
@@ -3255,7 +3447,6 @@
       }).join('');
       var moreBtn = filtered.length > trainHistCount ? '<button class="btn btn-secondary btn-sm" data-hist-more style="margin-top:10px;align-self:center">Load more</button>' : '';
 
-      /* detail pane */
       var detail;
       if (sel && sel.kind === 'strength') {
         var byEx = {};
@@ -3281,14 +3472,14 @@
         var exHead = '<div class="lg-ex-row" style="min-height:26px"><span class="lg-lab-head">Exercise</span><span class="lg-lab-head">Sets</span><span class="lg-lab-head">Reps</span><span class="lg-lab-head">Load</span><span class="lg-lab-head" style="text-align:right">1RM est.</span></div>';
         detail = '<div class="lg-card-row"><div><div class="lg-card-title">' + esc(typeof dateLabel === 'function' ? dateLabel(sel.date) : sel.date) + ' &middot; Strength session</div>'
           + '<div class="lg-card-sub">' + sel.sets.length + ' sets &middot; ' + fmtVol(sel.vol) + ' ' + units + (sel.pr ? ' &middot; PR day' : '') + '</div></div>'
-          + '<a class="btn btn-secondary btn-sm" href="../gym.html">Edit / Open</a></div>'
+          + '<div class="inline" style="gap:8px">' + (sel.date === t ? '<button class="btn btn-primary btn-sm" data-start-session>Resume</button>' : '') + '<button class="btn btn-danger btn-sm" data-del-day="' + sel.date + '">Delete session</button></div></div>'
           + '<div class="lg-lab-head" style="margin-top:8px">Exercises</div>' + exHead + exRows;
       } else if (sel && sel.kind === 'cardio') {
         var c2 = sel.c;
         var pace2 = fmtPace(Number(c2.duration), Number(c2.distance));
         detail = '<div class="lg-card-row"><div><div class="lg-card-title">' + esc(typeof dateLabel === 'function' ? dateLabel(sel.date) : sel.date) + ' &middot; ' + esc(typeLabel(c2)) + '</div>'
           + '<div class="lg-card-sub">Cardio session</div></div>'
-          + '<a class="btn btn-secondary btn-sm" href="../gym.html#cardio">Open in Gym</a></div>'
+          + '<button class="btn btn-danger btn-sm" data-del-cardio="' + esc(String(c2.id)) + '">Delete</button></div>'
           + '<div class="lg-metric-strip" style="grid-template-columns:repeat(4,1fr);margin-top:10px">'
           + '<div><div class="lg-lab-head">Duration</div><div class="lg-body-val" style="font-size:18px">' + (c2.duration ? c2.duration + ' <small>min</small>' : '&mdash;') + '</div></div>'
           + '<div><div class="lg-lab-head">Distance</div><div class="lg-body-val" style="font-size:18px">' + (c2.distance ? c2.distance + ' <small>km</small>' : '&mdash;') + '</div></div>'
@@ -3299,7 +3490,6 @@
         detail = '<div class="lg-card-sub" style="margin-top:8px">Select a session on the left to see details.</div>';
       }
 
-      /* right column bits */
       var clRows = cardio.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 3).map(function (c) {
         var pace = fmtPace(Number(c.duration), Number(c.distance));
         return '<div class="lg-trow" style="grid-template-columns:22px 1fr auto"><span style="color:var(--accent);display:inline-flex">' + runIcon + '</span>'
@@ -3337,37 +3527,291 @@
     }
 
     var tviews = { overview: overviewView, strength: strengthView, cardio: cardioView, progress: progressView, history: historyView };
-    var builder = tviews[trainSub] || overviewView;
+    var builder = trainView === 'session' ? sessionView : trainView === 'templates' ? templatesView : (tviews[trainSub] || overviewView);
     p.innerHTML = '<div class="lg-body-wrap">' + builder() + '</div>';
 
+    /* ---------- wiring ---------- */
+    function rerender() { renderTrainingPanel(p); }
     p.querySelectorAll('[data-sub]').forEach(function (b) {
-      b.addEventListener('click', function () { trainSub = b.getAttribute('data-sub'); renderTrainingPanel(p); });
+      b.addEventListener('click', function () { trainSub = b.getAttribute('data-sub'); trainView = null; trainExEdit = undefined; rerender(); });
+    });
+    p.querySelectorAll('[data-sub-goto]').forEach(function (b) {
+      b.addEventListener('click', function () { trainSub = b.getAttribute('data-sub-goto'); trainView = null; rerender(); });
     });
     p.querySelectorAll('[data-goto-cardio]').forEach(function (b) {
-      b.addEventListener('click', function () { trainSub = 'cardio'; renderTrainingPanel(p); });
+      b.addEventListener('click', function () { trainSub = 'cardio'; trainView = null; rerender(); });
     });
     p.querySelectorAll('[data-ex]').forEach(function (b) {
-      b.addEventListener('click', function () { trainExSel = b.getAttribute('data-ex'); renderTrainingPanel(p); });
+      b.addEventListener('click', function () { trainExSel = b.getAttribute('data-ex'); rerender(); });
     });
     p.querySelectorAll('[data-ctype]').forEach(function (b) {
-      b.addEventListener('click', function () { trainCardTab = b.getAttribute('data-ctype'); renderTrainingPanel(p); });
+      b.addEventListener('click', function () { trainCardTab = b.getAttribute('data-ctype'); rerender(); });
     });
     p.querySelectorAll('[data-pmetric]').forEach(function (b) {
-      b.addEventListener('click', function () { trainProgMetric = b.getAttribute('data-pmetric'); renderTrainingPanel(p); });
+      b.addEventListener('click', function () { trainProgMetric = b.getAttribute('data-pmetric'); rerender(); });
     });
     p.querySelectorAll('[data-hfilter]').forEach(function (b) {
-      b.addEventListener('click', function () { trainHistFilter = b.getAttribute('data-hfilter'); trainHistCount = 10; renderTrainingPanel(p); });
+      b.addEventListener('click', function () { trainHistFilter = b.getAttribute('data-hfilter'); trainHistCount = 10; rerender(); });
     });
     p.querySelectorAll('[data-sess]').forEach(function (b) {
-      b.addEventListener('click', function () { trainHistSel = b.getAttribute('data-sess'); renderTrainingPanel(p); });
+      b.addEventListener('click', function () { trainHistSel = b.getAttribute('data-sess'); rerender(); });
+    });
+    p.querySelectorAll('[data-hist-open]').forEach(function (b) {
+      b.addEventListener('click', function () { trainHistSel = b.getAttribute('data-hist-open'); trainSub = 'history'; trainView = null; rerender(); });
     });
     var histMore = p.querySelector('[data-hist-more]');
-    if (histMore) histMore.addEventListener('click', function () { trainHistCount += 10; renderTrainingPanel(p); });
+    if (histMore) histMore.addEventListener('click', function () { trainHistCount += 10; rerender(); });
     var prRange = p.querySelector('#pr-range');
-    if (prRange) prRange.addEventListener('change', function () { trainProgRange = parseInt(prRange.value, 10) || 16; renderTrainingPanel(p); });
+    if (prRange) prRange.addEventListener('change', function () { trainProgRange = parseInt(prRange.value, 10) || 16; rerender(); });
     var mdSel = p.querySelector('#md-sel');
-    if (mdSel) mdSel.addEventListener('change', function () { trainModSel = mdSel.value; renderTrainingPanel(p); });
+    if (mdSel) mdSel.addEventListener('change', function () { trainModSel = mdSel.value; rerender(); });
 
+    /* --- session mode --- */
+    function startSession(queue, cur) {
+      trainSession = { queue: queue && queue.length ? queue : exs.map(function (e) { return e.id; }), cur: cur || null };
+      if (!trainSession.cur) trainSession.cur = trainSession.queue[0] || null;
+      trainView = 'session';
+      trainRepSel = null; trainRpeSel = null; trainWSel = null;
+      if (!exs.length) trainExEdit = null; /* open add-exercise form for first-time users */
+      rerender();
+    }
+    p.querySelectorAll('[data-start-session]').forEach(function (b) {
+      b.addEventListener('click', function () { startSession(null, trainSession && trainSession.cur); });
+    });
+    p.querySelectorAll('[data-sess-start-ex]').forEach(function (b) {
+      b.addEventListener('click', function () { startSession(null, b.getAttribute('data-sess-start-ex')); });
+    });
+    p.querySelectorAll('[data-end-session]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        trainView = null; trainExEdit = undefined;
+        var n = (byDay[t] || []).length;
+        if (n) UI.toast('Session saved — ' + n + ' sets, ' + fmtVol(volFor(t)) + ' ' + units);
+        rerender();
+      });
+    });
+    p.querySelectorAll('[data-view-templates]').forEach(function (b) {
+      b.addEventListener('click', function () { trainView = 'templates'; rerender(); });
+    });
+    p.querySelectorAll('[data-sess-ex]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (!trainSession) trainSession = { queue: exs.map(function (e) { return e.id; }), cur: null };
+        trainSession.cur = b.getAttribute('data-sess-ex');
+        trainRepSel = null; trainRpeSel = null; trainWSel = null;
+        rerender();
+      });
+    });
+    p.querySelectorAll('[data-rep]').forEach(function (b) {
+      b.addEventListener('click', function () { trainRepSel = parseInt(b.getAttribute('data-rep'), 10); rerender(); });
+    });
+    p.querySelectorAll('[data-rpe]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = parseInt(b.getAttribute('data-rpe'), 10);
+        trainRpeSel = trainRpeSel === v ? null : v;
+        rerender();
+      });
+    });
+    var wIn = p.querySelector('#sess-w');
+    if (wIn) wIn.addEventListener('input', function () {
+      var v = parseFloat(wIn.value);
+      trainWSel = isNaN(v) ? null : v;
+    });
+    p.querySelectorAll('[data-w-inc],[data-w-dec]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (!wIn) return;
+        var cur = exById[trainSession && trainSession.cur];
+        var step = cur ? (Number(cur.step) || 2.5) : 2.5;
+        var v = (parseFloat(wIn.value) || 0) + (b.hasAttribute('data-w-inc') ? step : -step);
+        wIn.value = Math.max(0, Math.round(v * 100) / 100);
+        trainWSel = parseFloat(wIn.value);
+      });
+    });
+    var logBtn = p.querySelector('[data-log-set]');
+    if (logBtn) logBtn.addEventListener('click', function () {
+      var cur = exById[trainSession && trainSession.cur];
+      if (!cur) return;
+      var reps = trainRepSel != null ? trainRepSel : (rxFull(cur) ? rxFull(cur).reps : (Number(cur.repMin) || 6));
+      var w = cur.bw ? 0 : (wIn ? parseFloat(wIn.value) || 0 : 0);
+      if (!cur.bw && w <= 0) { UI.toast('Enter a weight'); return; }
+      if (!(reps > 0)) { UI.toast('Pick a rep count'); return; }
+      doLogSet(cur, w, reps, trainRpeSel);
+      trainRestUntil = Date.now() + restSecFor(cur) * 1000;
+      trainRestLabel = cur.name;
+      trainRepSel = null; trainRpeSel = null; trainWSel = null;
+      UI.toast('Set logged — ' + (cur.bw ? reps + ' reps' : w + ' ' + units + ' × ' + reps));
+      rerender();
+    });
+    var skipRest = p.querySelector('[data-skip-rest]');
+    if (skipRest) skipRest.addEventListener('click', function () { trainRestUntil = 0; rerender(); });
+    p.querySelectorAll('[data-del-set]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var bits = b.getAttribute('data-del-set').split('|');
+        var arr = logs[bits[0]];
+        var idx = parseInt(bits[1], 10);
+        if (arr && idx >= 0 && idx < arr.length) {
+          arr.splice(idx, 1);
+          if (!arr.length) delete logs[bits[0]];
+          saveSt(); fire();
+          UI.toast('Set deleted');
+          rerender();
+        }
+      });
+    });
+    p.querySelectorAll('[data-del-day]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var dk = b.getAttribute('data-del-day');
+        UI.confirm({
+          title: 'Delete this session?',
+          body: 'Removes every set logged on ' + dk + '. This cannot be undone.',
+          onConfirm: function () {
+            Object.keys(logs).forEach(function (exId) {
+              logs[exId] = (logs[exId] || []).filter(function (s) { return String(s.date).slice(0, 10) !== dk; });
+              if (!logs[exId].length) delete logs[exId];
+            });
+            saveSt();
+            if (done[dk]) { delete done[dk]; lsset('po_coach_workout_done', done); }
+            fire();
+            UI.toast('Session deleted');
+            trainHistSel = null;
+            rerender();
+          },
+        });
+      });
+    });
+    /* exercise editor */
+    p.querySelectorAll('[data-edit-ex]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.getAttribute('data-edit-ex');
+        trainExEdit = v === '__new' ? null : v;
+        rerender();
+      });
+    });
+    p.querySelectorAll('[data-edit-ex-launch]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        trainExEdit = b.getAttribute('data-edit-ex-launch');
+        startSession(null, trainExEdit);
+      });
+    });
+    p.querySelectorAll('[data-add-ex-launch]').forEach(function (b) {
+      b.addEventListener('click', function () { trainExEdit = null; startSession(null, null); });
+    });
+    var cancelEx = p.querySelector('[data-cancel-ex]');
+    if (cancelEx) cancelEx.addEventListener('click', function () { trainExEdit = undefined; rerender(); });
+    var exName = p.querySelector('#ex-name');
+    if (exName) exName.addEventListener('blur', function () {
+      var mEl = p.querySelector('#ex-muscle');
+      if (mEl && !mEl.value.trim()) mEl.value = guessMuscle(exName.value);
+    });
+    var saveEx = p.querySelector('[data-save-ex]');
+    if (saveEx) saveEx.addEventListener('click', function () {
+      var name = (p.querySelector('#ex-name').value || '').trim();
+      if (!name) { UI.toast('Name is required'); return; }
+      var isBw = p.querySelector('#ex-bw').checked;
+      var data = {
+        name: name,
+        muscle: (p.querySelector('#ex-muscle').value || '').trim() || guessMuscle(name) || null,
+        repMin: parseInt(p.querySelector('#ex-repmin').value, 10) || 6,
+        repMax: parseInt(p.querySelector('#ex-repmax').value, 10) || 8,
+        step: isBw ? 1 : (parseFloat(p.querySelector('#ex-step').value) || 2.5),
+        startWeight: isBw ? 0 : (parseFloat(p.querySelector('#ex-start').value) || 0),
+        bw: isBw,
+      };
+      var id = saveEx.getAttribute('data-save-ex');
+      if (id !== '__new' && exById[id]) {
+        Object.assign(exById[id], data);
+      } else {
+        var ex = Object.assign({ id: uid(), gym: 'both', day: 'full' }, data);
+        exs.push(ex);
+        if (trainSession) { trainSession.queue.push(ex.id); trainSession.cur = ex.id; }
+      }
+      saveSt(); fire();
+      trainExEdit = undefined;
+      UI.toast('Exercise saved');
+      rerender();
+    });
+    p.querySelectorAll('[data-del-ex]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.getAttribute('data-del-ex');
+        var ex = exById[id];
+        if (!ex) return;
+        UI.confirm({
+          title: 'Delete ' + ex.name + '?',
+          body: 'Removes the exercise and all its logged sets. This cannot be undone.',
+          onConfirm: function () {
+            st.exercises = exs.filter(function (e) { return e.id !== id; });
+            delete logs[id];
+            saveSt(); fire();
+            if (trainSession) {
+              trainSession.queue = trainSession.queue.filter(function (q) { return q !== id; });
+              if (trainSession.cur === id) trainSession.cur = trainSession.queue[0] || null;
+            }
+            trainExEdit = undefined;
+            UI.toast('Exercise deleted');
+            rerender();
+          },
+        });
+      });
+    });
+    /* templates */
+    p.querySelectorAll('[data-start-tpl]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var tp = null;
+        tpls.forEach(function (x) { if (x.id === b.getAttribute('data-start-tpl')) tp = x; });
+        if (!tp) return;
+        var q = (tp.exercises || []).map(function (e2) { return e2.id; }).filter(function (id) { return exById[id]; });
+        if (!q.length) { UI.toast('Template exercises no longer exist'); return; }
+        startSession(q, q[0]);
+        UI.toast('"' + tp.name + '" loaded — log your sets');
+      });
+    });
+    p.querySelectorAll('[data-del-tpl]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.getAttribute('data-del-tpl');
+        UI.confirm({
+          title: 'Delete this template?',
+          body: 'The exercises and logs stay — only the template is removed.',
+          onConfirm: function () {
+            lsset('gym:templates:v1', tpls.filter(function (x) { return x.id !== id; }));
+            rerender();
+          },
+        });
+      });
+    });
+    var saveTpl = p.querySelector('[data-save-tpl]');
+    if (saveTpl) saveTpl.addEventListener('click', function () {
+      var name = (p.querySelector('#tpl-name').value || '').trim();
+      if (!name) { UI.toast('Give the template a name'); return; }
+      if (!exs.length) { UI.toast('Add exercises first'); return; }
+      tpls.push({
+        id: Date.now().toString(36),
+        name: name,
+        exercises: exs.map(function (e) { return { id: e.id, name: e.name }; }),
+        createdAt: t,
+      });
+      lsset('gym:templates:v1', tpls);
+      UI.toast('Template saved');
+      rerender();
+    });
+
+    /* rest countdown ticker */
+    if (p._restIv) { clearInterval(p._restIv); p._restIv = null; }
+    var restEl = p.querySelector('#rest-remaining');
+    if (restEl && trainRestUntil > Date.now()) {
+      var tick = function () {
+        var left = Math.max(0, Math.round((trainRestUntil - Date.now()) / 1000));
+        restEl.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+        if (left <= 0) {
+          clearInterval(p._restIv); p._restIv = null;
+          trainRestUntil = 0;
+          beep();
+          UI.toast('Rest done — next set');
+          rerender();
+        }
+      };
+      tick();
+      p._restIv = setInterval(tick, 500);
+    }
+
+    /* cardio form */
     function paceInputSync() {
       var dur = parseFloat(p.querySelector('#cd-dur').value) || 0;
       var dist = parseFloat(p.querySelector('#cd-dist').value) || 0;
@@ -3395,7 +3839,7 @@
         date: dsel,
       });
       lsset('gym:cardio:v1', arr); fire();
-      UI.toast('Cardio logged'); renderTrainingPanel(p);
+      UI.toast('Cardio logged'); rerender();
     });
     p.querySelectorAll('[data-repeat-cardio]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -3406,17 +3850,17 @@
         if (!src) return;
         arr.push({ id: String(Date.now()), type: src.type, duration: src.duration, distance: src.distance, hr: src.hr, notes: src.notes, date: t });
         lsset('gym:cardio:v1', arr); fire();
-        UI.toast('Session logged for today'); renderTrainingPanel(p);
+        UI.toast('Session logged for today'); rerender();
       });
     });
     p.querySelectorAll('[data-del-cardio]').forEach(function (b) {
       b.addEventListener('click', function () {
         var id = b.getAttribute('data-del-cardio');
         lsset('gym:cardio:v1', (lsget('gym:cardio:v1', []) || []).filter(function (c) { return String(c.id) !== id; })); fire();
-        UI.toast('Session deleted'); renderTrainingPanel(p);
+        UI.toast('Session deleted'); rerender();
       });
     });
-    wireAdd(p, function () { location.href = '../gym.html'; });
+    wireAdd(p, function () { startSession(null, null); });
   }
 
   /* ============================================================
@@ -4295,7 +4739,7 @@
     training: {
       label: 'Training',
       render: function (p) { renderTrainingPanel(p); },
-      add: function () { location.href = '../gym.html'; },
+      add: function () { trainView = 'session'; paint('training'); },
     },
 
     skin: {
