@@ -2519,8 +2519,10 @@
   var trainRepSel = null;
   var trainRpeSel = null;
   var trainWSel = null;        /* typed weight survives pill-click rerenders */
-  var trainRestUntil = 0;
-  var trainRestLabel = '';
+  var trainWuPhase = 'warmup'; /* warm-up state machine: warmup | prep | working | rest (gym.html port) */
+  var trainWuUntil = 0;        /* deadline for the prep/rest countdown */
+  var trainCycleAdd = false;
+  var trainGoalsEdit = false;
   function renderTrainingPanel(p) {
     var dumbIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h18M6 9v6M18 9v6M9 7v10M15 7v10"/></svg>';
     var playIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z" fill="currentColor" stroke="none"/></svg>';
@@ -2549,11 +2551,54 @@
     var tpls = lsget('gym:templates:v1', []) || [];
     var restM = lsget('gym:rest:v1', {}) || {};
     var metrics = lsget('health:metrics:v1', []) || [];
+    var wts = (lsget('po_coach_weights', []) || []).filter(function (e) { return e && e.dateKey && e.weight > 0; });
+    var bodyLogs = lsget('body:logs', []) || [];
+    var goals = lsget('gym:goals:v1', {}) || {};
+    var cycle = lsget('gym:cycle:v1', null) || { status: 'off', compounds: [], weekStart: null };
+    /* cycle nutrition modifiers — same table gym.html uses */
+    var CYCLE_MODS = {
+      off: { protein: 1.8, kcal: 0, label: 'Off-cycle' },
+      cruise: { protein: 2.2, kcal: 200, label: 'Cruise' },
+      blast: { protein: 2.8, kcal: 500, label: 'Blast' },
+      pct: { protein: 2.0, kcal: -200, label: 'PCT' },
+    };
+    var MUSCLE_KEYS = ['waist', 'chest', 'shoulders', 'arms', 'quads', 'hips', 'calves'];
+    var MUSCLE_BETTER = { waist: 'down', chest: 'up', shoulders: 'up', arms: 'up', quads: 'up', hips: 'neutral', calves: 'up' };
+    var MUSCLE_LABELS = { waist: 'Waist', chest: 'Chest', shoulders: 'Shoulders', arms: 'Arms', quads: 'Quads', hips: 'Hips', calves: 'Calves' };
+    var latestMeas = bodyLogs.length ? bodyLogs[bodyLogs.length - 1] : null;
+    var latestWt = wts.length ? parseFloat(wts[wts.length - 1].weight) : null;
+    function pctToGoal(curr, goal, better) {
+      if (curr == null || !goal) return null;
+      if (better === 'up') return Math.min(100, Math.round((curr / goal) * 100));
+      if (better === 'down') return curr <= goal ? 100 : Math.max(0, Math.round((goal / curr) * 100));
+      return 100;
+    }
+    function laggingMuscle() {
+      var worst = null, worstScore = -1;
+      MUSCLE_KEYS.forEach(function (k) {
+        var target = goals['m_' + k];
+        if (!target) return;
+        var curr = latestMeas ? latestMeas[k] : null;
+        var pg = pctToGoal(curr, target, MUSCLE_BETTER[k]);
+        var score = pg === null ? null : (100 - pg);
+        if (score !== null && score > worstScore) { worstScore = score; worst = k; }
+      });
+      return worst;
+    }
+    function writeNutritionTargets(c) {
+      var mod = CYCLE_MODS[c.status] || CYCLE_MODS.off;
+      var protein = latestWt ? Math.round(latestWt * mod.protein) : null;
+      lsset('gym:nutrition-targets:v1', { protein: protein, kcalAdj: mod.kcal, status: c.status, bw: latestWt });
+    }
 
     function saveSt() { lsset('po_coach_v1', st); }
     function uid() { return 'ex_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
     function roundToStep(v, s) { s = s || 2.5; return Math.round(v / s) * s; }
     function restSecFor(ex) { return (ex && restM[ex.id]) || Number(restM.default) || 180; }
+    function setRestSec(ex, sec) {
+      if (ex) restM[ex.id] = sec; else restM.default = sec;
+      lsset('gym:rest:v1', restM);
+    }
     function guessMuscle(name) {
       var n = String(name).toLowerCase();
       if (/chest|bench|press|pec|fly|flye/.test(n)) return 'chest';
@@ -2866,39 +2911,68 @@
       h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Exercises</div><button class="btn btn-secondary btn-sm" data-edit-ex="__new">+ Add exercise</button></div>'
         + '<div class="lg-chip-set" style="margin-top:6px">' + (chips || '<span class="lg-card-sub">No exercises yet — add your first one.</span>') + '</div></section>';
 
+      /* body-goals priority banner — same lagging-muscle logic gym.html shows on its log page */
+      var lag = laggingMuscle();
+      if (lag) {
+        var lagExs = exs.filter(function (e) { return e.muscle === lag; });
+        h += '<section class="card" style="border-color:rgba(255,159,67,.35)"><div class="lg-card-title" style="color:#ff9f43">Priority: ' + esc(MUSCLE_LABELS[lag]) + ' is lagging its goal</div>'
+          + (lagExs.length ? '<div class="lg-card-sub" style="margin-top:4px">Prioritise these exercises today:</div><div class="lg-chip-set" style="margin-top:6px">'
+            + lagExs.map(function (e) { return '<button class="lg-mini-chip" data-sess-ex="' + esc(e.id) + '" style="cursor:pointer">' + esc(e.name) + '</button>'; }).join('') + '</div>'
+            : '<div class="lg-card-sub" style="margin-top:4px">Tag exercises with "' + esc(MUSCLE_LABELS[lag]) + '" to get suggestions.</div>')
+          + '</section>';
+      }
+
       var cur = exById[curId];
       if (cur) {
         var ll = lastLog(cur.id);
         var rx = rxFull(cur);
         var defW = trainWSel != null ? trainWSel : rx && !cur.bw ? rx.weight : ll ? (Number(ll.weight) || 0) : (Number(cur.startWeight) || 0);
         var defReps = trainRepSel != null ? trainRepSel : (rx ? rx.reps : (Number(cur.repMin) || 6));
-        var maxPill = Math.min(20, Math.max((Number(cur.repMax) || 8) + 4, 12));
-        var repPills = '';
-        for (var rp = 1; rp <= maxPill; rp++) {
-          repPills += '<button class="lg-mini-chip num" data-rep="' + rp + '" style="cursor:pointer;min-width:38px;min-height:38px;justify-content:center;' + (rp === defReps ? 'border-color:rgba(185,140,255,.55);background:rgba(155,108,255,.16);color:var(--text)' : '') + '">' + rp + '</button>';
-        }
-        var rpePills = [6, 7, 8, 9, 10].map(function (rv) {
-          return '<button class="lg-mini-chip num" data-rpe="' + rv + '" style="cursor:pointer;min-width:38px;min-height:38px;justify-content:center;' + (rv === trainRpeSel ? 'border-color:rgba(185,140,255,.55);background:rgba(155,108,255,.16);color:var(--text)' : '') + '">' + rv + '</button>';
-        }).join('');
-        var tagCol = rx ? (rx.type === 'up' ? 'var(--green)' : rx.type === 'down' ? 'var(--amber)' : 'var(--accent)') : 'var(--text-3)';
-        h += '<section class="card"><div class="lg-card-row"><div><div class="lg-card-title">' + esc(cur.name) + '</div>'
+        /* gym.html warm-up flow: warmup -> 15s prep -> working -> rest. BW skips to working. */
+        var phase = cur.bw ? 'working' : trainWuPhase;
+        var head = '<div class="lg-card-row"><div><div class="lg-card-title">' + esc(cur.name) + '</div>'
           + '<div class="lg-card-sub">' + esc(cur.muscle || (cur.bw ? 'bodyweight' : '')) + ' &middot; target ' + (cur.repMin || 6) + '&ndash;' + (cur.repMax || 8) + ' reps'
           + (ll ? ' &middot; last: ' + (cur.bw ? ll.reps + ' reps' : (Number(ll.weight) || 0) + ' ' + units + ' &times; ' + ll.reps) + (ll.rpe ? ' @ RPE ' + ll.rpe : '') : ' &middot; not logged yet') + '</div></div>'
           + '<button class="lg-ic-btn" data-edit-ex="' + esc(cur.id) + '" aria-label="Edit exercise">' + pencilIcon + '</button></div>'
-          + (rx ? '<div class="lg-note-card" style="margin-top:6px"><strong style="color:' + tagCol + ';margin-right:6px;white-space:nowrap">' + esc(rx.tag) + '</strong> ' + esc(rx.reason) + '</div>' : '')
-          + (cur.bw ? '' : '<div class="lg-lab-head" style="margin-top:12px">Weight (' + units + ')</div>'
-            + '<div class="inline" style="gap:8px;margin-top:6px"><button class="btn btn-secondary" data-w-dec style="min-width:52px">&minus;' + (cur.step || 2.5) + '</button>'
-            + '<input class="input num" id="sess-w" type="number" step="' + (cur.step || 2.5) + '" value="' + defW + '" style="text-align:center;font-size:18px;max-width:120px">'
-            + '<button class="btn btn-secondary" data-w-inc style="min-width:52px">+' + (cur.step || 2.5) + '</button></div>')
-          + '<div class="lg-lab-head" style="margin-top:12px">Reps</div><div class="lg-chip-set" style="margin-top:6px">' + repPills + '</div>'
-          + '<div class="lg-lab-head" style="margin-top:12px">RPE (effort, optional)</div><div class="lg-chip-set" style="margin-top:6px">' + rpePills + '</div>'
-          + '<button class="btn btn-primary btn-block" data-log-set style="margin-top:14px">Log set</button></section>';
+          + (rx ? '<div class="lg-note-card" style="margin-top:6px"><strong style="color:' + (rx.type === 'up' ? 'var(--green)' : rx.type === 'down' ? 'var(--amber)' : 'var(--accent)') + ';margin-right:6px;white-space:nowrap">' + esc(rx.tag) + '</strong> ' + esc(rx.reason) + '</div>' : '');
 
-        /* rest timer */
-        if (trainRestUntil > Date.now()) {
-          h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title" style="display:flex;align-items:center;gap:8px">' + clockIcon + ' Rest &middot; ' + esc(trainRestLabel) + '</div>'
-            + '<button class="btn btn-secondary btn-sm" data-skip-rest>Skip</button></div>'
-            + '<div class="lg-body-val" style="font-size:32px;text-align:center;margin:6px 0" id="rest-remaining"></div></section>';
+        if (phase === 'warmup') {
+          var step0 = Number(cur.step) || 2.5;
+          var wu = Math.max(0, Math.round((defW * 0.9) / step0) * step0);
+          h += '<section class="card">' + head
+            + '<div class="between" style="margin-top:12px;padding:12px 14px;border:1px solid rgba(125,211,252,.3);border-radius:8px;background:rgba(125,211,252,.07)">'
+            + '<div><div class="lg-lab-head" style="color:#7dd3fc">Warm-up &middot; 1 rep</div><div class="lg-body-val" style="font-size:22px">' + wu + ' <small>' + units + '</small></div></div>'
+            + '<button class="btn btn-primary" data-wu-done>&#10003; Done warm-up</button></div>'
+            + '<button class="btn btn-ghost btn-sm" data-wu-skip style="margin-top:8px;align-self:center">Skip warm-up &rarr;</button></section>';
+        } else if (phase === 'prep' || phase === 'rest') {
+          var isRest = phase === 'rest';
+          var presets = isRest ? '<div class="lg-chip-set" style="justify-content:center;margin-top:10px">'
+            + [60, 90, 120, 180, 240].map(function (s2) {
+                var on = s2 === restSecFor(cur);
+                return '<button class="lg-mini-chip num" data-rest-preset="' + s2 + '" style="cursor:pointer;' + (on ? 'border-color:rgba(94,230,168,.5);background:rgba(94,230,168,.12);color:var(--green)' : '') + '">' + (s2 >= 60 ? (s2 / 60) + 'm' : s2 + 's') + '</button>';
+              }).join('') + '</div>' : '';
+          h += '<section class="card">' + head
+            + '<div class="lg-lab-head" style="text-align:center;margin-top:12px">' + (isRest ? 'Resting&hellip;' : 'Warm-up done — get ready') + '</div>'
+            + '<div class="lg-body-val" style="font-size:36px;text-align:center;margin:4px 0;color:' + (isRest ? 'var(--green)' : '#7dd3fc') + '" id="wu-remaining"></div>'
+            + presets
+            + '<button class="btn btn-secondary btn-sm" data-wu-skip-count style="margin-top:10px;align-self:center">Skip &rarr;</button></section>';
+        } else {
+          var maxPill = Math.min(20, Math.max((Number(cur.repMax) || 8) + 4, 12));
+          var repPills = '';
+          for (var rp = 1; rp <= maxPill; rp++) {
+            repPills += '<button class="lg-mini-chip num" data-rep="' + rp + '" style="cursor:pointer;min-width:38px;min-height:38px;justify-content:center;' + (rp === defReps ? 'border-color:rgba(185,140,255,.55);background:rgba(155,108,255,.16);color:var(--text)' : '') + '">' + rp + '</button>';
+          }
+          var rpePills = [6, 7, 8, 9, 10].map(function (rv) {
+            return '<button class="lg-mini-chip num" data-rpe="' + rv + '" style="cursor:pointer;min-width:38px;min-height:38px;justify-content:center;' + (rv === trainRpeSel ? 'border-color:rgba(185,140,255,.55);background:rgba(155,108,255,.16);color:var(--text)' : '') + '">' + rv + '</button>';
+          }).join('');
+          h += '<section class="card">' + head
+            + (cur.bw ? '' : '<div class="lg-lab-head" style="margin-top:12px">Weight (' + units + ')</div>'
+              + '<div class="inline" style="gap:8px;margin-top:6px"><button class="btn btn-secondary" data-w-dec style="min-width:52px">&minus;' + (cur.step || 2.5) + '</button>'
+              + '<input class="input num" id="sess-w" type="number" step="' + (cur.step || 2.5) + '" value="' + defW + '" style="text-align:center;font-size:18px;max-width:120px">'
+              + '<button class="btn btn-secondary" data-w-inc style="min-width:52px">+' + (cur.step || 2.5) + '</button></div>')
+            + '<div class="lg-lab-head" style="margin-top:12px">Reps</div><div class="lg-chip-set" style="margin-top:6px">' + repPills + '</div>'
+            + '<div class="lg-lab-head" style="margin-top:12px">RPE (effort, optional)</div><div class="lg-chip-set" style="margin-top:6px">' + rpePills + '</div>'
+            + '<button class="btn btn-primary btn-block" data-log-set style="margin-top:14px">Log set</button></section>';
         }
       }
 
@@ -3075,6 +3149,44 @@
           + '<button class="lg-edit" data-hist-open="s:' + dk + '" aria-label="Open in history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M19 5l-8 8M11 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg></button></div>';
       }).join('');
       h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Recent strength sessions</div><button class="lg-card-link" data-sub-goto="history" style="background:none;border:0;cursor:pointer">Full history &rarr;</button></div>' + (histRows || '<div class="lg-card-sub" style="margin-top:8px">No sessions yet.</div>') + '</section>';
+
+      /* cycle tracker + nutrition targets — port of gym.html gym:cycle:v1 flow */
+      var mod = CYCLE_MODS[cycle.status] || CYCLE_MODS.off;
+      var proteinT = latestWt ? Math.round(latestWt * mod.protein) : null;
+      var cycWeek = '&mdash;';
+      if (cycle.status !== 'off' && cycle.weekStart) {
+        var cdays = Math.floor((Date.now() - new Date(cycle.weekStart).getTime()) / 86400000);
+        var cwk = Math.floor(cdays / 7) + 1;
+        if (cwk > 0) cycWeek = 'Week ' + cwk;
+      }
+      var compRows = (cycle.compounds || []).map(function (cp, i) {
+        return '<div class="lg-trow" style="grid-template-columns:1fr auto auto 34px;min-height:34px"><span>' + esc(cp.name) + '</span>'
+          + '<span class="t-cap">' + esc(cp.dose || '') + '</span><span class="t-cap">' + esc(cp.freq || '') + '</span>'
+          + '<button class="lg-ic-btn" data-del-compound="' + i + '" aria-label="Remove compound">&times;</button></div>';
+      }).join('');
+      h += '<div class="lg-body-grid">';
+      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Cycle status</div><span class="t-cap">' + cycWeek + '</span></div>'
+        + '<div class="segmented lg-chip-seg" style="align-self:flex-start;margin-top:4px">'
+        + ['off', 'cruise', 'blast', 'pct'].map(function (s2) { return '<button role="tab" data-cycle-status="' + s2 + '"' + (s2 === cycle.status ? ' aria-selected="true"' : '') + '>' + CYCLE_MODS[s2].label + '</button>'; }).join('') + '</div>'
+        + '<div class="lg-lab-head" style="margin-top:12px">Compounds</div>'
+        + (compRows || '<div class="lg-card-sub" style="margin-top:4px">No compounds logged</div>')
+        + (trainCycleAdd
+          ? '<div class="grid" style="grid-template-columns:2fr 1fr 1fr;gap:8px;margin-top:10px">'
+            + '<input class="input" id="cyc-name" placeholder="Compound">'
+            + '<input class="input" id="cyc-dose" placeholder="Dose">'
+            + '<input class="input" id="cyc-freq" placeholder="Freq">'
+            + '</div><div class="inline" style="gap:8px;margin-top:8px"><button class="btn btn-primary btn-sm" data-cycle-add-save>Save</button><button class="btn btn-secondary btn-sm" data-cycle-add-cancel>Cancel</button></div>'
+          : '<button class="btn btn-secondary btn-sm" data-cycle-add-show style="margin-top:10px;align-self:flex-start">+ Add compound</button>')
+        + '</section>';
+      h += '<section class="card lg-span-6"><div class="lg-card-title">Nutrition targets</div>'
+        + '<div class="lg-card-sub" style="margin-top:4px">Driven by cycle status &times; latest body weight. Written to the store nutrition reads.</div>'
+        + '<div class="lg-metric-strip" style="grid-template-columns:repeat(3,1fr);border-top:0;margin-top:8px;padding-top:0">'
+        + '<div><div class="lg-lab-head">Protein</div><div class="lg-body-val" style="font-size:20px">' + (proteinT ? proteinT + '<small>g / day</small>' : (latestWt ? '&mdash;' : 'log weight')) + '</div></div>'
+        + '<div><div class="lg-lab-head">Calorie adj.</div><div class="lg-body-val" style="font-size:20px">' + (mod.kcal === 0 ? 'baseline' : (mod.kcal > 0 ? '+' : '') + mod.kcal + '<small> kcal</small>') + '</div></div>'
+        + '<div><div class="lg-lab-head">Basis</div><div class="lg-body-val" style="font-size:20px">' + mod.protein + '<small>g/kg</small></div></div></div>'
+        + (latestWt ? '<div class="lg-card-sub" style="margin-top:8px">Body weight: ' + latestWt + ' ' + units + '</div>' : '<div class="lg-card-sub" style="margin-top:8px">Log body weight in the Body tab to compute protein.</div>')
+        + '</section>';
+      h += '</div>';
       return h;
     }
 
@@ -3375,9 +3487,130 @@
         + '<div class="lg-lab-head" style="margin-top:10px">Avg pace (week)</div><div class="lg-body-val" style="font-size:20px">' + (wkPace ? wkPace + ' <small>/km</small>' : '&mdash;') + '</div></section>';
       h += '</div>';
 
+      /* composition estimate + body goals — ports of gym.html wtRenderComposition / renderGoals */
+      h += '<div class="lg-body-grid">';
+      h += '<section class="card lg-span-6">' + compositionCard() + '</section>';
+      h += '<section class="card lg-span-6">' + goalsCard() + '</section>';
+      h += '</div>';
+
       h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Coach insights</div><a class="lg-card-link" href="coach.html">View all coach feedback &rarr;</a></div>' + coachRows() + '</section>';
       h += '<div class="lg-card-sub" style="text-align:center">All metrics are based on logged data. Consistency over time drives progress.</div>';
       return h;
+    }
+
+    /* ---------- Composition estimate (gym.html math, ported verbatim) ---------- */
+    function compositionCard() {
+      var head = '<div class="lg-card-row"><div class="lg-card-title">Composition estimate</div><span class="t-cap" id="comp-win"></span></div>';
+      if (wts.length < 2) return head + '<div class="lg-card-sub" style="margin-top:8px">Log body weight on two or more days (Body tab) and this estimates how much of the change is muscle vs fat, using your strength trend.</div>';
+      var WINDOW = 30;
+      function parseKey(dk) { var pp = dk.split('-').map(Number); return new Date(pp[0], pp[1] - 1, pp[2]); }
+      var sorted = wts.slice().sort(function (a, b) { return String(a.dateKey).localeCompare(String(b.dateKey)); });
+      var endEntry = sorted[sorted.length - 1];
+      var now = parseKey(endEntry.dateKey);
+      var startDate = new Date(now); startDate.setDate(startDate.getDate() - WINDOW);
+      var startEntry = null;
+      for (var i = 0; i < sorted.length; i++) { if (parseKey(sorted[i].dateKey) >= startDate) { startEntry = sorted[i]; break; } }
+      if (!startEntry || startEntry === endEntry) return head + '<div class="lg-card-sub" style="margin-top:8px">Need two weigh-ins inside the last ' + WINDOW + ' days.</div>';
+      var weightDelta = parseFloat(endEntry.weight) - parseFloat(startEntry.weight);
+      var actualDays = Math.max(1, Math.round((parseKey(endEntry.dateKey) - parseKey(startEntry.dateKey)) / 86400000));
+      var weeks = actualDays / 7;
+      function est1RM(w2, r2) { return r2 < 2 ? w2 : w2 * (1 + r2 / 30); }
+      var strengthRatios = [], workoutDaysSet = {};
+      exs.forEach(function (ex) {
+        var arr = (logs[ex.id] || []).slice();
+        if (arr.length < 2 || ex.bw) {
+          arr.forEach(function (l) { if (new Date(l.date) >= startDate) workoutDaysSet[String(l.date).slice(0, 10)] = 1; });
+          return;
+        }
+        var inWin = arr.filter(function (l) { return new Date(l.date) >= startDate; });
+        var before = arr.filter(function (l) { return new Date(l.date) < startDate; });
+        inWin.forEach(function (l) { workoutDaysSet[String(l.date).slice(0, 10)] = 1; });
+        if (!inWin.length || !before.length) return;
+        function avg(a2) { return a2.reduce(function (s2, l) { return s2 + est1RM(Number(l.weight) || 0, Number(l.reps) || 0); }, 0) / a2.length; }
+        var a = avg(before), bb = avg(inWin);
+        if (a > 0) strengthRatios.push(bb / a);
+      });
+      var strengthDelta = strengthRatios.length ? (strengthRatios.reduce(function (s2, r2) { return s2 + r2; }, 0) / strengthRatios.length) - 1 : 0;
+      var sessionsPerWeek = (Object.keys(workoutDaysSet).length / actualDays) * 7;
+      var frequencyFactor = Math.max(0.4, Math.min(1.2, sessionsPerWeek / 4));
+      /* yearsTraining=1 — same seed value gym.html CONFIG ships with */
+      var maxMusclePerWeek = 0.45 * (units === 'lb' ? 2.20462 : 1);
+      var strengthBoost = Math.max(0.5, Math.min(1.5, 1 + strengthDelta * 4));
+      var estMuscle = maxMusclePerWeek * weeks * strengthBoost * frequencyFactor;
+      var estFat, cls, headline;
+      if (weightDelta > 0) {
+        estMuscle = Math.min(estMuscle, weightDelta);
+        estFat = Math.max(0, weightDelta - estMuscle);
+        var musclePct0 = estMuscle / weightDelta;
+        if (musclePct0 >= 0.6 && strengthDelta > 0) { cls = 'var(--green)'; headline = '+' + weightDelta.toFixed(1) + ' ' + units + ' — mostly muscle, strength up.'; }
+        else if (musclePct0 >= 0.35) { cls = 'var(--amber)'; headline = '+' + weightDelta.toFixed(1) + ' ' + units + ' — mixed. Tighten kcal or push lifts harder.'; }
+        else { cls = '#ff5a5a'; headline = '+' + weightDelta.toFixed(1) + ' ' + units + ' — mostly fat. Strength flat. Cut kcal.'; }
+      } else {
+        var wDown = Math.abs(weightDelta);
+        if (strengthDelta >= 0) {
+          estMuscle = Math.min(maxMusclePerWeek * weeks * 0.3, 0.5);
+          estFat = wDown + estMuscle;
+          cls = 'var(--green)'; headline = '−' + wDown.toFixed(1) + ' ' + units + ' — strength holding, fat dropping.';
+        } else {
+          var lossPct = Math.min(0.4, Math.abs(strengthDelta) * 2);
+          estMuscle = -wDown * lossPct;
+          estFat = -(wDown + estMuscle);
+          cls = 'var(--amber)'; headline = '−' + wDown.toFixed(1) + ' ' + units + ' — strength slipping. You may be losing muscle.';
+        }
+      }
+      var totalAbs = Math.abs(estMuscle) + Math.abs(estFat) || 1;
+      var mPct = Math.abs(estMuscle) / totalAbs * 100, fPct = Math.abs(estFat) / totalAbs * 100;
+      var sd = strengthDelta * 100;
+      var foot = '~' + (estMuscle >= 0 ? '+' : '') + estMuscle.toFixed(1) + ' ' + units + ' muscle &middot; ~' + (estFat >= 0 ? '+' : '') + estFat.toFixed(1) + ' ' + units + ' fat &middot; strength ' + (sd >= 0 ? '+' : '') + sd.toFixed(1) + '% &middot; ' + sessionsPerWeek.toFixed(1) + ' sessions/wk' + (strengthRatios.length ? '' : ' (no lift data)');
+      return '<div class="lg-card-row"><div class="lg-card-title">Composition estimate</div><span class="t-cap">last ' + actualDays + 'd</span></div>'
+        + '<div style="font-weight:600;margin-top:6px;color:' + cls + '">' + esc(headline) + '</div>'
+        + '<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:10px;background:rgba(255,255,255,.06)">'
+        + '<div style="width:' + mPct.toFixed(1) + '%;background:var(--green)"></div>'
+        + '<div style="width:' + fPct.toFixed(1) + '%;background:#ff9f43"></div></div>'
+        + '<div class="inline" style="gap:14px;margin-top:6px;font-size:11px;color:var(--text-3)"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:4px"></i>Muscle</span><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff9f43;margin-right:4px"></i>Fat</span></div>'
+        + '<div class="lg-card-sub" style="margin-top:8px">' + foot + '</div>'
+        + '<div class="lg-card-sub" style="margin-top:4px">Estimated from weight change &times; strength trend &times; training frequency.</div>';
+    }
+
+    /* ---------- Body goals (gym.html renderGoals port) ---------- */
+    function goalsCard() {
+      var lag = laggingMuscle();
+      var h2 = '<div class="lg-card-row"><div class="lg-card-title">Body goals</div><button class="btn btn-secondary btn-sm" data-goals-edit>' + (trainGoalsEdit ? 'Close' : 'Edit goals') + '</button></div>';
+      if (trainGoalsEdit) {
+        function fv(k) { return goals[k] != null ? goals[k] : ''; }
+        h2 += '<div class="grid" style="grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">'
+          + '<div class="field"><span class="label">Weight (kg)</span><input class="input num" id="gf-weight" type="number" value="' + fv('weight') + '"></div>'
+          + '<div class="field"><span class="label">Body fat %</span><input class="input num" id="gf-bf" type="number" value="' + fv('bf') + '"></div>'
+          + MUSCLE_KEYS.filter(function (k) { return k !== 'hips'; }).map(function (k) {
+              return '<div class="field"><span class="label">' + MUSCLE_LABELS[k] + ' (cm)</span><input class="input num" id="gf-m-' + k + '" type="number" value="' + fv('m_' + k) + '"></div>';
+            }).join('')
+          + '<div class="field"><span class="label">Target date</span><input class="input" id="gf-date" type="date" value="' + esc(goals.targetDate || '') + '"></div>'
+          + '</div>'
+          + '<button class="btn btn-primary" data-goals-save style="margin-top:12px;align-self:flex-start">Save goals</button>';
+        return h2;
+      }
+      var anyGoal = goals.weight || goals.bf || MUSCLE_KEYS.some(function (k) { return goals['m_' + k]; });
+      if (!anyGoal) return h2 + '<div class="lg-card-sub" style="margin-top:8px">Set weight, body-fat and measurement targets. The lagging muscle gets flagged and its exercises get prioritised in your session.</div>';
+      h2 += '<div class="lg-kv-row"><span class="k">Weight goal</span><span class="num">' + (goals.weight ? goals.weight + ' kg' : '&mdash;') + (latestWt ? ' <span class="t-cap">now ' + latestWt + '</span>' : '') + '</span></div>';
+      if (goals.bf) h2 += '<div class="lg-kv-row"><span class="k">Body fat goal</span><span class="num">' + goals.bf + '%</span></div>';
+      if (goals.targetDate) h2 += '<div class="lg-kv-row"><span class="k">Target date</span><span class="num">' + esc(goals.targetDate) + '</span></div>';
+      var tiles = MUSCLE_KEYS.filter(function (k) { return goals['m_' + k]; }).map(function (k) {
+        var target = goals['m_' + k];
+        var curr = latestMeas ? latestMeas[k] : null;
+        var pg = pctToGoal(curr, target, MUSCLE_BETTER[k]);
+        var isLag = k === lag;
+        var gap = (curr != null && target) ? (MUSCLE_BETTER[k] === 'down' ? curr - target : target - curr) : null;
+        return '<div style="border:1px solid ' + (isLag ? 'rgba(255,159,67,.4)' : 'var(--border)') + ';border-radius:8px;padding:10px">'
+          + '<div class="lg-lab-head"' + (isLag ? ' style="color:#ff9f43"' : '') + '>' + MUSCLE_LABELS[k] + (isLag ? ' &#9733;' : '') + '</div>'
+          + '<div style="font-size:16px;font-weight:600;margin-top:2px">' + (curr != null ? curr : '&mdash;') + ' <small class="t-cap">/ ' + target + ' cm</small></div>'
+          + (pg !== null ? pbar(pg, isLag ? '#ff9f43' : 'var(--accent)') : '')
+          + (gap !== null ? '<div class="t-cap" style="margin-top:4px;color:' + (gap > 0 ? 'var(--text-3)' : 'var(--green)') + '">' + (gap > 0 ? gap.toFixed(1) + ' cm to go' : 'Goal reached') + '</div>' : '')
+          + '</div>';
+      }).join('');
+      if (tiles) h2 += '<div class="grid" style="grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">' + tiles + '</div>';
+      if (!latestMeas) h2 += '<div class="lg-card-sub" style="margin-top:8px">Log measurements in the Body tab to track these.</div>';
+      if (lag) h2 += '<div class="lg-note-card" style="margin-top:10px;border-color:rgba(255,159,67,.3)"><strong style="color:#ff9f43;margin-right:6px">Priority</strong>' + esc(MUSCLE_LABELS[lag]) + ' is furthest from its goal — its exercises are flagged in your session.</div>';
+      return h2;
     }
 
     /* ---------- History ---------- */
@@ -3572,6 +3805,7 @@
       if (!trainSession.cur) trainSession.cur = trainSession.queue[0] || null;
       trainView = 'session';
       trainRepSel = null; trainRpeSel = null; trainWSel = null;
+      trainWuPhase = 'warmup'; trainWuUntil = 0;
       if (!exs.length) trainExEdit = null; /* open add-exercise form for first-time users */
       rerender();
     }
@@ -3597,6 +3831,7 @@
         if (!trainSession) trainSession = { queue: exs.map(function (e) { return e.id; }), cur: null };
         trainSession.cur = b.getAttribute('data-sess-ex');
         trainRepSel = null; trainRpeSel = null; trainWSel = null;
+        trainWuPhase = 'warmup'; trainWuUntil = 0;
         rerender();
       });
     });
@@ -3634,14 +3869,36 @@
       if (!cur.bw && w <= 0) { UI.toast('Enter a weight'); return; }
       if (!(reps > 0)) { UI.toast('Pick a rep count'); return; }
       doLogSet(cur, w, reps, trainRpeSel);
-      trainRestUntil = Date.now() + restSecFor(cur) * 1000;
-      trainRestLabel = cur.name;
+      trainWuPhase = 'rest';
+      trainWuUntil = Date.now() + restSecFor(cur) * 1000;
       trainRepSel = null; trainRpeSel = null; trainWSel = null;
       UI.toast('Set logged — ' + (cur.bw ? reps + ' reps' : w + ' ' + units + ' × ' + reps));
       rerender();
     });
-    var skipRest = p.querySelector('[data-skip-rest]');
-    if (skipRest) skipRest.addEventListener('click', function () { trainRestUntil = 0; rerender(); });
+    /* warm-up flow buttons */
+    var wuDone = p.querySelector('[data-wu-done]');
+    if (wuDone) wuDone.addEventListener('click', function () {
+      trainWuPhase = 'prep';
+      trainWuUntil = Date.now() + 15 * 1000;
+      rerender();
+    });
+    var wuSkip = p.querySelector('[data-wu-skip]');
+    if (wuSkip) wuSkip.addEventListener('click', function () { trainWuPhase = 'working'; trainWuUntil = 0; rerender(); });
+    var wuSkipCount = p.querySelector('[data-wu-skip-count]');
+    if (wuSkipCount) wuSkipCount.addEventListener('click', function () {
+      trainWuPhase = trainWuPhase === 'prep' ? 'working' : 'warmup';
+      trainWuUntil = 0;
+      rerender();
+    });
+    p.querySelectorAll('[data-rest-preset]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var sec = parseInt(b.getAttribute('data-rest-preset'), 10);
+        var cur = exById[trainSession && trainSession.cur];
+        setRestSec(cur, sec);
+        trainWuUntil = Date.now() + sec * 1000; /* restart rest with the new duration */
+        rerender();
+      });
+    });
     p.querySelectorAll('[data-del-set]').forEach(function (b) {
       b.addEventListener('click', function () {
         var bits = b.getAttribute('data-del-set').split('|');
@@ -3792,23 +4049,86 @@
       rerender();
     });
 
-    /* rest countdown ticker */
+    /* cycle tracker */
+    p.querySelectorAll('[data-cycle-status]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var ns = b.getAttribute('data-cycle-status');
+        if (ns !== 'off' && cycle.status !== ns) cycle.weekStart = t;
+        if (ns === 'off') cycle.weekStart = null;
+        cycle.status = ns;
+        lsset('gym:cycle:v1', cycle);
+        writeNutritionTargets(cycle);
+        rerender();
+      });
+    });
+    var cycShow = p.querySelector('[data-cycle-add-show]');
+    if (cycShow) cycShow.addEventListener('click', function () { trainCycleAdd = true; rerender(); });
+    var cycCancel = p.querySelector('[data-cycle-add-cancel]');
+    if (cycCancel) cycCancel.addEventListener('click', function () { trainCycleAdd = false; rerender(); });
+    var cycSave = p.querySelector('[data-cycle-add-save]');
+    if (cycSave) cycSave.addEventListener('click', function () {
+      var name = (p.querySelector('#cyc-name').value || '').trim();
+      if (!name) { UI.toast('Compound name required'); return; }
+      cycle.compounds.push({ name: name, dose: (p.querySelector('#cyc-dose').value || '').trim(), freq: (p.querySelector('#cyc-freq').value || '').trim() });
+      lsset('gym:cycle:v1', cycle);
+      trainCycleAdd = false;
+      rerender();
+    });
+    p.querySelectorAll('[data-del-compound]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        cycle.compounds.splice(parseInt(b.getAttribute('data-del-compound'), 10), 1);
+        lsset('gym:cycle:v1', cycle);
+        rerender();
+      });
+    });
+
+    /* body goals */
+    var goalsEdit = p.querySelector('[data-goals-edit]');
+    if (goalsEdit) goalsEdit.addEventListener('click', function () { trainGoalsEdit = !trainGoalsEdit; rerender(); });
+    var goalsSave = p.querySelector('[data-goals-save]');
+    if (goalsSave) goalsSave.addEventListener('click', function () {
+      function nv(sel) { var v = parseFloat(p.querySelector(sel).value); return isNaN(v) ? null : v; }
+      goals.weight = nv('#gf-weight');
+      goals.bf = nv('#gf-bf');
+      MUSCLE_KEYS.forEach(function (k) {
+        if (k === 'hips') return;
+        goals['m_' + k] = nv('#gf-m-' + k);
+      });
+      goals.targetDate = p.querySelector('#gf-date').value || null;
+      lsset('gym:goals:v1', goals);
+      trainGoalsEdit = false;
+      UI.toast('Goals saved');
+      rerender();
+    });
+
+    /* prep/rest countdown ticker — deadline-based so tab throttling never drifts it */
     if (p._restIv) { clearInterval(p._restIv); p._restIv = null; }
-    var restEl = p.querySelector('#rest-remaining');
-    if (restEl && trainRestUntil > Date.now()) {
+    var wuEl = p.querySelector('#wu-remaining');
+    if (wuEl && trainWuUntil > Date.now()) {
       var tick = function () {
-        var left = Math.max(0, Math.round((trainRestUntil - Date.now()) / 1000));
-        restEl.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+        var left = Math.max(0, Math.ceil((trainWuUntil - Date.now()) / 1000));
+        wuEl.textContent = left >= 60 ? Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') : String(left);
         if (left <= 0) {
           clearInterval(p._restIv); p._restIv = null;
-          trainRestUntil = 0;
-          beep();
-          UI.toast('Rest done — next set');
+          trainWuUntil = 0;
+          if (trainWuPhase === 'prep') {
+            trainWuPhase = 'working'; /* prep over: straight into the working set, no alarm */
+          } else {
+            trainWuPhase = 'warmup';
+            beep();
+            UI.toast('Rest done — next set');
+          }
           rerender();
         }
       };
       tick();
       p._restIv = setInterval(tick, 500);
+    } else if (wuEl) {
+      /* countdown card rendered but deadline passed while detached */
+      trainWuPhase = trainWuPhase === 'prep' ? 'working' : 'warmup';
+      trainWuUntil = 0;
+      rerender();
+      return;
     }
 
     /* cardio form */
