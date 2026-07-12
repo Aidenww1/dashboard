@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Library — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .lb-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); }
+  body[data-page="more"] .lb-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s2); }
+  body[data-page="more"] .lb-prog { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s2); }
+  body[data-page="more"] .lb-prog .input { width: 64px; height: 36px; }
+  body[data-page="more"] .star { color: var(--text-4); cursor: pointer; font-size: 18px; }
+  body[data-page="more"] .star.lit { color: var(--amber); }
+  body[data-page="more"] .lb-del { background: none; border: none; color: var(--text-3); cursor: pointer; min-width: 36px; min-height: 36px; }
+  body[data-page="more"] .lb-del:hover { color: var(--red); }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Library</h1><div class="page-date">Books &amp; courses</div></div>
+        <div class="page-head-r"><a class="btn btn-ghost btn-sm" href="more.html">‹ More</a></div>
+      </header>
+      <div class="card lb-stats" id="stats" style="margin-bottom:var(--s4)"></div>
+      <div class="between" style="margin-bottom:var(--s4)">
+        <div class="segmented" role="tablist" id="tabs">
+          <button role="tab" aria-selected="true" data-tab="reading">Reading</button>
+          <button role="tab" aria-selected="false" data-tab="done">Read</button>
+          <button role="tab" aria-selected="false" data-tab="want">Want</button>
+          <button role="tab" aria-selected="false" data-tab="learning">Courses</button>
+        </div>
+        <button class="btn btn-primary btn-sm" id="addBtn">+ Add</button>
+      </div>
+      <div id="list" class="stack"></div>
+    </div>
+  </main>
+</div>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var BOOK = 'library:books:v1', COURSE = 'library:courses:v1';
+  function lb() { try { return JSON.parse(localStorage.getItem(BOOK) || '[]') || []; } catch (e) { return []; } }
+  function sb(d) { localStorage.setItem(BOOK, JSON.stringify(d)); }
+  function lc() { try { return JSON.parse(localStorage.getItem(COURSE) || '[]') || []; } catch (e) { return []; } }
+  function sc(d) { localStorage.setItem(COURSE, JSON.stringify(d)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  var tab = 'reading', listEl = document.getElementById('list');
+
+  function stats() {
+    var b = lb(), c = lc();
+    var s = [{ v: b.filter(function (x) { return x.status === 'done'; }).length, l: 'Books read' },
+      { v: b.filter(function (x) { return x.status === 'reading'; }).length, l: 'Reading now' },
+      { v: c.filter(function (x) { return (x.pct || 0) >= 100; }).length, l: 'Courses done' }];
+    document.getElementById('stats').innerHTML = s.map(function (x) { return '<div class="stack" style="gap:0;align-items:center"><span class="t-metric-sm">' + x.v + '</span><span class="t-cap">' + x.l + '</span></div>'; }).join('');
+  }
+
+  function bookCard(b) {
+    var pct = b.pages ? Math.min(100, Math.round((b.current || 0) / b.pages * 100)) : 0;
+    var actions = '';
+    if (b.status === 'reading' && b.pages) {
+      actions = '<div class="bar" style="margin-top:var(--s2)"><i style="width:' + pct + '%"></i></div>'
+        + '<div class="lb-prog"><span class="t-cap" style="flex:1">' + pct + '% · p' + (b.current || 0) + '/' + b.pages + '</span>'
+        + '<input class="input num" type="number" min="0" max="' + b.pages + '" value="' + (b.current || 0) + '" data-bpage="' + b.id + '">'
+        + '<button class="btn btn-secondary btn-sm" data-savepage="' + b.id + '">Save</button>'
+        + '<button class="btn btn-secondary btn-sm" data-done="' + b.id + '">Finished</button></div>';
+    } else if (b.status === 'done') {
+      actions = '<div style="margin-top:var(--s2)">' + [1, 2, 3, 4, 5].map(function (i) { return '<span class="star' + ((b.rating || 0) >= i ? ' lit' : '') + '" data-rate="' + b.id + '" data-star="' + i + '">★</span>'; }).join('') + '</div>';
+    } else if (b.status === 'want') {
+      actions = '<button class="btn btn-secondary btn-sm" data-start="' + b.id + '" style="margin-top:var(--s2)">Start reading →</button>';
+    }
+    return '<div class="card"><div class="lb-card-head"><div class="row-main"><div class="row-title">' + esc(b.title) + '</div><div class="row-sub">' + (b.author ? esc(b.author) : '') + (b.notes ? ' · ' + esc(b.notes) : '') + '</div></div><button class="lb-del" data-delbook="' + b.id + '" aria-label="Delete">×</button></div>' + actions + (b.finishedDate ? '<div class="t-cap" style="margin-top:var(--s1)">Finished ' + esc(b.finishedDate) + '</div>' : '') + '</div>';
+  }
+  function courseCard(c) {
+    var pct = Math.min(100, c.pct || 0), overdue = c.due && c.due < today() && pct < 100;
+    return '<div class="card"><div class="lb-card-head"><div class="row-main"><div class="row-title">' + esc(c.title) + '</div><div class="row-sub">' + (c.platform ? esc(c.platform) : '') + (c.due ? ' · due ' + esc(c.due) : '') + (overdue ? ' ⚠️' : '') + '</div></div><button class="lb-del" data-delcourse="' + c.id + '" aria-label="Delete">×</button></div>'
+      + '<div class="bar' + (pct >= 100 ? ' violet' : '') + '" style="margin-top:var(--s2)"><i style="width:' + pct + '%"></i></div>'
+      + '<div class="lb-prog"><span class="t-cap" style="flex:1">' + pct + '%' + (pct >= 100 ? ' · Complete ✓' : '') + '</span><input class="input num" type="number" min="0" max="100" value="' + pct + '" data-pct="' + c.id + '"><button class="btn btn-secondary btn-sm" data-savepct="' + c.id + '">%</button></div></div>';
+  }
+
+  function render() {
+    stats();
+    if (tab === 'learning') {
+      var cs = lc();
+      listEl.innerHTML = cs.length ? cs.map(courseCard).join('') : '<div class="card"><div class="empty"><span class="empty-title">No courses yet</span><span>Add a course to track progress.</span></div></div>';
+    } else {
+      var books = lb().filter(function (b) { return b.status === tab; });
+      listEl.innerHTML = books.length ? books.map(bookCard).join('') : '<div class="card"><div class="empty"><span class="empty-title">No books here</span><span>Add one with the + button.</span></div></div>';
+    }
+    wire();
+  }
+  function wire() {
+    listEl.querySelectorAll('[data-delbook]').forEach(function (b) { b.onclick = function () { UI.confirm({ title: 'Delete this book?', onConfirm: function () { sb(lb().filter(function (x) { return x.id !== b.dataset.delbook; })); render(); } }); }; });
+    listEl.querySelectorAll('[data-delcourse]').forEach(function (b) { b.onclick = function () { UI.confirm({ title: 'Delete this course?', onConfirm: function () { sc(lc().filter(function (x) { return x.id !== b.dataset.delcourse; })); render(); } }); }; });
+    listEl.querySelectorAll('[data-done]').forEach(function (b) { b.onclick = function () { var d = lb(), x = d.find(function (y) { return y.id === b.dataset.done; }); if (x) { x.status = 'done'; x.current = x.pages; x.finishedDate = today(); sb(d); render(); } }; });
+    listEl.querySelectorAll('[data-start]').forEach(function (b) { b.onclick = function () { var d = lb(), x = d.find(function (y) { return y.id === b.dataset.start; }); if (x) { x.status = 'reading'; sb(d); render(); } }; });
+    listEl.querySelectorAll('[data-savepage]').forEach(function (b) { b.onclick = function () { var inp = listEl.querySelector('[data-bpage="' + b.dataset.savepage + '"]'), d = lb(), x = d.find(function (y) { return y.id === b.dataset.savepage; }); if (x) { x.current = Math.min(x.pages || 9999, parseInt(inp.value) || 0); if (x.current >= x.pages) { x.status = 'done'; x.finishedDate = today(); } sb(d); render(); } }; });
+    listEl.querySelectorAll('[data-savepct]').forEach(function (b) { b.onclick = function () { var inp = listEl.querySelector('[data-pct="' + b.dataset.savepct + '"]'), d = lc(), x = d.find(function (y) { return y.id === b.dataset.savepct; }); if (x) { x.pct = Math.min(100, parseInt(inp.value) || 0); sc(d); render(); } }; });
+    listEl.querySelectorAll('[data-rate]').forEach(function (s) { s.onclick = function () { var d = lb(), x = d.find(function (y) { return y.id === s.dataset.rate; }); if (x) { x.rating = parseInt(s.dataset.star); sb(d); render(); } }; });
+  }
+
+  // tabs
+  var tabs = [].slice.call(document.querySelectorAll('#tabs [role=tab]'));
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { tabs.forEach(function (x) { x.setAttribute('aria-selected', 'false'); }); t.setAttribute('aria-selected', 'true'); tab = t.dataset.tab; render(); });
+    t.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight' && tabs[i + 1]) tabs[i + 1].focus(); if (e.key === 'ArrowLeft' && tabs[i - 1]) tabs[i - 1].focus(); });
+  });
+
+  // add sheets
+  document.getElementById('addBtn').addEventListener('click', function () {
+    if (tab === 'learning') addCourse(); else addBook();
+  });
+  function addBook() {
+    UI.sheet({ title: 'Add book', body:
+      '<div class="field"><span class="label">Title</span><input class="input" id="bt"></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Author</span><input class="input" id="ba"></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)"><div class="field"><span class="label">Pages</span><input class="input num" id="bp" type="number"></div><div class="field"><span class="label">Status</span><select class="select" id="bs"><option value="reading">Reading</option><option value="want">Want to read</option><option value="done">Read</option></select></div></div>'
+      + '<button class="btn btn-primary btn-block" id="bsave" style="margin-top:var(--s4)">Add book</button>' });
+    var sheet = document.querySelector('.sheet');
+    sheet.querySelector('#bsave').addEventListener('click', function () {
+      var title = sheet.querySelector('#bt').value.trim(); if (!title) { UI.toast('Title required'); return; }
+      var d = lb(); d.push({ id: Date.now().toString(36), title: title, author: sheet.querySelector('#ba').value.trim() || null, status: sheet.querySelector('#bs').value, pages: parseInt(sheet.querySelector('#bp').value) || null, current: 0, addedDate: today() });
+      sb(d); document.querySelector('.backdrop').click(); tab = sheet.querySelector('#bs').value; tabs.forEach(function (x) { x.setAttribute('aria-selected', x.dataset.tab === tab ? 'true' : 'false'); }); render(); UI.toast('Book added');
+    });
+  }
+  function addCourse() {
+    UI.sheet({ title: 'Add course', body:
+      '<div class="field"><span class="label">Title</span><input class="input" id="ct"></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Platform</span><input class="input" id="cp"></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)"><div class="field"><span class="label">Due</span><input class="input" id="cd" type="date"></div><div class="field"><span class="label">Progress %</span><input class="input num" id="cpct" type="number"></div></div>'
+      + '<button class="btn btn-primary btn-block" id="csave" style="margin-top:var(--s4)">Add course</button>' });
+    var sheet = document.querySelector('.sheet');
+    sheet.querySelector('#csave').addEventListener('click', function () {
+      var title = sheet.querySelector('#ct').value.trim(); if (!title) { UI.toast('Title required'); return; }
+      var d = lc(); d.push({ id: Date.now().toString(36), title: title, platform: sheet.querySelector('#cp').value.trim() || null, due: sheet.querySelector('#cd').value || null, pct: parseInt(sheet.querySelector('#cpct').value) || 0, addedDate: today() });
+      sc(d); document.querySelector('.backdrop').click(); tab = 'learning'; tabs.forEach(function (x) { x.setAttribute('aria-selected', x.dataset.tab === 'learning' ? 'true' : 'false'); }); render(); UI.toast('Course added');
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

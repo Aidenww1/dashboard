@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GlowLab — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="log"] .gl-entry { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) 0; }
+  body[data-page="log"] .gl-entry + .gl-entry { border-top: 1px solid var(--border); }
+  body[data-page="log"] .gl-entry .b { flex: 1; min-width: 0; }
+  body[data-page="log"] .gl-amt { font-variant-numeric: tabular-nums; font-weight: 700; }
+  body[data-page="log"] .gl-amt.pos { color: var(--green); }
+  body[data-page="log"] .gl-amt.neg { color: var(--red); }
+  body[data-page="log"] .gl-x { background: none; border: none; color: var(--text-3); cursor: pointer; min-width: 32px; min-height: 32px; }
+  body[data-page="log"] .gl-chips { display: flex; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s3); }
+  body[data-page="log"] .gl-chip { padding: 4px var(--s3); border-radius: var(--r-pill); background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-2); font-size: 12px; cursor: pointer; }
+  body[data-page="log"] .gl-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  body[data-page="log"] [hidden] { display: none !important; }
+</style>
+</head>
+<body data-page="log">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">GlowLab</h1><div class="page-date">Freelance revenue, expenses &amp; rate</div></div>
+        <div class="page-head-r"><a class="btn btn-ghost btn-sm" href="log.html">‹ Log</a></div>
+      </header>
+      <div class="segmented" role="tablist" id="tabs" style="margin-bottom:var(--s4)">
+        <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
+        <button role="tab" aria-selected="false" data-tab="revenue">Revenue</button>
+        <button role="tab" aria-selected="false" data-tab="expenses">Expenses</button>
+        <button role="tab" aria-selected="false" data-tab="rate">Rate</button>
+      </div>
+
+      <section id="panel-overview" class="grid">
+        <div class="card col-4"><div class="card-title">Revenue</div><div class="t-metric" id="oRev">€0</div></div>
+        <div class="card col-4"><div class="card-title">Expenses</div><div class="t-metric" id="oExp">€0</div></div>
+        <div class="card col-4"><div class="card-title">Net</div><div class="t-metric" id="oNet">€0</div></div>
+        <div class="card col-12"><div class="between"><div class="card-title">Profit margin</div><span class="t-cap" id="oMarginLbl"></span></div><div class="bar" style="margin-top:var(--s2)"><i id="oMarginFill" style="width:0%"></i></div></div>
+        <div class="card col-12"><div class="card-title">Recent activity</div><div id="recent" class="stack" style="gap:0;margin-top:var(--s2)"></div></div>
+      </section>
+
+      <section id="panel-revenue" class="stack" hidden>
+        <div class="card"><div class="card-title">Add revenue</div>
+          <input class="input" id="rClient" placeholder="Client" style="margin-top:var(--s2)">
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s2);margin-top:var(--s2)"><input class="input num" id="rAmount" type="number" placeholder="Amount €"><input class="input" id="rDate" type="date"></div>
+          <input class="input" id="rDesc" placeholder="Description (optional)" style="margin-top:var(--s2)">
+          <button class="btn btn-primary btn-sm" id="rAdd" style="align-self:flex-start;margin-top:var(--s3)">Add</button>
+        </div>
+        <div class="gl-chips" id="rChips"></div>
+        <div class="card"><div id="rList"></div><div id="rEmpty" class="empty" style="display:none"><span>No revenue yet</span></div></div>
+      </section>
+
+      <section id="panel-expenses" class="stack" hidden>
+        <div class="card"><div class="card-title">Add expense</div>
+          <input class="input" id="eDesc" placeholder="Description" style="margin-top:var(--s2)">
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s2);margin-top:var(--s2)"><input class="input num" id="eAmount" type="number" placeholder="Amount €"><select class="select" id="eCat"><option value="">Category</option><option value="tools">🛠 Tools</option><option value="marketing">📣 Marketing</option><option value="equipment">💻 Equipment</option><option value="travel">✈️ Travel</option><option value="contractor">🤝 Contractor</option><option value="education">📚 Education</option><option value="other">📦 Other</option></select></div>
+          <input class="input" id="eDate" type="date" style="margin-top:var(--s2)">
+          <button class="btn btn-primary btn-sm" id="eAdd" style="align-self:flex-start;margin-top:var(--s3)">Add</button>
+        </div>
+        <div class="gl-chips" id="eChips"></div>
+        <div class="card"><div id="eList"></div><div id="eEmpty" class="empty" style="display:none"><span>No expenses yet</span></div></div>
+      </section>
+
+      <section id="panel-rate" hidden>
+        <div class="card"><div class="card-title">Hourly rate</div>
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s2)"><div class="field"><span class="label">Monthly income €</span><input class="input num" id="rateIncome" type="number"></div><div class="field"><span class="label">Hours / month</span><input class="input num" id="rateHours" type="number"></div></div>
+          <div class="t-metric" id="rateRes" style="margin-top:var(--s3)">€ —</div>
+          <div class="t-2" id="rateSub">Enter income and hours to calculate.</div>
+          <div class="grid" id="rateCtx" style="grid-template-columns:repeat(3,1fr);gap:var(--s3);margin-top:var(--s3);display:none"><div class="stack" style="gap:0"><span class="t-cap">Per day (8h)</span><span class="t-metric-sm" id="rateDay">—</span></div><div class="stack" style="gap:0"><span class="t-cap">Per week (40h)</span><span class="t-metric-sm" id="rateWeek">—</span></div><div class="stack" style="gap:0"><span class="t-cap">Min threshold</span><span class="t-metric-sm" id="rateThr">—</span></div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="../dates.js"></script>
+<script src="ui.js"></script>
+<script src="../cloudsync.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  function g(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function s(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+  function esc(x) { return String(x == null ? '' : x).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function fmt(n) { return '€' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString(); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function mlabel(m) { return new Date(m + '-01T12:00').toLocaleDateString(undefined, { month: 'short', year: '2-digit' }); }
+  var CATS = { tools: '🛠 Tools', marketing: '📣 Marketing', equipment: '💻 Equipment', travel: '✈️ Travel', contractor: '🤝 Contractor', education: '📚 Education', other: '📦 Other' };
+  var $ = function (id) { return document.getElementById(id); };
+  var rFilter = '', eFilter = '';
+
+  // tabs
+  var tabs = [].slice.call(document.querySelectorAll('#tabs [role=tab]'));
+  tabs.forEach(function (t, i) { t.addEventListener('click', function () { tabs.forEach(function (x) { x.setAttribute('aria-selected', 'false'); }); t.setAttribute('aria-selected', 'true'); document.querySelectorAll('[id^=panel-]').forEach(function (p) { p.hidden = p.id !== 'panel-' + t.dataset.tab; }); }); t.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight' && tabs[i + 1]) tabs[i + 1].focus(); if (e.key === 'ArrowLeft' && tabs[i - 1]) tabs[i - 1].focus(); }); });
+
+  function entryRow(name, meta, amt, pos, delAttr) {
+    return '<div class="gl-entry"><div class="b"><div class="row-title">' + esc(name) + '</div><div class="row-sub">' + esc(meta) + '</div></div><span class="gl-amt ' + (pos ? 'pos' : 'neg') + '">' + (pos ? '+' : '-') + fmt(amt) + '</span>' + (delAttr ? '<button class="gl-x" ' + delAttr + '>×</button>' : '') + '</div>';
+  }
+  function chips(all, filter, key, onPick) {
+    var months = Array.from(new Set(all.map(function (x) { return x.date.slice(0, 7); }))).sort().reverse();
+    if (months.length < 2) return '';
+    return [{ id: '', label: 'All' }].concat(months.map(function (m) { return { id: m, label: mlabel(m) }; })).map(function (c) { return '<button class="gl-chip' + (filter === c.id ? ' active' : '') + '" data-' + key + '="' + c.id + '">' + c.label + '</button>'; }).join('');
+  }
+
+  function renderRevenue() {
+    var all = g('gl:revenue') || [];
+    $('rChips').innerHTML = chips(all, rFilter, 'rm');
+    $('rChips').querySelectorAll('[data-rm]').forEach(function (b) { b.onclick = function () { rFilter = b.dataset.rm; renderRevenue(); }; });
+    var items = (rFilter ? all.filter(function (r) { return r.date.slice(0, 7) === rFilter; }) : all).slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
+    if (!items.length) { $('rList').innerHTML = ''; $('rEmpty').style.display = 'flex'; return; }
+    $('rEmpty').style.display = 'none';
+    $('rList').innerHTML = items.map(function (r) { return entryRow(r.client + (r.description ? ' — ' + r.description : ''), r.date, r.amount, true, 'data-delrev="' + esc(r.id) + '"'); }).join('');
+    $('rList').querySelectorAll('[data-delrev]').forEach(function (b) { b.onclick = function () { UI.confirm({ title: 'Delete this revenue entry?', onConfirm: function () { s('gl:revenue', (g('gl:revenue') || []).filter(function (x) { return x.id !== b.dataset.delrev; })); renderRevenue(); renderOverview(); } }); }; });
+  }
+  function renderExpenses() {
+    var all = g('gl:expenses') || [];
+    $('eChips').innerHTML = chips(all, eFilter, 'em');
+    $('eChips').querySelectorAll('[data-em]').forEach(function (b) { b.onclick = function () { eFilter = b.dataset.em; renderExpenses(); }; });
+    var items = (eFilter ? all.filter(function (e) { return e.date.slice(0, 7) === eFilter; }) : all).slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
+    if (!items.length) { $('eList').innerHTML = ''; $('eEmpty').style.display = 'flex'; return; }
+    $('eEmpty').style.display = 'none';
+    $('eList').innerHTML = items.map(function (e) { return entryRow(e.description, e.date + (e.category ? ' · ' + (CATS[e.category] || e.category) : ''), e.amount, false, 'data-delexp="' + esc(e.id) + '"'); }).join('');
+    $('eList').querySelectorAll('[data-delexp]').forEach(function (b) { b.onclick = function () { UI.confirm({ title: 'Delete this expense?', onConfirm: function () { s('gl:expenses', (g('gl:expenses') || []).filter(function (x) { return x.id !== b.dataset.delexp; })); renderExpenses(); renderOverview(); } }); }; });
+  }
+  function renderOverview() {
+    var rev = (g('gl:revenue') || []).reduce(function (a, r) { return a + (Number(r.amount) || 0); }, 0);
+    var exp = (g('gl:expenses') || []).reduce(function (a, e) { return a + (Number(e.amount) || 0); }, 0);
+    var net = rev - exp, margin = rev > 0 ? Math.max(0, Math.min(100, net / rev * 100)) : 0;
+    $('oRev').textContent = fmt(rev); $('oExp').textContent = fmt(exp);
+    $('oNet').textContent = (net >= 0 ? '+' : '') + fmt(net); $('oNet').style.color = net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : '';
+    $('oMarginFill').style.width = margin.toFixed(1) + '%'; $('oMarginFill').style.background = net < 0 ? 'var(--red)' : 'var(--green)';
+    $('oMarginLbl').textContent = rev > 0 ? margin.toFixed(1) + '%' : 'No data yet';
+    var ra = (g('gl:revenue') || []).map(function (r) { return { t: 1, date: r.date, n: r.client + (r.description ? ' — ' + r.description : ''), a: r.amount }; });
+    var ea = (g('gl:expenses') || []).map(function (e) { return { t: 0, date: e.date, n: e.description, a: e.amount }; });
+    var all = ra.concat(ea).sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 8);
+    $('recent').innerHTML = all.length ? all.map(function (e) { return entryRow(e.n, e.date, e.a, e.t === 1, ''); }).join('') : '<div class="empty"><span>No activity yet</span></div>';
+  }
+  function addRev() { var c = $('rClient').value.trim(), a = parseFloat($('rAmount').value); if (!c || isNaN(a) || a <= 0) { $('rClient').focus(); return; } var arr = g('gl:revenue') || []; arr.push({ id: 'r_' + Date.now(), client: c, description: $('rDesc').value.trim(), amount: a, date: $('rDate').value || today(), ts: Date.now() }); s('gl:revenue', arr); $('rClient').value = $('rAmount').value = $('rDesc').value = $('rDate').value = ''; renderRevenue(); renderOverview(); UI.toast('Added'); }
+  function addExp() { var d = $('eDesc').value.trim(), a = parseFloat($('eAmount').value); if (!d || isNaN(a) || a <= 0) { $('eDesc').focus(); return; } var arr = g('gl:expenses') || []; arr.push({ id: 'e_' + Date.now(), description: d, category: $('eCat').value, amount: a, date: $('eDate').value || today(), ts: Date.now() }); s('gl:expenses', arr); $('eDesc').value = $('eAmount').value = $('eCat').value = $('eDate').value = ''; renderExpenses(); renderOverview(); UI.toast('Added'); }
+  $('rAdd').addEventListener('click', addRev); $('eAdd').addEventListener('click', addExp);
+
+  function calcRate() {
+    var inc = parseFloat($('rateIncome').value), hrs = parseFloat($('rateHours').value);
+    if (isNaN(inc) || isNaN(hrs) || hrs <= 0) { $('rateRes').textContent = '€ —'; $('rateSub').textContent = 'Enter income and hours to calculate.'; $('rateCtx').style.display = 'none'; return; }
+    var rate = inc / hrs;
+    $('rateRes').textContent = '€ ' + rate.toFixed(2) + ' / hr'; $('rateSub').textContent = 'Based on ' + fmt(inc) + '/mo over ' + Math.round(hrs) + ' hours.';
+    $('rateCtx').style.display = 'grid'; $('rateDay').textContent = '€ ' + (rate * 8).toFixed(0); $('rateWeek').textContent = '€ ' + (rate * 40).toFixed(0); $('rateThr').textContent = '€ ' + (rate * 0.5).toFixed(2);
+    s('gl:rateInputs', { income: inc, hours: hrs });
+  }
+  ['rateIncome', 'rateHours'].forEach(function (id) { $(id).addEventListener('input', calcRate); });
+  var saved = g('gl:rateInputs'); if (saved) { if (saved.income) $('rateIncome').value = saved.income; if (saved.hours) $('rateHours').value = saved.hours; calcRate(); }
+
+  window._glRender = function () { renderOverview(); renderRevenue(); renderExpenses(); };
+  if (window.LifeOSSync) { try { LifeOSSync.register('glowlab-app', ['gl:revenue', 'gl:expenses', 'gl:rateInputs'], { onApply: window._glRender }); } catch (e) {} }
+  renderOverview(); renderRevenue(); renderExpenses();
+})();
+</script>
+</body>
+</html>

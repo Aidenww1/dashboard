@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>More — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .content { max-width: 1420px; padding-top: 0; }
+  body[data-page="more"] .page-head { align-items: center; margin-bottom: 16px; }
+  body[data-page="more"] .page-date { margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+  body[data-page="more"] .page-head-r { min-width: min(60vw, 900px); }
+  body[data-page="more"] .search { flex: 1; max-width: 640px; height: 44px; }
+  body[data-page="more"] .grid { gap: 12px; align-content: start; }
+  body[data-page="more"] .card { padding: 16px 14px; gap: 4px; }
+  body[data-page="more"] .mr-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; padding: 0 4px 6px; }
+  body[data-page="more"] .mr-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 6px; border-radius: 10px; color: inherit; text-decoration: none; }
+  body[data-page="more"] .mr-row:hover { background: rgba(255,255,255,0.035); }
+  body[data-page="more"] .mr-ic { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+  body[data-page="more"] .mr-ic svg { width: 17px; height: 17px; }
+  body[data-page="more"] .mr-b { flex: 1; min-width: 0; }
+  body[data-page="more"] .mr-b .t { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body[data-page="more"] .mr-b .s { font-size: 12px; color: var(--text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body[data-page="more"] .mr-chev { color: var(--text-4); flex-shrink: 0; }
+  body[data-page="more"] .mr-chev svg { width: 16px; height: 16px; }
+  body[data-page="more"] .mr-row .badge { flex-shrink: 0; font-size: 10px; }
+  body[data-page="more"] .mr-tip { flex-direction: row; align-items: center; gap: 14px; }
+  body[data-page="more"] .mr-tip .mr-tb { flex: 1; min-width: 0; }
+  body[data-page="more"] .mr-tip b { font-size: 13.5px; font-weight: 600; }
+  body[data-page="more"] .mr-tip p { margin: 2px 0 0; font-size: 12.5px; color: var(--text-3); }
+  body[data-page="more"] .mr-tip .mr-ic { width: 40px; height: 40px; border-radius: 11px; }
+  body[data-page="more"] .mr-tip .mr-ic svg { width: 19px; height: 19px; }
+  @media (max-width: 900px) {
+    body[data-page="more"] .page-head-r { min-width: 0; }
+  }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l">
+          <h1 class="t-page">More</h1>
+          <div class="page-date" id="mrDate"></div>
+        </div>
+        <div class="page-head-r">
+          <label class="search">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+            <input id="q" type="search" placeholder="Quick log (e.g. 10 min meditation, read 20 pages, call mom)" aria-label="Search destinations">
+          </label>
+          <a class="btn btn-primary" href="log.html">+ Add</a>
+          <button class="btn btn-icon" id="mrMore" aria-label="More actions">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+          </button>
+        </div>
+      </header>
+      <div class="grid" id="groups"></div>
+      <div id="none" class="empty" style="display:none"><span class="empty-title">No matches</span><span>Try a different word.</span></div>
+    </div>
+  </main>
+</div>
+
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function has(k) { try { var v = localStorage.getItem(k); return v != null && v !== '' && v !== '[]' && v !== '{}'; } catch (e) { return false; } }
+
+  // integration status from best-effort local signals
+  function statusBadge(kind) {
+    var on = false;
+    if (kind === 'gmail') on = has('mail:summary:v1') || has('gmail:token') || has('gmail:connected');
+    else if (kind === 'calendar') on = has('gcal:token') || has('gcal:events') || has('calendar:events');
+    else if (kind === 'push') on = has('push:subs:v1') || has('push:enabled');
+    else if (kind === 'activity') on = has('activity:today') || has('aw:today');
+    return on ? '<span class="badge green">Connected</span>' : '';
+  }
+
+  var DEV = /^(localhost|127\.|192\.168\.|\[::1\])/.test(location.hostname) || /[?&]dev/.test(location.search);
+
+  var P = {
+    tasks: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.2l2.3 2.3 4.7-5"/>',
+    cal: '<rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    notes: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h6M9 16h4"/>',
+    focus: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/>',
+    habit: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    sleep: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8.2 8.2 0 1 0 10.5 10.5z"/>',
+    mind: '<path d="M12 4a5 5 0 0 1 5 5c0 2-1 3-1 5H8c0-2-1-3-1-5a5 5 0 0 1 5-5z"/><path d="M9.5 18h5M10.5 21h3"/>',
+    nutrition: '<path d="M12 21c-3.5 0-6-3.4-6-7.4C6 9.9 8 7.5 10.4 7.5c1 0 1.6.6 1.6.6s.6-.6 1.6-.6C16 7.5 18 9.9 18 13.6 18 17.6 15.5 21 12 21z"/><path d="M12 7.5V4"/>',
+    lifestyle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4"/>',
+    vitals: '<path d="M3.5 12h4l2-5 3 10 2.2-5H20.5"/>',
+    people: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+    messages: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/>',
+    mentor: '<circle cx="12" cy="8" r="3.2"/><path d="M6 20a6 6 0 0 1 12 0"/><path d="M12 2.5v1.6"/>',
+    groups: '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M16 15a5 5 0 0 1 5 4"/>',
+    account2: '<path d="M12 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10z" transform="scale(0.8) translate(3 1)"/><circle cx="12" cy="12" r="8.5"/><path d="M12 9.5v5M9.5 12h5"/>',
+    library: '<path d="M5 4h6v16H5z"/><path d="M13 4h6v16h-6z"/><path d="M5 8h6M13 8h6"/>',
+    templates: '<rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    courses: '<path d="M3 8l9-4 9 4-9 4z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>',
+    tools: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    download: '<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/>',
+    journal: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+    photos: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.6"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5"/>',
+    travel: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.6 3.6 5.5 3.6 8.5S14.4 18.4 12 20.5C9.6 18.4 8.4 15.5 8.4 12S9.6 6.1 12 3.5z"/>',
+    goals: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+    bucket: '<path d="M5 8h14l-1.4 11.2a2 2 0 0 1-2 1.8H8.4a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+    prefs: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2L5.4 5.4"/>',
+    integrations: '<circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/>',
+    bell: '<path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5S6.5 14 6.5 10z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
+    privacy: '<path d="M12 3l7 3v6c0 4.4-3 7.9-7 9-4-1.1-7-4.6-7-9V6z"/><path d="M12 9.5v3M12 15.5h.01"/>',
+    account: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+    reports: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 13v4M12 9v8M16 15v2"/>',
+    trends: '<path d="M4 16l5-5 3.5 3L20 6"/><path d="M20 10V6h-4"/>',
+    history: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/>',
+    export: '<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/>',
+    backup: '<path d="M12 20a6 6 0 1 0 0-12"/><path d="M12 3v6l3-3"/><path d="M6 8a6 6 0 0 0 6 12"/>',
+    help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.5a2.3 2.3 0 1 1 3 2.2c-.5.2-.7.7-.7 1.3"/><circle cx="12" cy="16.4" r="0.8" fill="currentColor" stroke="none"/>',
+    sparkle: '<path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6z"/><path d="M18 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+    feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10h7"/>',
+    roadmap: '<path d="M4 6h9M4 12h16M4 18h9"/><circle cx="17" cy="6" r="2"/><circle cx="17" cy="18" r="2"/>',
+    support: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 10h8M8 14h5"/>',
+    bulb: '<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 1 3.6 10.8c-.6.5-1 1.2-1.1 2H9.5c-.1-.8-.5-1.5-1.1-2A6 6 0 0 1 12 3z"/>',
+    chev: '<path d="M9 6l6 6-6 6"/>'
+  };
+  function ic(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (P[n] || '') + '</svg>'; }
+
+  // [icon, label, sub, href, badge?]
+  var GROUPS = [
+    { title: 'Productivity', rows: [
+      ['tasks', 'Tasks', 'Manage tasks and to-dos', 'tasks.html'],
+      ['cal', 'Calendar', 'View your schedule', '../calendar.html'],
+      ['notes', 'Notes', 'Capture ideas and notes', '../review.html'],
+      ['focus', 'Focus Sessions', 'Start a deep work session', '../usage.html'],
+      ['habit', 'Habit Tracker', 'Track and build habits', '../habits.html'],
+    ] },
+    { title: 'Health & Lifestyle', rows: [
+      ['sleep', 'Sleep', 'Track your sleep quality', 'log.html#recovery'],
+      ['mind', 'Mind', 'Meditation, mood and clarity', 'mood.html'],
+      ['nutrition', 'Nutrition', 'Meals, calories and macros', '../nutrition.html'],
+      ['lifestyle', 'Lifestyle', 'Daily routines and score', 'glowlab.html'],
+      ['vitals', 'Vitals', 'Heart rate, HRV and more', '../health.html'],
+    ] },
+    { title: 'Connections', rows: [
+      ['people', 'People', 'Your network and contacts', 'social.html'],
+      ['messages', 'Messages', 'Notes and conversations', '../mail.html', statusBadge('gmail')],
+      ['mentor', 'Mentor', 'Guidance and insights', 'coach.html'],
+      ['groups', 'Groups', 'Communities and circles', 'social.html'],
+      ['account2', 'Accountability', 'Check-ins and progress', '../review.html'],
+    ] },
+    { title: 'Resources', rows: [
+      ['library', 'Library', 'Books, articles and resources', 'library.html'],
+      ['templates', 'Templates', 'Workflows and templates', '../gym.html'],
+      ['courses', 'Courses', 'Learn and grow', 'library.html'],
+      ['tools', 'Tools', 'Calculators and utilities', DEV ? 'gallery.html' : 'fix.html'],
+      ['download', 'Downloads', 'Files and exports', '../export.html'],
+    ] },
+    { title: 'Personal', rows: [
+      ['journal', 'Journal', 'Daily reflections', 'mood.html'],
+      ['photos', 'Photos', 'Your memories', 'log.html#body'],
+      ['travel', 'Travel', 'Trips and experiences', 'travel.html'],
+      ['goals', 'Goals', 'Your long-term goals', 'money.html#planning'],
+      ['bucket', 'Bucket List', 'Experiences to look forward to', 'travel.html'],
+    ] },
+    { title: 'Settings & Account', rows: [
+      ['prefs', 'Preferences', 'Customize Life OS', 'settings.html'],
+      ['integrations', 'Integrations', 'Connect your apps', 'settings.html', statusBadge('calendar')],
+      ['bell', 'Notifications', 'Manage alerts', '../reminders.html', statusBadge('push')],
+      ['privacy', 'Privacy & Security', 'Your data, your control', 'privacy.html'],
+      ['account', 'Account', 'Profile and subscription', 'settings.html'],
+    ] },
+    { title: 'Data & Insights', rows: [
+      ['reports', 'Reports', 'Detailed analytics', '../review.html'],
+      ['trends', 'Trends', 'Track patterns over time', '../radar.html'],
+      ['history', 'Life Score History', 'See your progress', 'coach.html'],
+      ['export', 'Export Data', 'Download your data', '../export.html'],
+      ['backup', 'Backup', 'Sync and backup settings', '../export.html'],
+    ] },
+    { title: 'Support', rows: [
+      ['help', 'Help Center', 'Guides and documentation', 'privacy.html'],
+      ['sparkle', "What's New", 'Latest updates', 'settings.html', '', 'ver'],
+      ['feedback', 'Feedback', 'Share your feedback', 'settings.html'],
+      ['roadmap', 'Roadmap', "See what's coming", 'settings.html'],
+      ['support', 'Contact Support', 'Get in touch', 'privacy.html'],
+    ] },
+  ];
+
+  var groupsEl = document.getElementById('groups'), noneEl = document.getElementById('none');
+  groupsEl.innerHTML = GROUPS.map(function (g) {
+    var rows = g.rows.map(function (r) {
+      var search = (g.title + ' ' + r[1] + ' ' + r[2]).toLowerCase();
+      return '<a class="mr-row" href="' + r[3] + '" data-s="' + esc(search) + '">'
+        + '<span class="mr-ic">' + ic(r[0]) + '</span>'
+        + '<span class="mr-b"><span class="t">' + esc(r[1]) + '</span>'
+        + '<span class="s"' + (r[5] ? ' id="' + r[5] + '"' : '') + '>' + esc(r[2]) + '</span></span>'
+        + (r[4] || '')
+        + '<span class="mr-chev">' + ic('chev') + '</span></a>';
+    }).join('');
+    return '<div class="card col-3" data-group><div class="mr-title">' + esc(g.title) + '</div>' + rows + '</div>';
+  }).join('')
+  + '<div class="card col-12 mr-tip" data-tip><span class="mr-ic">' + ic('bulb') + '</span>'
+  + '<div class="mr-tb"><b>Tip: Customize Life OS to fit your life.</b>'
+  + '<p>Use templates, connect your tools and build systems that support your goals.</p></div>'
+  + '<a class="btn btn-secondary" href="settings.html">Explore templates</a></div>';
+
+  // live search: filter rows, hide empty groups
+  var q = document.getElementById('q');
+  q.addEventListener('input', function () {
+    var v = q.value.trim().toLowerCase(), anyShown = 0;
+    groupsEl.querySelectorAll('[data-group]').forEach(function (grp) {
+      var shown = 0;
+      grp.querySelectorAll('[data-s]').forEach(function (row) {
+        var hit = !v || row.getAttribute('data-s').indexOf(v) !== -1;
+        row.style.display = hit ? '' : 'none'; if (hit) shown++;
+      });
+      grp.style.display = shown ? '' : 'none'; anyShown += shown;
+    });
+    groupsEl.querySelector('[data-tip]').style.display = v ? 'none' : '';
+    noneEl.style.display = anyShown ? 'none' : 'flex';
+  });
+
+  var d = new Date();
+  document.getElementById('mrDate').innerHTML =
+    '<span>' + d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + '</span>'
+    + '<span style="color:var(--text-4)">•</span><span>' + d.toLocaleDateString('en-US', { weekday: 'long' }) + '</span>';
+
+  document.getElementById('mrMore').addEventListener('click', function (e) {
+    UI.menu(e.currentTarget, [
+      { label: 'Fix my data', onClick: function () { location.href = 'fix.html'; } },
+      { label: 'API usage', onClick: function () { location.href = 'usage.html'; } },
+      'hr',
+      { label: 'Component gallery', onClick: function () { location.href = 'gallery.html'; } }
+    ]);
+  });
+
+  // version from the service worker cache name (dashboard-vNN)
+  fetch('../sw.js').then(function (r) { return r.text(); }).then(function (t) {
+    var m = t.match(/dashboard-v(\d+)/);
+    var el = document.getElementById('ver');
+    if (el && m) el.textContent = 'Latest updates — build ' + m[1];
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

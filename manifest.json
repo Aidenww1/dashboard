@@ -2,7 +2,7 @@
   "name": "Life OS",
   "short_name": "Life OS",
   "description": "Your all-in-one life tracking, planning and coaching dashboard",
-  "start_url": "/index.html",
+  "start_url": "/ui/today.html",
   "scope": "/",
   "display": "standalone",
   "background_color": "#050506",

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>API Usage — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .us-chart { display: flex; align-items: flex-end; gap: 4px; height: 88px; }
+  body[data-page="more"] .us-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  body[data-page="more"] .us-fill { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+  body[data-page="more"] .us-lbl { font-size: 10px; color: var(--text-3); }
+  body[data-page="more"] .us-row { display: flex; justify-content: space-between; gap: var(--s2); padding: var(--s2) 0; font-size: 13px; }
+  body[data-page="more"] .us-row + .us-row { border-top: 1px solid var(--border); }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">API Usage</h1><div class="page-date" id="updated">Loading…</div></div>
+        <div class="page-head-r"><button class="btn btn-secondary btn-sm" id="refresh">Refresh</button><a class="btn btn-ghost btn-sm" href="more.html">‹ More</a></div>
+      </header>
+      <div class="grid">
+        <div class="card col-4"><div class="card-title">Tokens (month)</div><div class="t-metric" id="tok">—</div></div>
+        <div class="card col-4"><div class="card-title">Cost (month)</div><div class="t-metric" id="cost">—</div></div>
+        <div class="card col-4"><div class="card-title">Calls (month)</div><div class="t-metric" id="calls">—</div></div>
+        <div class="card col-12"><div class="card-title">Last 14 days</div><div class="us-chart" id="chart"></div></div>
+        <div class="card col-6"><div class="card-title">By model</div><div id="byModel" class="stack" style="gap:0;margin-top:var(--s2)"></div></div>
+        <div class="card col-6"><div class="card-title">Recent calls</div><div id="recent" class="stack" style="gap:0;margin-top:var(--s2)"></div></div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  function fmt(n) { if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'; if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return String(n || 0); }
+  function dk(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  var $ = function (id) { return document.getElementById(id); };
+
+  function render(rows) {
+    var now = new Date(), monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    var month = rows.filter(function (r) { return new Date(r.created_at) >= monthStart; });
+    $('tok').textContent = fmt(month.reduce(function (s, r) { return s + ((r.data && r.data.total_tokens) || 0); }, 0));
+    $('cost').textContent = '$' + month.reduce(function (s, r) { return s + ((r.data && r.data.cost_usd) || 0); }, 0).toFixed(4);
+    $('calls').textContent = month.length;
+
+    var days = []; for (var i = 13; i >= 0; i--) { var d = new Date(now); d.setDate(d.getDate() - i); days.push(dk(d)); }
+    var byDay = {}; rows.forEach(function (r) { var d = (r.created_at || '').slice(0, 10); if (d) byDay[d] = (byDay[d] || 0) + ((r.data && r.data.total_tokens) || 0); });
+    var max = Math.max.apply(null, days.map(function (d) { return byDay[d] || 0; }).concat([1]));
+    $('chart').innerHTML = days.map(function (d) {
+      var v = byDay[d] || 0, h = Math.max(2, Math.round(v / max * 80));
+      var lbl = new Date(d + 'T12:00').toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
+      return '<div class="us-col"><div class="us-fill" style="height:' + h + 'px" title="' + fmt(v) + ' tokens"></div><div class="us-lbl">' + lbl + '</div></div>';
+    }).join('');
+
+    var models = {}; rows.forEach(function (r) { var m = (r.data && r.data.model) || 'unknown'; (models[m] = models[m] || { calls: 0, tokens: 0, cost: 0 }); models[m].calls++; models[m].tokens += (r.data && r.data.total_tokens) || 0; models[m].cost += (r.data && r.data.cost_usd) || 0; });
+    var me = Object.keys(models).map(function (k) { return [k, models[k]]; }).sort(function (a, b) { return b[1].tokens - a[1].tokens; });
+    $('byModel').innerHTML = me.length ? me.map(function (e) { return '<div class="us-row"><span>' + e[0].replace('claude-', '').replace('-20251001', '') + '</span><span class="num" style="color:var(--text-2)">' + fmt(e[1].tokens) + ' · ' + e[1].calls + ' · $' + e[1].cost.toFixed(4) + '</span></div>'; }).join('') : '<div class="empty"><span>No data yet</span></div>';
+
+    var recent = rows.slice(0, 25);
+    $('recent').innerHTML = recent.length ? recent.map(function (r) {
+      var d = r.data || {}, date = new Date(r.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return '<div class="us-row"><span>' + date + '<br><span class="t-cap">' + ((d.model || '').replace('claude-', '').replace('-20251001', '')) + '</span></span><span class="num">' + fmt(d.total_tokens || 0) + ' · $' + (d.cost_usd || 0).toFixed(5) + '</span></div>';
+    }).join('') : '<div class="empty"><span>No calls yet</span></div>';
+  }
+
+  function load() {
+    $('updated').textContent = 'Loading…';
+    fetch('/api/health/read/apiusage?limit=500&days=30')
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (j) { render(j.rows || []); $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString(); })
+      .catch(function (e) {
+        $('updated').textContent = 'Could not load';
+        document.querySelector('.grid').insertAdjacentHTML('afterbegin', '<div class="card col-12"><div class="error-box"><span class="error-msg">Usage data unavailable (' + e.message + '). Needs the deployed API + Supabase.</span></div></div>');
+      });
+  }
+  $('refresh').addEventListener('click', load);
+  load();
+})();
+</script>
+</body>
+</html>

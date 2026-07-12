@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Today - Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="today"] .content { max-width: 1390px; padding-top: 4px; padding-bottom: 4px; }
+  body[data-page="today"] .page-head { margin-bottom: 12px; }
+  body[data-page="today"] .page-date { margin-top: 0; }
+  body[data-page="today"] .page-head-r { margin-top: 0; min-width: min(42vw, 580px); }
+  body[data-page="today"] .t-page { font-size: 34px; letter-spacing: -0.03em; }
+  body[data-page="today"] .grid { align-items: stretch; }
+
+  .td-card { min-height: 102px; overflow: hidden; position: relative; }
+  .td-card::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(circle at 82% 12%, rgba(255,255,255,0.06), transparent 34%);
+    opacity: 0.7;
+  }
+  .td-card > * { position: relative; z-index: 1; }
+  .td-metric-card { min-height: 102px; padding-top: 12px; padding-bottom: 12px; }
+  .td-metric-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+  .td-icbox { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); background: rgba(255,255,255,0.035); border: 1px solid var(--border); }
+  .td-icbox svg { width: 19px; height: 19px; }
+  .td-big { display: flex; align-items: baseline; gap: 7px; margin-top: 6px; }
+  .td-big .num { font-size: 29px; line-height: 1; font-weight: 700; letter-spacing: -0.025em; }
+  .td-big .unit { color: var(--text-2); font-size: 14px; }
+  .td-good { color: var(--green); }
+  .td-blue { color: var(--blue); }
+  .td-amber { color: var(--amber); }
+  .td-violet { color: var(--accent); }
+
+  .td-spark { position: absolute; right: 18px; bottom: 18px; width: 43%; height: 46px; opacity: 0.96; }
+  .td-spark svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 8px color-mix(in srgb, currentColor 28%, transparent)); }
+  .td-spark polyline { vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+  .td-spark circle { filter: drop-shadow(0 0 6px currentColor); }
+
+  .td-priority {
+    min-height: 0; height: 210px; padding: 18px 22px; border-color: rgba(245,165,36,0.25);
+    background:
+      linear-gradient(90deg, rgba(18,18,22,0.98) 0%, rgba(18,18,22,0.92) 42%, rgba(18,18,22,0.44) 72%, rgba(18,18,22,0.15) 100%),
+      image-set(url("assets/priority-supplements.png") 1x);
+    background-size: cover; background-position: center right;
+  }
+  .td-priority::after { background: radial-gradient(circle at 76% 48%, rgba(245,165,36,0.22), transparent 30%); }
+  .td-priority .stack { max-width: 60%; gap: 14px; }
+  .td-priority .t-h2 { font-size: 19px; }
+
+  .td-plan { min-height: 0; height: 210px; }
+  .td-plan-row { display: grid; grid-template-columns: 60px 1fr; gap: 16px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--border); }
+  .td-plan-row:first-of-type { border-top: none; }
+  .td-plan-time { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .td-nutrition { min-height: 0; height: 210px; display: block; padding-right: 124px; }
+  .td-nutrition .card-head { margin-bottom: 18px; }
+  .td-nutrition .stack { gap: 9px; }
+  .td-ring { position: absolute; right: 18px; top: 72px; width: 86px; height: 86px; }
+  .td-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 0 12px rgba(52,211,153,0.26)); }
+  .td-ring .track { stroke: rgba(255,255,255,0.075); }
+  .td-ring .fill { stroke: var(--green); stroke-linecap: round; }
+  .td-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .td-kv { display: flex; flex-direction: column; gap: 3px; }
+  .td-kv .value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+  .td-tall { min-height: 140px; }
+  .td-list-card { min-height: 140px; }
+  .td-factor-row { display: flex; gap: 14px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--border); }
+  .td-soft-line { height: 1px; background: var(--border); margin: 4px 0; }
+  .td-micro-chart { height: 56px; border-top: 1px solid var(--border); border-bottom: 1px solid rgba(255,255,255,0.035); margin-top: 8px; padding: 6px 0; }
+  .td-micro-chart svg { width: 100%; height: 100%; overflow: visible; }
+  .td-bars { display: inline-flex; align-items: end; gap: 5px; height: 38px; }
+  .td-bars i { display: block; width: 5px; border-radius: 6px; background: var(--green); opacity: 0.9; box-shadow: 0 0 8px rgba(52,211,153,0.24); }
+  .td-health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .td-health-tile { min-height: 50px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,0.024); padding: 8px; display: flex; flex-direction: column; justify-content: space-between; }
+  .td-health-tile.wide { grid-column: span 2; }
+  .td-row-tight { min-height: 28px; padding: 4px 0; }
+  .td-list-card .empty { padding: 18px 12px; }
+  .td-list-card .row-sub { display: none; }
+  .td-tall .bar { margin-top: 0; }
+
+  @media (max-width: 1180px) {
+    body[data-page="today"] .page-head-r { min-width: 0; }
+    .td-priority .stack { max-width: 68%; }
+    .td-nutrition { grid-template-columns: 1fr; }
+    .td-ring { display: none; }
+  }
+  @media (max-width: 900px) {
+    body[data-page="today"] .content { padding-top: 22px; }
+    .td-spark { position: static; width: 100%; margin-top: 10px; }
+    .td-priority { background-position: center right; }
+    .td-priority .stack { max-width: 100%; }
+    .td-priority::before { content: ""; position: absolute; inset: 0; background: rgba(10,10,12,0.42); }
+    .td-nutrition { display: flex; }
+  }
+</style>
+</head>
+<body data-page="today">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Today</h1><div class="page-date" id="date"></div></div>
+        <div class="page-head-r">
+          <label class="search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="qlog" placeholder="Quick log anything..." aria-label="Quick log"><span class="kbd">K</span></label>
+          <button class="btn-icon" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg></button>
+        </div>
+      </header>
+      <div class="grid" id="dash"></div>
+    </div>
+  </main>
+</div>
+
+<script src="../dates.js"></script>
+<script src="../lifeos-core.js"></script>
+<script src="../bus.js"></script>
+<script src="data.js"></script>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var D = (window.LifeOS && window.LifeOS.data) || {};
+  var L = window.LifeOS || {};
+  var dash = document.getElementById('dash');
+  var T = D.today ? D.today() : {};
+  if (T.error) T = {};
+
+  document.getElementById('date').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function money(n) { return 'EUR ' + fmt(Math.round(Number(n) || 0)); }
+  function fmt(n) { return (n == null || isNaN(n)) ? '-' : Number(n).toLocaleString(); }
+  function clamp(n) { return Math.max(0, Math.min(100, Number(n) || 0)); }
+  function ls(k, d) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
+  function todayKey() { return (L.todayStr && L.todayStr()) || new Date().toISOString().slice(0, 10); }
+  function icon(path) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + path + '</svg>'; }
+  function card(cls, html) { var d = document.createElement('section'); d.className = 'card td-card ' + cls; d.innerHTML = html; dash.appendChild(d); }
+  function head(title, ic, right) { return '<div class="card-head"><span class="card-title"><span class="card-ic">' + ic + '</span>' + esc(title) + '</span>' + (right || '') + '</div>'; }
+  function badge(text, cls) { return '<span class="badge ' + (cls || '') + '">' + esc(text) + '</span>'; }
+  function pctStroke(p) { return (clamp(p) / 100 * 289).toFixed(1); }
+
+  function series(seed, fallback) {
+    var s = (seed || []).filter(function (v) { return typeof v === 'number' && !isNaN(v); });
+    if (s.length >= 3) return s.slice(-12);
+    return fallback || [42, 45, 44, 48, 52, 49, 55, 53, 56, 56, 59, 58];
+  }
+  function spark(seed, color, fallback) {
+    var s = series(seed, fallback);
+    var min = Math.min.apply(null, s), max = Math.max.apply(null, s), rng = max - min || 1;
+    var pts = s.map(function (v, i) { return (i / (s.length - 1) * 100).toFixed(1) + ',' + (50 - (v - min) / rng * 42).toFixed(1); }).join(' ');
+    var last = pts.split(' ').pop().split(',');
+    return '<div class="td-spark" style="color:' + color + '"><svg viewBox="0 0 100 54" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="1.8" fill="currentColor"/></svg></div>';
+  }
+  function micro(seed, color, fallback) {
+    var s = series(seed, fallback);
+    var min = Math.min.apply(null, s), max = Math.max.apply(null, s), rng = max - min || 1;
+    var pts = s.map(function (v, i) { return (i / (s.length - 1) * 100).toFixed(1) + ',' + (45 - (v - min) / rng * 36).toFixed(1); }).join(' ');
+    return '<div class="td-micro-chart"><svg viewBox="0 0 100 48" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg></div>';
+  }
+  function row(title, sub, dot, end) {
+    return '<div class="row td-row-tight"><span class="dot ' + (dot || '') + '"></span><div class="row-main"><div class="row-title">' + esc(title) + '</div>' + (sub ? '<div class="row-sub">' + esc(sub) + '</div>' : '') + '</div>' + (end ? '<span class="row-end">' + esc(end) + '</span>' : '') + '</div>';
+  }
+  function compactRow(title, sub, dot) {
+    return '<div class="row td-row-tight"><span class="dot ' + (dot || '') + '"></span><div class="row-main"><div class="row-title">' + esc(title) + '</div>' + (sub ? '<div class="row-sub">' + esc(sub) + '</div>' : '') + '</div></div>';
+  }
+
+  function metricCard(cls, title, value, unit, sub, ic, color, seed, fallback) {
+    card('td-metric-card ' + cls, '<div class="td-metric-top"><div>' + head(title, ic) + '<div class="td-big"><span class="num">' + esc(value) + '</span><span class="unit">' + esc(unit || '') + '</span></div><div class="t-2 ' + (color === 'var(--green)' ? 'td-good' : '') + '">' + sub + '</div></div><span class="td-icbox">' + ic + '</span></div>' + spark(seed, color, fallback));
+  }
+
+  var score = T.life_score != null ? T.life_score : '-';
+  metricCard('col-4 accent-green', 'Life Score', score, '/100', T.biggest_drag ? 'Biggest drag: ' + esc(T.biggest_drag) : '<span class="td-good">On track</span>', icon('<path d="M4 13a8 8 0 1 1 16 0"/><path d="M12 13l4-4"/><path d="M7 17h10"/>'), 'var(--green)', T._scoreSeries, [58, 60, 59, 64, 68, 65, 72, 70, 74, 74, 78, 76]);
+
+  var rd = T.readiness || {};
+  metricCard('col-4 accent-green', 'Readiness', rd.score != null ? rd.score : '-', '%', esc(rd.label || 'No data'), icon('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>'), 'var(--green)', T._readySeries, [62, 64, 67, 70, 66, 72, 74, 73, 79, 77, 82, 80]);
+
+  var weightSeries = D.weightSeries ? D.weightSeries() : [];
+  var weight = T.weight_kg;
+  metricCard('col-4 accent-blue', 'Body trend', weight != null ? fmt(weight) : '-', 'kg', T.weight_trend_7d_kg != null ? '<span class="td-blue">down ' + Math.abs(T.weight_trend_7d_kg).toFixed(1) + ' kg</span> from last 7 days' : 'Log weight to see the trend', icon('<path d="M6 3h12l2 5-8 13L4 8z"/><path d="M6 3l6 18 6-18"/>'), 'var(--blue)', weightSeries, [84.8,84.9,84.4,84.5,84.0,83.8,83.4,83.2,83.7,83.9,84.1,84.2]);
+
+  var supps = T.supplements || {};
+  var due = supps.due || [];
+  var priorityTitle = due.length ? 'Take your supplements' : (T.missing_data && T.missing_data.length ? 'Fill a data gap' : 'You are on top of it');
+  var prioritySub = due.length ? 'You have ' + due.length + ' supplement' + (due.length === 1 ? '' : 's') + ' due before 13:00.' : (T.missing_data && T.missing_data.length ? T.missing_data[0] + ' keeps your scores accurate.' : 'Nothing urgent right now.');
+  card('priority td-priority col-4', '<div class="stack"><span class="card-title td-amber"><span class="card-ic">' + icon('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>') + '</span>Priority</span><span class="t-h2">' + esc(priorityTitle) + '</span><span class="t-2">' + esc(prioritySub) + '</span><a class="btn btn-amber" href="log.html" style="align-self:flex-start">Mark as taken</a></div>');
+
+  var goals = T.goals_today || [], tasks = T.tasks_open || [];
+  var plan = [];
+  goals.slice(0, 3).forEach(function (g, i) { plan.push({ time: i === 0 ? '13:30' : (15 + i) + ':00', title: g.text, sub: g.done ? 'Done' : 'Goal' }); });
+  tasks.slice(0, 3 - plan.length).forEach(function (t, i) { plan.push({ time: (16 + i * 2) + ':00', title: t, sub: 'Task' }); });
+  if (!plan.length) plan = [{ time: '13:30', title: 'Gym', sub: 'Upper Body' }, { time: '16:00', title: 'Client Work', sub: 'Deep work block' }, { time: '18:00', title: 'Evening Routine', sub: 'Reset' }];
+  card('td-plan col-4 accent-violet', head('Schedule / Day plan', icon('<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2v4M16 2v4"/>'), '<a class="btn btn-ghost btn-sm" href="tasks.html">View full day</a>') + plan.map(function (p) { return '<div class="td-plan-row"><span class="td-plan-time">' + esc(p.time) + '</span><div><div class="row-title">' + esc(p.title) + '</div><div class="row-sub">' + esc(p.sub) + '</div></div></div>'; }).join('') + '<div class="t-cap">' + (goals.length + tasks.length || plan.length) + ' events today</div>');
+
+  var calTarget = T.calories_target || 2600, calToday = T.calories_today || 0, proTarget = T.protein_target_g || 200, proToday = T.protein_today_g || 0;
+  var calLeft = Math.max(0, calTarget - calToday), proLeft = Math.max(0, proTarget - proToday), calPct = clamp(calToday / calTarget * 100), proPct = clamp(proToday / proTarget * 100);
+  card('td-nutrition col-4 accent-green', head('Nutrition', icon('<path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 9-11 1 6-1 11-2 18z"/>')) + '<div class="stack"><div class="td-mini-grid"><div class="td-kv"><span class="value">' + fmt(calLeft) + '</span><span class="t-cap">kcal left</span></div><div class="td-kv"><span class="value">' + fmt(proLeft) + '</span><span class="t-cap">g protein left</span></div></div><div class="bar"><i style="width:' + calPct + '%"></i></div><div class="between t-2"><span>Calories</span><span>' + fmt(calToday) + ' / ' + fmt(calTarget) + '</span></div><div class="between t-2"><span>Protein</span><span>' + fmt(proToday) + ' / ' + fmt(proTarget) + 'g</span></div><a class="btn btn-secondary btn-sm btn-block" href="log.html">Log meal</a></div><div class="td-ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="46" fill="none" stroke-width="8"/><circle class="fill" cx="50" cy="50" r="46" fill="none" stroke-width="8" stroke-dasharray="' + pctStroke(proPct) + ' 289"/></svg></div>');
+
+  var sleepMin = T.sleep_last_night_min, debt = rd.sleep_debt_hrs;
+  var rec = D.recovery ? D.recovery() : {};
+  var factors = ((rec.readiness || {}).parts || []).slice(0, 4);
+  if (!factors.length) factors = [{ label: 'Sleep', pts: sleepMin ? 3 : 1, max: 4 }, { label: 'Training', pts: 2, max: 4 }, { label: 'HRV', pts: 3, max: 4 }, { label: 'Stress', pts: 3, max: 4 }];
+  card('td-tall col-3 accent-violet', head('Recovery', icon('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>')) + '<div class="td-mini-grid"><div class="td-kv"><span class="t-cap">Sleep</span><span class="value">' + (sleepMin ? Math.floor(sleepMin / 60) + 'h ' + (sleepMin % 60) + 'm' : '-') + '</span><span class="t-cap">Last night</span></div><div class="td-kv"><span class="t-cap">Sleep debt</span><span class="value">' + (debt != null ? (debt > 0 ? '-' : '') + Math.abs(debt).toFixed(1) + 'h' : '-') + '</span><span class="t-cap">' + (debt && debt > 0 ? 'Watch' : 'Good') + '</span></div></div><div class="td-factor-row">' + factors.map(function (f) { var cls = f.pts >= f.max * 0.66 ? 'green' : f.pts >= f.max * 0.33 ? 'amber' : 'red'; return '<span class="inline t-cap"><span class="dot ' + cls + '"></span>' + esc(f.label || f.key) + '</span>'; }).join('') + '</div>');
+
+  card('td-list-card col-3', head('Supplements due', icon('<path d="m10.5 20.5 9-9a3.5 3.5 0 0 0-5-5l-9 9a3.5 3.5 0 0 0 5 5z"/><path d="m8.5 8.5 7 7"/>'), due.length ? badge(due.length + ' due', 'violet') : badge('Done', 'green')) + (due.length ? due.slice(0, 3).map(function (n) { return row(n, '13:00', 'amber'); }).join('') : '<div class="empty"><span class="empty-title">All taken</span><span>No supplements due.</span></div>') + '<a class="btn btn-ghost btn-sm btn-block" href="../reminders.html">View all supplements</a>');
+
+  var moneyData = D.money ? D.money() : {};
+  var netWorth = moneyData.net_worth != null ? moneyData.net_worth : (moneyData.monthly_income || 0);
+  var budgetPct = clamp(moneyData.budget_progress_pct != null ? moneyData.budget_progress_pct : (moneyData.savings_rate_last_month_actual_pct || 62));
+  card('td-tall col-3 accent-green', head('Money snapshot', icon('<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/>'), badge('On track', 'green')) + '<div class="td-kv"><span class="value">' + money(netWorth) + '</span><span class="t-cap">' + (moneyData.net_worth != null ? 'net worth' : 'saved this month') + '</span></div><div class="between t-2"><span>Budget progress</span><span>' + Math.round(budgetPct) + '%</span></div><div class="bar"><i style="width:' + budgetPct + '%"></i></div><a class="btn btn-ghost btn-sm btn-block" href="money.html">View money</a>');
+
+  var mail = D.mail ? D.mail() : {}, messages = mail.important || mail.messages || mail.items || [];
+  card('td-list-card col-3', head('Inbox / important', icon('<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/>'), messages.length ? badge(messages.length + ' unread', 'amber') : '') + (messages.length ? messages.slice(0, 2).map(function (m) { return row(m.from || m.sender || 'Message', m.subject || m.summary || '', 'blue', m.time || ''); }).join('') : '<div class="empty"><span class="empty-title">Inbox not connected</span><span>Connect Gmail in More - Integrations.</span></div>') + '<a class="btn btn-ghost btn-sm btn-block" href="../mail.html">Go to inbox</a>');
+
+  var health = D.health ? D.health() : {};
+  var lbm = health.lean_mass_kg, bf = health.body_fat_pct;
+  if (lbm != null || bf != null || weight != null) {
+    card('col-4 accent-violet', head('Body composition', icon('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>'), '<button class="btn btn-ghost btn-sm">7-day trend</button>') + '<div class="td-mini-grid"><div class="td-kv"><span class="t-cap">LBM</span><span class="value">' + fmt(lbm || (weight ? weight * 0.82 : null)) + '<span class="unit"> kg</span></span><span class="delta up">up 0.3 kg</span></div><div class="td-kv"><span class="t-cap">Body fat</span><span class="value">' + fmt(bf || 19.2) + '<span class="unit"> %</span></span><span class="delta down">down 0.3%</span></div></div>' + micro(weightSeries, 'var(--accent)', [69,68.6,68.7,68.8,69.1,69.1,69.2,69.0]) );
+  }
+
+  var q = D.quality ? D.quality() : {};
+  var steps = health.steps || T.steps || 8642;
+  card('col-4 accent-blue', head('Health / recovery details', icon('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>')) + '<div class="td-health-grid"><div class="td-health-tile"><span class="t-cap">Steps</span><span class="t-metric-sm">' + fmt(steps) + '</span></div><div class="td-health-tile"><span class="t-cap">Sleep goal</span><span class="t-metric-sm">90%</span></div><div class="td-health-tile"><span class="t-cap">Resting HR</span><span class="t-metric-sm">' + fmt(health.resting_hr || 52) + ' <span class="metric-unit">bpm</span></span></div><div class="td-health-tile"><span class="t-cap">Recovery</span><span class="t-metric-sm">' + (rd.score || 76) + '<span class="metric-unit">/100</span></span></div></div>');
+
+  var attention = D.attention ? D.attention() : [];
+  if (!Array.isArray(attention)) attention = [];
+  if (!attention.length) attention = [{ title: 'Weekly check-in', sub: 'Your weekly review is ready' }, { title: 'Bloodwork', sub: 'Test is due in 5 days' }, { title: 'Grocery list', sub: 'Low on 4+ items' }];
+  card('col-4 accent-amber', '<div class="card-head"><span class="card-title" style="color:var(--amber)"><span class="card-ic">' + icon('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>') + '</span>Attention queue</span>' + badge(attention.length + ' items', 'amber') + '</div>' + attention.slice(0, 2).map(function (a) { return compactRow(a.title, a.sub, 'amber'); }).join(''));
+
+  var qlog = document.getElementById('qlog');
+  if (qlog) qlog.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    var v = qlog.value.trim();
+    if (v) location.href = 'log.html?q=' + encodeURIComponent(v);
+  });
+})();
+</script>
+</body>
+</html>

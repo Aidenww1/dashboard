@@ -307,7 +307,7 @@
           : emptyHtml('🧴', 'No skin check today', 'Rate your skin and note concerns.', 'Log skin');
         var more = '<div class="ds-list"><div class="ds-list-header">More</div><div class="ds-group">' +
           pushRow('Routine, products, breakouts', 'skin.html') +
-          pushRow('Lab — ingredients & devices', 'glowlab.html') + '</div></div>';
+          pushRow('Lab — ingredients & devices', 'ui/glowlab.html') + '</div></div>';
         p.innerHTML = add + entries + more;
         wireAdd(p, function () { skinSheet(); });
         wireEntries(p, 'skin');

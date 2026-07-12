@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Social — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .sc-card { display: flex; align-items: center; gap: var(--s3); }
+  body[data-page="more"] .sc-av { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; }
+  body[data-page="more"] .sc-since { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: var(--r-pill); }
+  body[data-page="more"] .sc-x { background: none; border: none; color: var(--text-3); cursor: pointer; min-width: 36px; min-height: 36px; }
+  body[data-page="more"] .sc-x:hover { color: var(--red); }
+  body[data-page="more"] .sc-sec { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin: var(--s4) 0 var(--s2); }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Social</h1><div class="page-date">Stay in touch</div></div>
+        <div class="page-head-r"><button class="btn btn-primary" id="addBtn">+ Add</button><a class="btn btn-ghost btn-sm" href="more.html">‹ More</a></div>
+      </header>
+      <div class="segmented" role="tablist" id="tabs" style="margin-bottom:var(--s4)">
+        <button role="tab" aria-selected="true" data-tab="contacts">Contacts</button>
+        <button role="tab" aria-selected="false" data-tab="birthdays">Birthdays</button>
+      </div>
+      <div id="list" class="stack"></div>
+    </div>
+  </main>
+</div>
+<script src="../dates.js"></script>
+<script src="ui.js"></script>
+<script src="../cloudsync.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'social:contacts:v1';
+  var REL_LABELS = { friend: 'Friend', close_friend: 'Close friend', family: 'Family', colleague: 'Colleague', mentor: 'Mentor', acquaintance: 'Acquaintance', romantic: 'Romantic' };
+  var REL_COLORS = { friend: '#5B9DFF', close_friend: '#9B6BFF', family: '#E07658', colleague: '#F5A524', mentor: '#34D399', acquaintance: '#7C7C86', romantic: '#FF8FAB' };
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch (e) { return []; } }
+  function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function daysSince(s) { if (!s) return 9999; return Math.floor((Date.now() - new Date(s).getTime()) / 864e5); }
+  function daysUntilBday(s) { if (!s) return null; var now = new Date(), y = now.getFullYear(), p = s.split('-'), m = p[1], d = p[2], next = new Date(y, m - 1, d); if (next < now) next = new Date(y + 1, m - 1, d); return Math.ceil((next - now) / 864e5); }
+  function initials(n) { return n.split(' ').slice(0, 2).map(function (w) { return w[0] || ''; }).join('').toUpperCase(); }
+  var tab = 'contacts', listEl = document.getElementById('list');
+
+  function contactCard(c, overdue) {
+    var days = daysSince(c.lastContact), color = REL_COLORS[c.rel] || '#7C7C86';
+    var sc = overdue ? 'var(--amber)' : 'var(--green)', label = c.lastContact ? days + 'd ago' : 'never';
+    return '<div class="card sc-card"><div class="sc-av" style="background:' + color + '">' + esc(initials(c.name)) + '</div>'
+      + '<div class="row-main"><div class="row-title">' + esc(c.name) + '</div><div class="row-sub">' + esc(REL_LABELS[c.rel] || c.rel) + (c.notes ? ' · ' + esc(c.notes) : '') + '</div></div>'
+      + '<div class="stack" style="gap:6px;align-items:flex-end"><span class="sc-since" style="background:color-mix(in srgb,' + sc + ' 16%,transparent);color:' + sc + '">' + label + '</span>'
+      + '<div class="inline"><button class="btn btn-secondary btn-sm" data-saw="' + c.id + '">✓ Saw them</button><button class="btn btn-ghost btn-sm" data-edit="' + c.id + '">Edit</button><button class="sc-x" data-del="' + c.id + '" aria-label="Delete">×</button></div></div></div>';
+  }
+  function render() {
+    var contacts = load();
+    if (tab === 'birthdays') {
+      var withB = contacts.filter(function (c) { return c.bday; }).sort(function (a, b) { return (daysUntilBday(a.bday) || 999) - (daysUntilBday(b.bday) || 999); });
+      listEl.innerHTML = withB.length ? withB.map(function (c) {
+        var days = daysUntilBday(c.bday), col = days === 0 ? 'var(--amber)' : days <= 7 ? 'var(--amber)' : 'var(--green)';
+        var lbl = days === 0 ? '🎂 Today!' : days === 1 ? 'Tomorrow' : 'In ' + days + ' days';
+        var p = c.bday.split('-');
+        return '<div class="card between"><div class="row-main"><div class="row-title">' + esc(c.name) + '</div><div class="row-sub">' + MONTHS[p[1] - 1] + ' ' + parseInt(p[2]) + ' · ' + esc(REL_LABELS[c.rel] || c.rel) + '</div></div><span style="color:' + col + ';font-weight:600;font-size:13px">' + lbl + '</span></div>';
+      }).join('') : '<div class="card"><div class="empty"><span class="empty-title">No birthdays yet</span><span>Add a contact with a birthday.</span></div></div>';
+      wire(); return;
+    }
+    if (!contacts.length) { listEl.innerHTML = '<div class="card"><div class="empty"><span class="empty-title">No contacts yet</span><span>Add someone with the + button.</span></div></div>'; return; }
+    var overdue = contacts.filter(function (c) { return daysSince(c.lastContact) > (c.freq || 30); }).sort(function (a, b) { return daysSince(b.lastContact) - daysSince(a.lastContact); });
+    var rest = contacts.filter(function (c) { return daysSince(c.lastContact) <= (c.freq || 30); }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var h = '';
+    if (overdue.length) h += '<div class="sc-sec" style="color:var(--amber)">⚠ Overdue check-ins</div>' + overdue.map(function (c) { return contactCard(c, true); }).join('');
+    if (rest.length) h += '<div class="sc-sec">All contacts</div>' + rest.map(function (c) { return contactCard(c, false); }).join('');
+    listEl.innerHTML = h; wire();
+  }
+  function find(id) { var d = load(); return { d: d, c: d.find(function (x) { return x.id === id; }) }; }
+  function wire() {
+    listEl.querySelectorAll('[data-saw]').forEach(function (b) { b.onclick = function () { var r = find(b.dataset.saw); if (r.c) { r.c.lastContact = today(); save(r.d); render(); UI.toast('Logged'); } }; });
+    listEl.querySelectorAll('[data-edit]').forEach(function (b) { b.onclick = function () { contactSheet(load().find(function (c) { return c.id === b.dataset.edit; })); }; });
+    listEl.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { UI.confirm({ title: 'Delete this contact?', onConfirm: function () { save(load().filter(function (c) { return c.id !== b.dataset.del; })); render(); } }); }; });
+  }
+  function contactSheet(pre) {
+    pre = pre || {};
+    UI.sheet({ title: pre.id ? 'Edit contact' : 'Add contact', body:
+      '<div class="field"><span class="label">Name</span><input class="input" id="n" value="' + esc(pre.name || '') + '"></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)"><div class="field"><span class="label">Relationship</span><select class="select" id="r">' + Object.keys(REL_LABELS).map(function (k) { return '<option value="' + k + '"' + (pre.rel === k ? ' selected' : '') + '>' + REL_LABELS[k] + '</option>'; }).join('') + '</select></div><div class="field"><span class="label">Check-in every (days)</span><input class="input num" id="f" type="number" value="' + (pre.freq || 30) + '"></div></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Birthday</span><input class="input" id="bd" type="date" value="' + (pre.bday || '') + '"></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Notes</span><input class="input" id="nt" value="' + esc(pre.notes || '') + '"></div>'
+      + '<button class="btn btn-primary btn-block" id="cs" style="margin-top:var(--s4)">' + (pre.id ? 'Save changes' : 'Add contact') + '</button>' });
+    var sheet = document.querySelector('.sheet');
+    sheet.querySelector('#cs').addEventListener('click', function () {
+      var name = sheet.querySelector('#n').value.trim(); if (!name) { UI.toast('Name required'); return; }
+      var f = { name: name, rel: sheet.querySelector('#r').value, bday: sheet.querySelector('#bd').value || null, notes: sheet.querySelector('#nt').value.trim() || null, freq: parseInt(sheet.querySelector('#f').value) || 30 };
+      var d = load();
+      if (pre.id) { var c = d.find(function (x) { return x.id === pre.id; }); if (c) Object.assign(c, f); }
+      else d.push(Object.assign({ id: Date.now().toString(36), lastContact: null, createdAt: today() }, f));
+      save(d); document.querySelector('.backdrop').click(); render(); UI.toast(pre.id ? 'Updated' : 'Contact added');
+    });
+  }
+  var tabs = [].slice.call(document.querySelectorAll('#tabs [role=tab]'));
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { tabs.forEach(function (x) { x.setAttribute('aria-selected', 'false'); }); t.setAttribute('aria-selected', 'true'); tab = t.dataset.tab; render(); });
+    t.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight' && tabs[i + 1]) tabs[i + 1].focus(); if (e.key === 'ArrowLeft' && tabs[i - 1]) tabs[i - 1].focus(); });
+  });
+  document.getElementById('addBtn').addEventListener('click', function () { contactSheet(); });
+  window._socialRender = render;
+  if (window.LifeOSSync) { try { LifeOSSync.register('social-app', ['social:contacts:v1'], { onApply: render }); } catch (e) {} }
+  render();
+})();
+</script>
+</body>
+</html>

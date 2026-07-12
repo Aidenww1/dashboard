@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Settings — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .se-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: 48px; }
+  body[data-page="more"] .se-row + .se-row { border-top: 1px solid var(--border); }
+  body[data-page="more"] .se-row .input { width: 110px; height: 40px; }
+  body[data-page="more"] .se-status { font-size: 12px; color: var(--green); min-height: 16px; margin-top: var(--s2); }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Settings</h1><div class="page-date">Targets, AI &amp; data</div></div>
+        <div class="page-head-r"><a class="btn btn-ghost btn-sm" href="more.html">‹ More</a></div>
+      </header>
+      <div class="grid">
+        <div class="card col-6">
+          <div class="card-title">Targets</div>
+          <div class="se-row"><span>Daily calories (kcal)</span><input class="input num" type="number" id="goalCalories" placeholder="2000"></div>
+          <div class="se-row"><span>Daily protein (g)</span><input class="input num" type="number" id="goalProtein" placeholder="150"></div>
+          <div class="se-row"><span>Sleep target (h)</span><input class="input num" type="number" step="0.5" id="goalSleep" placeholder="8"></div>
+          <div class="se-row"><span>Water (bottles)</span><input class="input num" type="number" id="goalWater" placeholder="8"></div>
+          <button class="btn btn-primary btn-sm" id="saveGoals" style="align-self:flex-start;margin-top:var(--s3)">Save targets</button>
+          <div class="se-status" id="goalStatus"></div>
+        </div>
+        <div class="card col-6">
+          <div class="card-title">AI context</div>
+          <div class="se-row"><span>Context window (days)</span><input class="input num" type="number" id="aiContextDays" placeholder="14"></div>
+          <div class="se-row"><span>Include finance</span><button class="toggle" role="switch" aria-checked="false" id="aiFin"></button></div>
+          <div class="se-row"><span>Include bloodwork</span><button class="toggle" role="switch" aria-checked="true" id="aiBlood"></button></div>
+          <button class="btn btn-primary btn-sm" id="saveAI" style="align-self:flex-start;margin-top:var(--s3)">Save AI context</button>
+          <div class="se-status" id="aiStatus"></div>
+        </div>
+        <div class="card col-12">
+          <div class="card-title">Data</div>
+          <div class="se-row"><div><div class="row-title">Export everything</div><div class="row-sub">Download all local data as JSON</div></div><button class="btn btn-secondary btn-sm" id="exportBtn">Export</button></div>
+          <div class="se-row"><div><div class="row-title" style="color:var(--red)">Clear all local data</div><div class="row-sub">Wipes localStorage — your Supabase backup is NOT deleted</div></div><button class="btn btn-danger btn-sm" id="clearBtn">Clear</button></div>
+          <div class="se-status" id="dataStatus"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'settings:v1';
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+  function $(id) { return document.getElementById(id); }
+  function flash(id, msg) { var el = $(id); if (!el) return; el.textContent = msg; setTimeout(function () { el.textContent = ''; }, 3000); }
+  function tog(el, on) { el.setAttribute('aria-checked', on ? 'true' : 'false'); }
+  function isOn(el) { return el.getAttribute('aria-checked') === 'true'; }
+
+  var s = load();
+  $('goalCalories').value = s.goalCalories || '';
+  $('goalProtein').value = s.goalProtein || '';
+  $('goalSleep').value = s.goalSleep || '';
+  $('goalWater').value = s.goalWater || '';
+  $('aiContextDays').value = s.aiContextDays || 14;
+  tog($('aiFin'), s.aiIncludeFinance === true);
+  tog($('aiBlood'), s.aiIncludeBloodwork !== false);
+  [$('aiFin'), $('aiBlood')].forEach(function (t) { t.addEventListener('click', function () { tog(t, !isOn(t)); }); });
+
+  $('saveGoals').addEventListener('click', function () {
+    var d = load();
+    d.goalCalories = parseInt($('goalCalories').value) || null;
+    d.goalProtein = parseInt($('goalProtein').value) || null;
+    d.goalSleep = parseFloat($('goalSleep').value) || null;
+    d.goalWater = parseInt($('goalWater').value) || null;
+    save(d);
+    if (d.goalCalories) { var nt = {}; try { nt = JSON.parse(localStorage.getItem('nt:tdee') || '{}'); } catch (e) {} nt.calories = d.goalCalories; if (d.goalProtein) nt.protein = d.goalProtein; localStorage.setItem('nt:tdee', JSON.stringify(nt)); }
+    flash('goalStatus', 'Saved');
+  });
+  $('saveAI').addEventListener('click', function () {
+    var d = load();
+    d.aiContextDays = parseInt($('aiContextDays').value) || 14;
+    d.aiIncludeFinance = isOn($('aiFin'));
+    d.aiIncludeBloodwork = isOn($('aiBlood'));
+    save(d); flash('aiStatus', 'Saved');
+  });
+  $('exportBtn').addEventListener('click', function () {
+    var out = {};
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); try { out[k] = JSON.parse(localStorage.getItem(k)); } catch (e) { out[k] = localStorage.getItem(k); } }
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' }));
+    a.download = 'lifeos-export-' + new Date().toISOString().slice(0, 10) + '.json'; a.click(); URL.revokeObjectURL(a.href);
+    flash('dataStatus', 'Downloaded');
+  });
+  $('clearBtn').addEventListener('click', function () {
+    UI.confirm({ title: 'Clear ALL local data?', body: 'Your Supabase backup is safe. The app reloads after.', onConfirm: function () {
+      localStorage.clear(); flash('dataStatus', 'Cleared — reloading…'); setTimeout(function () { location.href = 'today.html'; }, 1200);
+    } });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wearable — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .w-big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; }
+  body[data-page="more"] .w-chart { display: flex; align-items: flex-end; gap: 5px; height: 64px; margin-top: var(--s3); }
+  body[data-page="more"] .w-bw { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  body[data-page="more"] .w-bar { width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 3px; }
+  body[data-page="more"] .w-bar.today { background: var(--green); }
+  body[data-page="more"] .w-bar.sleep { background: #818CF8; }
+  body[data-page="more"] .w-day { font-size: 10px; color: var(--text-3); }
+  body[data-page="more"] .w-mini { display: flex; gap: var(--s4); margin-top: var(--s2); }
+  body[data-page="more"] .w-mini .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+  body[data-page="more"] .w-mini .l { font-size: 11px; color: var(--text-3); }
+  body[data-page="more"] .w-conn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-3); }
+  body[data-page="more"] .w-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-4); }
+  body[data-page="more"] .w-dot.on { background: var(--green); }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Wearable</h1><div class="page-date"><span class="w-conn"><span class="w-dot" id="dot"></span><span id="conn">…</span></span></div></div>
+        <div class="page-head-r"><button class="btn btn-secondary btn-sm" id="sync">Refresh</button><a class="btn btn-ghost btn-sm" href="more.html">‹ More</a></div>
+      </header>
+      <div class="t-cap" id="lastSync" style="margin-bottom:var(--s3)"></div>
+      <div class="grid">
+        <div class="card col-6"><div class="card-title">Steps</div><div id="steps"></div></div>
+        <div class="card col-6"><div class="card-title">Heart rate</div><div id="hr"></div></div>
+        <div class="card col-6"><div class="card-title">Sleep</div><div id="sleep"></div></div>
+        <div class="card col-3"><div class="card-title">Calories</div><div id="cal"></div></div>
+        <div class="card col-3"><div class="card-title">Distance</div><div id="dist"></div></div>
+        <div class="card col-3"><div class="card-title">Floors</div><div id="floors"></div></div>
+        <div class="card col-9"><div class="card-title">Exercises</div><div id="ex"></div></div>
+      </div>
+      <div class="card col-12" style="margin-top:var(--s4)"><div class="card-title">Set up Tasker / Health Connect</div><div class="t-2" style="margin-top:var(--s2)">In Tasker, read aggregated Health Connect data and POST it to <code>/api/health/{type}</code> (steps, totalcalories, sleep, heartrate, distance, floorsclimbed). The endpoint is <code>https://dashboard-pi-green-48.vercel.app/api/health/{type}</code>. See the legacy <a href="../watch.html" style="color:var(--accent)">setup guide</a> for the full step-by-step.</div></div>
+    </div>
+  </main>
+</div>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  // ---- data + parsing logic ported VERBATIM from watch.html (Health Connect schema) ----
+  const KEY = 'watch:data:v3';
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+  function fmtDate(ms) { return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+  function fmtWeekday(s) { return new Date(s + 'T12:00').toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2); }
+  async function fetchMetric(type) { try { const r = await fetch('/api/health/read/' + type + '?limit=100&days=7', { signal: AbortSignal.timeout(10000) }); if (!r.ok) return []; const j = await r.json(); return j.rows || []; } catch (e) { return []; } }
+  function rowHasData(row) { const d = row && row.data; if (!d || typeof d !== 'object') return false; if (Object.keys(d.longValues || {}).length || Object.keys(d.doubleValues || {}).length) return true; if (Array.isArray(d.records)) return d.records.length > 0; if (Array.isArray(d.samples)) return d.samples.length > 0; return Object.keys(d).some(k => !['longValues', 'doubleValues', 'dataOrigins', 'records', 'samples', 'pageToken'].includes(k)); }
+  function latestByDate(rows, extractFn) { const byDate = {}; for (const row of rows) { if (!rowHasData(row)) continue; const date = row.created_at.slice(0, 10); if (!byDate[date] || row.created_at > byDate[date].created_at) byDate[date] = Object.assign({ date, created_at: row.created_at }, extractFn(row)); } return Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date)); }
+  const lv = row => (row.data && row.data.longValues) || {};
+  const dv = row => (row.data && row.data.doubleValues) || {};
+  const recs = row => (row.data && Array.isArray(row.data.records)) ? row.data.records : [];
+
+  async function syncData() {
+    const btn = document.getElementById('sync'); btn.textContent = 'Fetching…'; btn.disabled = true;
+    try {
+      const [stepsRows, calRows, sleepRows, hrRows, distRows, floorsRows] = await Promise.all([fetchMetric('steps'), fetchMetric('totalcalories'), fetchMetric('sleep'), fetchMetric('heartrate'), fetchMetric('distance'), fetchMetric('floorsclimbed')]);
+      const steps = latestByDate(stepsRows, r => ({ steps: lv(r).Steps_count_total || recs(r).reduce((s, x) => s + (x.count || 0), 0) }));
+      const calories = latestByDate(calRows, r => { const agg = dv(r).TotalCaloriesBurned_energy_total; const kcal = agg ? Math.round(agg / 1000) : Math.round(recs(r).reduce((s, x) => s + ((x.energy && x.energy.kilocalories) || 0), 0)); return { kcal }; });
+      const sleep = latestByDate(sleepRows, r => { let ms = lv(r).SleepSession_sleep_duration_total || 0; if (!ms) ms = recs(r).reduce((s, x) => s + ((x.endTime || 0) - (x.startTime || 0)), 0); const start = (recs(r)[0] && recs(r)[0].startTime) || (new Date(r.created_at).getTime() - ms); return { hours: +(ms / 3600000).toFixed(2), start }; });
+      const heartRate = [];
+      for (const r of hrRows) { if (!rowHasData(r)) continue; const d = r.data || {}; const rs = recs(r); if (rs.length) { for (const rec of rs) for (const s of (rec.samples || [])) { if (s.beatsPerMinute) heartRate.push({ time: s.time || new Date(r.created_at).getTime(), bpm: Math.round(s.beatsPerMinute) }); } } else { let bpm = dv(r).HeartRate_bpm_avg || lv(r).HeartRate_bpm_avg || dv(r).RestingHeartRate_bpm_avg || 0; if (!bpm && Array.isArray(d.samples) && d.samples.length) bpm = d.samples[d.samples.length - 1].beatsPerMinute || 0; if (bpm) heartRate.push({ time: new Date(r.created_at).getTime(), bpm: Math.round(bpm) }); } }
+      heartRate.sort((a, b) => a.time - b.time);
+      const distance = latestByDate(distRows, r => { const m = dv(r).Distance_distance_total || recs(r).reduce((s, x) => s + ((x.distance && x.distance.meters) || 0), 0); return { km: +(m / 1000).toFixed(2) }; });
+      const floors = latestByDate(floorsRows, r => { const agg = dv(r).FloorsClimbed_floors_total || lv(r).FloorsClimbed_floors_total; const fromRecs = recs(r).reduce((s, x) => s + (x.floors || (x.elevation && x.elevation.meters) || 0), 0); return { count: Math.round(agg || fromRecs || 0) }; });
+      const now = Date.now();
+      const data = { steps, calories, sleep, heartRate, distance, floors, exercises: [], syncTime: now };
+      save(data); setConn(true, 'Loaded from cloud'); renderAll(data);
+    } catch (e) { setConn(false, 'Failed: ' + (e.message || 'error')); }
+    finally { btn.textContent = 'Refresh'; btn.disabled = false; }
+  }
+
+  // ---- render (restyled to shared classes) ----
+  function setConn(on, txt) { document.getElementById('dot').className = 'w-dot' + (on ? ' on' : ''); document.getElementById('conn').textContent = txt; }
+  function nd(id) { document.getElementById(id).innerHTML = '<div class="empty" style="padding:var(--s3)"><span>No data yet</span></div>'; }
+  function todayKey() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function renderAll(data) {
+    if (!data) { ['steps', 'hr', 'sleep', 'cal', 'dist', 'floors', 'ex'].forEach(nd); return; }
+    if (data.syncTime) document.getElementById('lastSync').textContent = 'Last synced ' + new Date(data.syncTime).toLocaleString();
+    var st = data.steps || []; if (!st.length) nd('steps'); else { var l7 = st.slice(-7), today = l7[l7.length - 1], mx = Math.max.apply(null, l7.map(s => s.steps).concat([1])), avg = Math.round(l7.reduce((s, d) => s + d.steps, 0) / l7.length), tk = todayKey();
+      document.getElementById('steps').innerHTML = '<div class="w-big">' + ((today && today.steps) || 0).toLocaleString() + '</div><div class="t-cap">today · avg ' + avg.toLocaleString() + '</div><div class="w-chart">' + l7.map(d => '<div class="w-bw"><div class="w-bar' + (d.date === tk ? ' today' : '') + '" style="height:' + Math.max(3, Math.round(d.steps / mx * 56)) + 'px"></div><div class="w-day">' + fmtWeekday(d.date) + '</div></div>').join('') + '</div>'; }
+    var hr = data.heartRate || []; if (!hr.length) nd('hr'); else { var b = hr.map(s => s.bpm), lt = b[b.length - 1], av = Math.round(b.reduce((a, c) => a + c, 0) / b.length);
+      document.getElementById('hr').innerHTML = '<div class="w-big" style="color:var(--red)">' + lt + '</div><div class="t-cap">latest BPM</div><div class="w-mini"><div><div class="v">' + av + '</div><div class="l">avg</div></div><div><div class="v">' + Math.min.apply(null, b) + '</div><div class="l">min</div></div><div><div class="v">' + Math.max.apply(null, b) + '</div><div class="l">max</div></div></div>'; }
+    var sl = data.sleep || []; if (!sl.length) nd('sleep'); else { var s7 = sl.slice(-7), mh = Math.max.apply(null, s7.map(s => s.hours).concat([0.1])), sav = (s7.reduce((s, d) => s + d.hours, 0) / s7.length).toFixed(1), latest = s7[s7.length - 1].hours;
+      document.getElementById('sleep').innerHTML = '<div class="w-big" style="color:#818CF8">' + latest + 'h</div><div class="t-cap">last night · avg ' + sav + 'h</div><div class="w-chart">' + s7.map(s => '<div class="w-bw"><div class="w-bar sleep" style="height:' + Math.max(3, Math.round(s.hours / mh * 56)) + 'px"></div><div class="w-day">' + new Date(s.start).toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2) + '</div></div>').join('') + '</div>'; }
+    var cal = data.calories || []; if (!cal.length) nd('cal'); else document.getElementById('cal').innerHTML = '<div class="w-big" style="font-size:26px">' + ((cal[cal.length - 1].kcal) || 0).toLocaleString() + '</div><div class="t-cap">kcal today</div>';
+    var di = data.distance || []; if (!di.length) nd('dist'); else { var dav = (di.reduce((s, d) => s + d.km, 0) / di.length).toFixed(1); document.getElementById('dist').innerHTML = '<div class="w-big" style="font-size:26px">' + di[di.length - 1].km + '</div><div class="t-cap">km · avg ' + dav + '</div>'; }
+    var fl = data.floors || []; if (!fl.length) nd('floors'); else { var fav = Math.round(fl.reduce((s, d) => s + d.count, 0) / fl.length); document.getElementById('floors').innerHTML = '<div class="w-big" style="font-size:30px">' + fl[fl.length - 1].count + '</div><div class="t-cap">floors · avg ' + fav + '</div>'; }
+    var ex = data.exercises || []; if (!ex.length) document.getElementById('ex').innerHTML = '<div class="empty" style="padding:var(--s3)"><span>No exercises synced</span></div>'; else document.getElementById('ex').innerHTML = ex.slice(-5).reverse().map(e => '<div class="between" style="padding:var(--s2) 0"><div class="row-main"><div class="row-title">' + (e.title || 'Exercise') + '</div><div class="row-sub">' + fmtDate(e.start) + '</div></div><span class="num">' + (e.durationMin >= 60 ? Math.floor(e.durationMin / 60) + 'h ' + (e.durationMin % 60) + 'm' : e.durationMin + 'm') + '</span></div>').join('');
+  }
+
+  document.getElementById('sync').addEventListener('click', syncData);
+  var cached = load();
+  setConn(!!(cached && cached.syncTime), cached && cached.syncTime ? 'Data from Tasker sync' : 'No data yet — run Tasker sync');
+  renderAll(cached);
+  syncData();
+  setInterval(syncData, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') syncData(); });
+})();
+</script>
+</body>
+</html>

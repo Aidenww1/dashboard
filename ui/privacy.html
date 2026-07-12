@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacy &amp; Data — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .pv-list { padding-left: 18px; margin: var(--s2) 0 0; }
+  body[data-page="more"] .pv-list li { font-size: 14px; line-height: 1.6; color: var(--text-2); margin-bottom: var(--s2); }
+  body[data-page="more"] code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--text); }
+  body[data-page="more"] .pv-danger { border-color: rgba(242,85,90,0.3); }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Privacy &amp; Data</h1><div class="page-date">Where your data lives, and how to wipe it</div></div>
+        <div class="page-head-r"><a class="btn btn-ghost btn-sm" href="more.html">‹ More</a></div>
+      </header>
+      <div class="grid">
+        <div class="card col-8">
+          <div class="card-title">Where your data lives</div>
+          <ul class="pv-list">
+            <li><strong>This device</strong> — everything you log lives in your browser (localStorage) and, for progress photos, IndexedDB.</li>
+            <li><strong>Supabase</strong> (your private project) — a synced copy in <code>app_state</code> so your devices stay in sync, plus per-metric health tables fed by Tasker, and <code>events</code>.</li>
+            <li><strong>Anthropic</strong> — only the specific text/image you submit for an AI analysis is sent, per request. Not stored there by this app.</li>
+          </ul>
+        </div>
+        <div class="card col-4 accent-amber">
+          <div class="card-title">Special-category data</div>
+          <div class="t-2" style="margin-top:var(--s2)">Health, bloodwork, supplements, skin, and finance data are sensitive. They're never shared — the only copies are on your devices and in your own Supabase project.</div>
+        </div>
+        <div class="card col-12 pv-danger">
+          <div class="card-title" style="color:var(--red)">Delete everything</div>
+          <div class="t-2" style="margin-top:var(--s2)">Wipes all local data (localStorage + photo store) on this device <em>and</em> deletes the synced <code>app_state</code> rows in Supabase so it can't sync back. Health-metric tables aren't touched here. This cannot be undone.</div>
+          <button class="btn btn-danger" id="wipeBtn" type="button" style="align-self:flex-start;margin-top:var(--s3)">Delete everything</button>
+          <div class="t-2" id="status" style="margin-top:var(--s2)"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var SUPA = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
+  var KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
+  var btn = document.getElementById('wipeBtn'), status = document.getElementById('status');
+  btn.addEventListener('click', function () {
+    UI.confirm({
+      title: 'Delete ALL your data?',
+      body: 'On this device and in the cloud. Everything you have logged will be gone. This cannot be undone.',
+      onConfirm: run,
+    });
+  });
+  function run() {
+    btn.disabled = true; status.textContent = 'Wiping…';
+    fetch(SUPA + '/rest/v1/app_state?key=neq.__never__', { method: 'DELETE', headers: { apikey: KEY, Authorization: 'Bearer ' + KEY } })
+      .catch(function () {})
+      .then(function () {
+        try { localStorage.clear(); } catch (e) {}
+        try { sessionStorage.clear(); } catch (e) {}
+        try { indexedDB.deleteDatabase('lifeos-photos'); } catch (e) {}
+        if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+        status.textContent = 'Done. Everything wiped. Reloading…';
+        setTimeout(function () { location.href = 'today.html'; }, 1200);
+      });
+  }
+})();
+</script>
+</body>
+</html>

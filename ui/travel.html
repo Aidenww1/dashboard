@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Travel — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="more"] .tv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s2); }
+  body[data-page="more"] .tv-mini { display: flex; gap: var(--s2); }
+  body[data-page="more"] .tv-mini .input { height: 36px; }
+  body[data-page="more"] .tv-exp, body[data-page="more"] .tv-pack { display: flex; align-items: center; gap: var(--s2); min-height: 40px; }
+  body[data-page="more"] .tv-exp .nm, body[data-page="more"] .tv-pack .nm { flex: 1; min-width: 0; font-size: 13px; }
+  body[data-page="more"] .tv-pack .nm.done { color: var(--text-3); text-decoration: line-through; }
+  body[data-page="more"] .tv-x { background: none; border: none; color: var(--text-3); cursor: pointer; min-width: 36px; min-height: 36px; }
+  body[data-page="more"] .tv-x:hover { color: var(--red); }
+  body[data-page="more"] .tv-sec-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin: var(--s3) 0 var(--s2); }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Travel</h1><div class="page-date">Trips, packing &amp; expenses</div></div>
+        <div class="page-head-r"><button class="btn btn-primary" id="newTrip">+ New trip</button><a class="btn btn-ghost btn-sm" href="more.html">‹ More</a></div>
+      </header>
+      <div id="tripList" class="stack"></div>
+    </div>
+  </main>
+</div>
+<script src="../dates.js"></script>
+<script src="ui.js"></script>
+<script src="../cloudsync.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var KEY = 'travel:trips:v1';
+  var PACK_DEFAULTS = ['🛂 Passport', '✈️ Tickets', '🏨 Hotel booking', '💳 Cards', '🔋 Phone charger', '💊 Medications', '👗 Clothes', '🧴 Toiletries', '📷 Camera', '🎧 Headphones', '💵 Cash', '🩺 Travel insurance'];
+  var STATUS = { planning: { label: 'Planning', cls: 'amber' }, booked: { label: 'Booked', cls: 'blue' }, current: { label: 'Now', cls: 'green' }, past: { label: 'Past', cls: '' } };
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch (e) { return []; } }
+  function save(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  var listEl = document.getElementById('tripList');
+
+  function tripCard(trip) {
+    var st = STATUS[trip.status] || STATUS.planning;
+    var spent = (trip.expenses || []).reduce(function (s, e) { return s + (e.amount || 0); }, 0);
+    var budget = trip.budget || 0, pct = budget ? Math.min(100, Math.round(spent / budget * 100)) : 0;
+    var packDone = (trip.pack || []).filter(function (p) { return p.done; }).length, packTot = (trip.pack || []).length;
+    var h = '<div class="card"><div class="tv-head"><div class="row-main"><div class="t-h2">' + esc(trip.destination) + '</div>'
+      + '<div class="row-sub">' + (trip.start ? esc(trip.start) : '') + (trip.end ? ' → ' + esc(trip.end) : '') + '</div>'
+      + (trip.notes ? '<div class="t-cap" style="margin-top:2px">' + esc(trip.notes) + '</div>' : '') + '</div>'
+      + '<div class="stack" style="gap:6px;align-items:flex-end"><span class="badge ' + st.cls + '">' + st.label + '</span>'
+      + '<div class="inline"><button class="btn btn-ghost btn-sm" data-edit="' + trip.id + '">Edit</button><button class="btn btn-ghost btn-sm" data-deltrip="' + trip.id + '" style="color:var(--red)">Delete</button></div></div></div>';
+    if (budget) {
+      var col = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--green)';
+      h += '<div style="margin-top:var(--s3)"><div class="between t-cap"><span>Budget €' + budget + '</span><span style="color:' + col + '">€' + Math.round(spent) + ' · ' + pct + '%</span></div>'
+        + '<div class="bar" style="margin-top:var(--s1)"><i style="width:' + pct + '%;background:' + col + '"></i></div></div>';
+    }
+    // expenses
+    h += '<div class="tv-sec-title">Expenses</div>';
+    h += '<div class="tv-mini"><input class="input" id="expName-' + trip.id + '" placeholder="Item"><input class="input num" id="expAmt-' + trip.id + '" type="number" placeholder="€" style="width:80px"><button class="btn btn-secondary btn-sm" data-addexp="' + trip.id + '">+</button></div>';
+    h += (trip.expenses || []).map(function (e, i) { return '<div class="tv-exp"><span class="nm">' + esc(e.name) + '</span><span class="num" style="font-weight:600">€' + e.amount + '</span><button class="tv-x" data-rmexp="' + trip.id + '" data-i="' + i + '" aria-label="Remove">×</button></div>'; }).join('');
+    // packing
+    h += '<div class="tv-sec-title">Packing · ' + packDone + '/' + packTot + (packTot ? '' : ' <button class="btn btn-ghost btn-sm" data-initpack="' + trip.id + '">Load defaults</button>') + '</div>';
+    h += (trip.pack || []).map(function (it, i) { return '<div class="tv-pack"><button class="check" role="checkbox" aria-checked="' + (it.done ? 'true' : 'false') + '" data-pack="' + trip.id + '" data-i="' + i + '">' + (it.done ? '✓' : '') + '</button><span class="nm' + (it.done ? ' done' : '') + '">' + esc(it.name) + '</span><button class="tv-x" data-rmpack="' + trip.id + '" data-i="' + i + '" aria-label="Remove">×</button></div>'; }).join('');
+    h += '<div class="tv-mini" style="margin-top:var(--s2)"><input class="input" id="packNew-' + trip.id + '" placeholder="Add item…" style="flex:1"><button class="btn btn-secondary btn-sm" data-addpack="' + trip.id + '">+</button></div>';
+    return h + '</div>';
+  }
+
+  function render() {
+    var trips = load();
+    if (!trips.length) { listEl.innerHTML = '<div class="card"><div class="empty"><span class="empty-title">No trips yet</span><span>Plan one with “New trip”.</span></div></div>'; return; }
+    var order = { current: 0, planning: 1, booked: 2, past: 3 };
+    listEl.innerHTML = trips.slice().sort(function (a, b) { return (order[a.status] || 2) - (order[b.status] || 2) || (a.start || '').localeCompare(b.start || ''); }).map(tripCard).join('');
+    wire();
+  }
+  function find(id) { var d = load(); return { d: d, t: d.find(function (x) { return x.id === id; }) }; }
+  function wire() {
+    listEl.querySelectorAll('[data-deltrip]').forEach(function (b) { b.onclick = function () { UI.confirm({ title: 'Delete this trip?', body: 'Packing and expenses go with it.', onConfirm: function () { save(load().filter(function (t) { return t.id !== b.dataset.deltrip; })); render(); } }); }; });
+    listEl.querySelectorAll('[data-edit]').forEach(function (b) { b.onclick = function () { tripSheet(load().find(function (t) { return t.id === b.dataset.edit; })); }; });
+    listEl.querySelectorAll('[data-pack]').forEach(function (b) { b.onclick = function () { var r = find(b.dataset.pack); if (r.t && r.t.pack && r.t.pack[+b.dataset.i]) { r.t.pack[+b.dataset.i].done = !r.t.pack[+b.dataset.i].done; save(r.d); render(); } }; });
+    listEl.querySelectorAll('[data-rmpack]').forEach(function (b) { b.onclick = function () { var r = find(b.dataset.rmpack); if (r.t && r.t.pack) { r.t.pack.splice(+b.dataset.i, 1); save(r.d); render(); } }; });
+    listEl.querySelectorAll('[data-rmexp]').forEach(function (b) { b.onclick = function () { var r = find(b.dataset.rmexp); if (r.t && r.t.expenses) { r.t.expenses.splice(+b.dataset.i, 1); save(r.d); render(); } }; });
+    listEl.querySelectorAll('[data-initpack]').forEach(function (b) { b.onclick = function () { var r = find(b.dataset.initpack); if (r.t) { r.t.pack = PACK_DEFAULTS.map(function (n) { return { name: n, done: false }; }); save(r.d); render(); } }; });
+    listEl.querySelectorAll('[data-addpack]').forEach(function (b) { b.onclick = function () { var inp = document.getElementById('packNew-' + b.dataset.addpack), nm = inp && inp.value.trim(); if (!nm) return; var r = find(b.dataset.addpack); if (r.t) { (r.t.pack = r.t.pack || []).push({ name: nm, done: false }); save(r.d); render(); } }; });
+    listEl.querySelectorAll('[data-addexp]').forEach(function (b) { b.onclick = function () { var ne = document.getElementById('expName-' + b.dataset.addexp), ae = document.getElementById('expAmt-' + b.dataset.addexp), nm = ne && ne.value.trim(), amt = parseFloat(ae && ae.value); if (!nm || isNaN(amt)) return; var r = find(b.dataset.addexp); if (r.t) { (r.t.expenses = r.t.expenses || []).push({ name: nm, amount: amt, date: today() }); save(r.d); render(); } }; });
+  }
+
+  function tripSheet(pre) {
+    pre = pre || {};
+    UI.sheet({ title: pre.id ? 'Edit trip' : 'New trip', body:
+      '<div class="field"><span class="label">Destination</span><input class="input" id="d" value="' + esc(pre.destination || '') + '"></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)"><div class="field"><span class="label">Start</span><input class="input" id="s" type="date" value="' + (pre.start || '') + '"></div><div class="field"><span class="label">End</span><input class="input" id="e" type="date" value="' + (pre.end || '') + '"></div></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)"><div class="field"><span class="label">Budget €</span><input class="input num" id="b" type="number" value="' + (pre.budget || '') + '"></div><div class="field"><span class="label">Status</span><select class="select" id="st">' + Object.keys(STATUS).map(function (k) { return '<option value="' + k + '"' + (pre.status === k ? ' selected' : '') + '>' + STATUS[k].label + '</option>'; }).join('') + '</select></div></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Notes</span><textarea class="input" id="n">' + esc(pre.notes || '') + '</textarea></div>'
+      + '<button class="btn btn-primary btn-block" id="ts" style="margin-top:var(--s4)">' + (pre.id ? 'Save changes' : 'Create trip') + '</button>' });
+    var sheet = document.querySelector('.sheet');
+    sheet.querySelector('#ts').addEventListener('click', function () {
+      var dest = sheet.querySelector('#d').value.trim(); if (!dest) { UI.toast('Destination required'); return; }
+      var f = { destination: dest, start: sheet.querySelector('#s').value || null, end: sheet.querySelector('#e').value || null, budget: parseFloat(sheet.querySelector('#b').value) || null, status: sheet.querySelector('#st').value, notes: sheet.querySelector('#n').value.trim() || null };
+      var d = load();
+      if (pre.id) { var t = d.find(function (x) { return x.id === pre.id; }); if (t) Object.assign(t, f); }
+      else d.push(Object.assign({ id: Date.now().toString(36), pack: [], expenses: [] }, f));
+      save(d); document.querySelector('.backdrop').click(); render(); UI.toast(pre.id ? 'Trip updated' : 'Trip created');
+    });
+  }
+  document.getElementById('newTrip').addEventListener('click', function () { tripSheet(); });
+  window._travelRender = render;
+  if (window.LifeOSSync) { try { LifeOSSync.register('travel-app', ['travel:trips:v1'], { onApply: render }); } catch (e) {} }
+  render();
+})();
+</script>
+</body>
+</html>

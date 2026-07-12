@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mind — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="log"] .md-moods { display: flex; gap: var(--s2); }
+  body[data-page="log"] .md-mb { flex: 1; aspect-ratio: 1; border-radius: var(--r-control); background: var(--surface-raised); border: 1px solid var(--border); font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  body[data-page="log"] .md-mb.sel { border-color: var(--accent); background: var(--accent-soft); }
+  body[data-page="log"] .md-tags { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  body[data-page="log"] .md-tag { padding: 5px var(--s3); border-radius: var(--r-pill); background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-2); font-size: 13px; cursor: pointer; }
+  body[data-page="log"] .md-tag.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+  body[data-page="log"] .md-chart { display: flex; align-items: flex-end; gap: 4px; height: 70px; }
+  body[data-page="log"] .md-cb { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  body[data-page="log"] .md-cbar { width: 100%; border-radius: 3px 3px 0 0; min-height: 4px; }
+  body[data-page="log"] .md-x { background: none; border: none; color: var(--text-3); cursor: pointer; min-width: 32px; min-height: 32px; }
+  body[data-page="log"] .md-stats { display: flex; gap: var(--s5); }
+  body[data-page="log"] .md-timer { font-size: 64px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; margin: var(--s3) 0; }
+  body[data-page="log"] [hidden] { display: none !important; }
+</style>
+</head>
+<body data-page="log">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Mind</h1><div class="page-date">Mood, journal, gratitude &amp; meditation</div></div>
+        <div class="page-head-r"><a class="btn btn-ghost btn-sm" href="log.html">‹ Log</a></div>
+      </header>
+      <div class="segmented" role="tablist" id="tabs" style="margin-bottom:var(--s4)">
+        <button role="tab" aria-selected="true" data-tab="mood">Mood</button>
+        <button role="tab" aria-selected="false" data-tab="journal">Journal</button>
+        <button role="tab" aria-selected="false" data-tab="gratitude">Gratitude</button>
+        <button role="tab" aria-selected="false" data-tab="meditate">Meditate</button>
+      </div>
+
+      <section id="panel-mood" class="stack">
+        <div class="card">
+          <div class="between"><div class="card-title">How are you?</div><span class="t-cap" id="moodStatus"></span></div>
+          <div class="md-moods" id="moods"></div>
+          <div class="t-cap" style="margin-top:var(--s2)">Tags</div>
+          <div class="md-tags" id="tags"></div>
+          <textarea class="input" id="moodNote" placeholder="Note (optional)" style="height:auto;min-height:64px;padding:var(--s2);margin-top:var(--s2)"></textarea>
+          <button class="btn btn-primary" id="saveMood" style="align-self:flex-start;margin-top:var(--s3)">Save mood</button>
+        </div>
+        <div class="card" id="moodStatsCard" hidden>
+          <div class="card-title">Last 14 days</div>
+          <div class="md-chart" id="moodBars" style="margin-top:var(--s2)"></div>
+          <div class="md-stats" style="margin-top:var(--s3)"><div class="stack" style="gap:0"><span class="t-cap">Avg (7d)</span><span class="t-metric-sm" id="avgMood">—</span></div><div class="stack" style="gap:0"><span class="t-cap">Streak</span><span class="t-metric-sm" id="streak">0</span></div><div class="stack" style="gap:0"><span class="t-cap">Top tag</span><span class="t-metric-sm" id="topTag">—</span></div><div class="stack" style="gap:0"><span class="t-cap">Trend</span><span class="t-metric-sm" id="trend">—</span></div></div>
+        </div>
+        <div class="card"><div class="card-title">History</div><div id="moodHist" class="stack" style="gap:0;margin-top:var(--s2)"></div></div>
+      </section>
+
+      <section id="panel-journal" class="stack" hidden>
+        <div class="card">
+          <div class="between"><div class="card-title">New entry</div><button class="btn btn-ghost btn-sm" id="promptBtn">Prompt me</button></div>
+          <textarea class="input" id="journalText" placeholder="What's on your mind?" style="height:auto;min-height:96px;padding:var(--s2);margin-top:var(--s2)"></textarea>
+          <button class="btn btn-primary" id="saveJournal" style="align-self:flex-start;margin-top:var(--s3)">Save entry</button>
+        </div>
+        <div id="journalList" class="stack"></div>
+      </section>
+
+      <section id="panel-gratitude" class="stack" hidden>
+        <div class="card">
+          <div class="card-title">Three things today</div>
+          <input class="input" id="g1" placeholder="1." style="margin-top:var(--s2)">
+          <input class="input" id="g2" placeholder="2." style="margin-top:var(--s2)">
+          <input class="input" id="g3" placeholder="3." style="margin-top:var(--s2)">
+          <button class="btn btn-primary" id="saveGrat" style="align-self:flex-start;margin-top:var(--s3)">Save</button>
+        </div>
+        <div class="card"><div class="card-title">Past</div><div id="gratHist" class="stack" style="margin-top:var(--s2)"></div></div>
+      </section>
+
+      <section id="panel-meditate" class="stack" hidden>
+        <div class="card">
+          <div class="inline" id="medPresets" style="justify-content:center;flex-wrap:wrap"></div>
+          <div class="md-timer" id="medDisplay">5:00</div>
+          <div class="t-2" id="medPhase" style="text-align:center">Tap play to begin</div>
+          <div class="inline" style="justify-content:center;margin-top:var(--s3)"><button class="btn btn-secondary" id="medReset">Reset</button><button class="btn btn-primary" id="medPlay">▶ Start</button></div>
+        </div>
+        <div class="card">
+          <div class="between"><div class="card-title">4-7-8 breathing</div><button class="btn btn-ghost btn-sm" id="breathToggle">Show</button></div>
+          <div id="breathCard" hidden style="text-align:center;margin-top:var(--s3)"><div class="md-timer" id="breathDisplay">4</div><div class="t-2" id="breathPhase">Tap start</div><button class="btn btn-primary" id="breathStart" style="margin-top:var(--s2)">▶ Start</button></div>
+        </div>
+        <div class="card"><div class="card-title">Sessions</div><div id="medHist" class="stack" style="gap:0;margin-top:var(--s2)"></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="../dates.js"></script>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var MOOD = 'mind:mood:v1', JOUR = 'mind:journal:v1', GRAT = 'mind:gratitude:v1', MED = 'mind:meditation:v1';
+  var EMOJI = { 1: '😞', 2: '😕', 3: '😐', 4: '🙂', 5: '😄' }, LABEL = { 1: 'Awful', 2: 'Bad', 3: 'Meh', 4: 'Good', 5: 'Great' }, COLOR = { 1: '#F2555A', 2: '#F97316', 3: '#F5A524', 4: '#34D399', 5: '#5B9DFF' };
+  var TAGS = ['Anxious', 'Stressed', 'Calm', 'Motivated', 'Tired', 'Energized', 'Focused', 'Distracted', 'Happy', 'Sad', 'Grateful', 'Overwhelmed'];
+  var PROMPTS = ['What went well today?', 'What is weighing on you?', 'What are you looking forward to?', 'What did you learn?', 'Who are you grateful for?'];
+  function load(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+  function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function ds(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function fmtDate(s) { return new Date(s + 'T12:00').toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' }); }
+  function addDays(n) { var d = new Date(); d.setDate(d.getDate() + n); return d; }
+  var moodLogs = load(MOOD) || [], journalLogs = load(JOUR) || [], gratLogs = load(GRAT) || [], medLogs = load(MED) || [];
+  var today = ds(new Date()), selMood = 0, selTags = {};
+  var $ = function (id) { return document.getElementById(id); };
+
+  // tabs
+  var tabs = [].slice.call(document.querySelectorAll('#tabs [role=tab]'));
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { tabs.forEach(function (x) { x.setAttribute('aria-selected', 'false'); }); t.setAttribute('aria-selected', 'true'); document.querySelectorAll('[id^=panel-]').forEach(function (p) { p.hidden = p.id !== 'panel-' + t.dataset.tab; }); });
+    t.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight' && tabs[i + 1]) tabs[i + 1].focus(); if (e.key === 'ArrowLeft' && tabs[i - 1]) tabs[i - 1].focus(); });
+  });
+
+  // ===== MOOD =====
+  $('moods').innerHTML = [1, 2, 3, 4, 5].map(function (v) { return '<button class="md-mb" data-v="' + v + '">' + EMOJI[v] + '</button>'; }).join('');
+  function tagRow() { $('tags').innerHTML = TAGS.map(function (t) { return '<button class="md-tag' + (selTags[t] ? ' sel' : '') + '" data-t="' + t + '">' + t + '</button>'; }).join(''); $('tags').querySelectorAll('[data-t]').forEach(function (b) { b.onclick = function () { selTags[b.dataset.t] = !selTags[b.dataset.t]; tagRow(); }; }); }
+  $('moods').querySelectorAll('[data-v]').forEach(function (b) { b.onclick = function () { selMood = +b.dataset.v; $('moods').querySelectorAll('.md-mb').forEach(function (x) { x.classList.remove('sel'); }); b.classList.add('sel'); }; });
+  var tl = moodLogs.find(function (l) { return l.date === today; });
+  if (tl) { $('moodStatus').textContent = '✓ Logged'; var mb = $('moods').querySelector('[data-v="' + tl.mood + '"]'); if (mb) { selMood = tl.mood; mb.classList.add('sel'); } (tl.tags || []).forEach(function (t) { selTags[t] = true; }); $('moodNote').value = tl.note || ''; }
+  tagRow();
+  $('saveMood').addEventListener('click', function () {
+    if (!selMood) { UI.toast('Pick a mood first'); return; }
+    var tags = Object.keys(selTags).filter(function (t) { return selTags[t]; });
+    var entry = { date: today, mood: selMood, tags: tags, note: $('moodNote').value.trim(), ts: Date.now() };
+    var i = moodLogs.findIndex(function (l) { return l.date === today; });
+    if (i >= 0) moodLogs[i] = entry; else moodLogs.unshift(entry);
+    save(MOOD, moodLogs); $('moodStatus').textContent = '✓ Saved'; moodHist(); moodStats();
+    try { fetch('/api/health/mood', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }).catch(function () {}); } catch (e) {}
+    if (window.addEvent) try { window.addEvent('mood.rating', ['mood'], { date: entry.date, mood: entry.mood, mood_label: LABEL[entry.mood], tags: entry.tags, note: entry.note }).catch(function () {}); } catch (e) {}
+    UI.toast('Mood saved');
+  });
+  function moodHist() {
+    if (!moodLogs.length) { $('moodHist').innerHTML = '<div class="empty"><span>No entries yet</span></div>'; return; }
+    $('moodHist').innerHTML = moodLogs.slice(0, 30).map(function (l) { return '<div class="between" style="padding:var(--s2) 0;border-top:1px solid var(--border)"><div class="row-main"><div class="row-title">' + EMOJI[l.mood] + ' ' + LABEL[l.mood] + (l.note ? ' <span class="t-cap">· ' + esc(l.note) + '</span>' : '') + '</div>' + ((l.tags || []).length ? '<div class="row-sub">' + l.tags.map(esc).join(', ') + '</div>' : '') + '</div><span class="t-cap">' + fmtDate(l.date) + '</span><button class="md-x" data-del="' + l.date + '">×</button></div>'; }).join('');
+    $('moodHist').querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { moodLogs = moodLogs.filter(function (l) { return l.date !== b.dataset.del; }); save(MOOD, moodLogs); moodHist(); moodStats(); }; });
+  }
+  function moodStats() {
+    if (!moodLogs.length) { $('moodStatsCard').hidden = true; return; }
+    $('moodStatsCard').hidden = false;
+    var d14 = []; for (var i = 13; i >= 0; i--) { var k = ds(addDays(-i)), l = moodLogs.find(function (x) { return x.date === k; }); d14.push({ k: k, m: l ? l.mood : 0 }); }
+    $('moodBars').innerHTML = d14.map(function (d) { return '<div class="md-cb"><div class="md-cbar" style="height:' + (d.m ? d.m / 5 * 100 : 6) + '%;background:' + (d.m ? COLOR[d.m] : 'var(--surface-raised)') + '"></div><div class="t-cap" style="font-size:9px">' + new Date(d.k + 'T12:00').toLocaleDateString('en', { weekday: 'short' }).slice(0, 1) + '</div></div>'; }).join('');
+    var week = moodLogs.filter(function (l) { return (new Date() - new Date(l.date + 'T12:00')) < 7 * 864e5; });
+    $('avgMood').textContent = week.length ? (week.reduce(function (s, l) { return s + l.mood; }, 0) / week.length).toFixed(1) : '—';
+    var streak = 0; for (var j = 0; j < 60; j++) { if (moodLogs.find(function (l) { return l.date === ds(addDays(-j)); })) streak++; else break; } $('streak').textContent = streak;
+    var tc = {}; moodLogs.forEach(function (l) { (l.tags || []).forEach(function (t) { tc[t] = (tc[t] || 0) + 1; }); }); var top = Object.keys(tc).sort(function (a, b) { return tc[b] - tc[a]; })[0]; $('topTag').textContent = top ? top.slice(0, 8) : '—';
+    var r3 = [0, 1, 2].map(function (i) { return moodLogs.find(function (l) { return l.date === ds(addDays(-i)); }); }).filter(Boolean), p4 = [3, 4, 5, 6].map(function (i) { return moodLogs.find(function (l) { return l.date === ds(addDays(-i)); }); }).filter(Boolean);
+    if (r3.length && p4.length) { var dl = r3.reduce(function (s, l) { return s + l.mood; }, 0) / r3.length - p4.reduce(function (s, l) { return s + l.mood; }, 0) / p4.length; $('trend').textContent = dl > 0.3 ? '↑' : dl < -0.3 ? '↓' : '→'; $('trend').style.color = dl > 0.3 ? 'var(--green)' : dl < -0.3 ? 'var(--red)' : 'var(--amber)'; } else $('trend').textContent = '—';
+  }
+
+  // ===== JOURNAL =====
+  $('promptBtn').addEventListener('click', function () { $('journalText').placeholder = PROMPTS[Math.floor(Math.random() * PROMPTS.length)]; $('journalText').focus(); });
+  $('saveJournal').addEventListener('click', function () { var t = $('journalText').value.trim(); if (!t) return; journalLogs.unshift({ id: Date.now().toString(36), date: today, text: t, ts: Date.now() }); save(JOUR, journalLogs); $('journalText').value = ''; journalList(); UI.toast('Saved'); });
+  function journalList() {
+    $('journalList').innerHTML = journalLogs.length ? journalLogs.slice(0, 50).map(function (j) { return '<div class="card"><div class="between"><span class="t-cap">' + fmtDate(j.date) + '</span><button class="md-x" data-jd="' + j.id + '">×</button></div><div class="t-body" style="margin-top:var(--s1)">' + esc(j.text) + '</div></div>'; }).join('') : '<div class="card"><div class="empty"><span>No entries yet</span></div></div>';
+    $('journalList').querySelectorAll('[data-jd]').forEach(function (b) { b.onclick = function () { journalLogs = journalLogs.filter(function (j) { return j.id !== b.dataset.jd; }); save(JOUR, journalLogs); journalList(); }; });
+  }
+
+  // ===== GRATITUDE =====
+  var tg = gratLogs.find(function (g) { return g.date === today; });
+  if (tg) { $('g1').value = tg.items[0] || ''; $('g2').value = tg.items[1] || ''; $('g3').value = tg.items[2] || ''; }
+  $('saveGrat').addEventListener('click', function () { var items = [$('g1').value.trim(), $('g2').value.trim(), $('g3').value.trim()].filter(Boolean); if (!items.length) return; var i = gratLogs.findIndex(function (g) { return g.date === today; }); var e = { date: today, items: items }; if (i >= 0) gratLogs[i] = e; else gratLogs.unshift(e); save(GRAT, gratLogs); gratHist(); UI.toast('Saved'); });
+  function gratHist() { var past = gratLogs.filter(function (g) { return g.date !== today; }).slice(0, 30); $('gratHist').innerHTML = past.length ? past.map(function (g) { return '<div class="card"><div class="t-cap">' + fmtDate(g.date) + '</div>' + g.items.map(function (i) { return '<div class="row-title">• ' + esc(i) + '</div>'; }).join('') + '</div>'; }).join('') : '<div class="t-2">Past entries appear here.</div>'; }
+
+  // ===== MEDITATE =====
+  var medSecs = 300, medTotal = 300, medRunning = false, medInt = null;
+  $('medPresets').innerHTML = [60, 180, 300, 600].map(function (s, i) { return '<button class="btn btn-secondary btn-sm" data-s="' + s + '"' + (s === 300 ? ' style="border-color:var(--accent)"' : '') + '>' + (s / 60) + ' min</button>'; }).join('');
+  function fmtT(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+  function medShow() { $('medDisplay').textContent = fmtT(medSecs); }
+  $('medPresets').querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { $('medPresets').querySelectorAll('button').forEach(function (x) { x.style.borderColor = ''; }); b.style.borderColor = 'var(--accent)'; medSecs = medTotal = +b.dataset.s; medRunning = false; clearInterval(medInt); medShow(); $('medPlay').textContent = '▶ Start'; $('medPhase').textContent = 'Tap play to begin'; }; });
+  $('medPlay').addEventListener('click', function () {
+    if (medRunning) { clearInterval(medInt); medRunning = false; $('medPlay').textContent = '▶ Start'; $('medPhase').textContent = 'Paused'; return; }
+    if (medSecs <= 0) { medSecs = medTotal; medShow(); }
+    medRunning = true; $('medPlay').textContent = '⏸ Pause'; $('medPhase').textContent = 'Breathe naturally…';
+    medInt = setInterval(function () { medSecs--; medShow(); if (medSecs <= 0) { clearInterval(medInt); medRunning = false; $('medPlay').textContent = '▶ Start'; $('medPhase').textContent = '✓ Complete'; medLogs.unshift({ date: today, duration: medTotal, ts: Date.now() }); save(MED, medLogs); medHist(); } }, 1000);
+  });
+  $('medReset').addEventListener('click', function () { clearInterval(medInt); medRunning = false; medSecs = medTotal; medShow(); $('medPlay').textContent = '▶ Start'; $('medPhase').textContent = 'Tap play to begin'; });
+  $('breathToggle').addEventListener('click', function () { $('breathCard').hidden = !$('breathCard').hidden; });
+  var bPhase = 0, bSecs = 4, bRun = false, bInt = null, cycles = [{ l: 'Inhale', s: 4 }, { l: 'Hold', s: 7 }, { l: 'Exhale', s: 8 }];
+  $('breathStart').addEventListener('click', function () {
+    if (bRun) { clearInterval(bInt); bRun = false; $('breathStart').textContent = '▶ Start'; $('breathPhase').textContent = 'Paused'; return; }
+    bRun = true; $('breathStart').textContent = '⏸ Pause'; bPhase = 0; bSecs = cycles[0].s;
+    bInt = setInterval(function () { bSecs--; $('breathDisplay').textContent = bSecs; $('breathPhase').textContent = cycles[bPhase].l; if (bSecs <= 0) { bPhase = (bPhase + 1) % 3; bSecs = cycles[bPhase].s; } }, 1000);
+  });
+  function medHist() { $('medHist').innerHTML = medLogs.length ? medLogs.slice(0, 20).map(function (m) { return '<div class="between" style="padding:var(--s2) 0;border-top:1px solid var(--border)"><span>' + Math.round(m.duration / 60) + ' min</span><span class="t-cap">' + fmtDate(m.date) + '</span></div>'; }).join('') : '<div class="empty"><span>No sessions yet</span></div>'; }
+
+  moodHist(); moodStats(); journalList(); gratHist(); medHist();
+})();
+</script>
+</body>
+</html>

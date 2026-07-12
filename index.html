@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Today</title>
+<script>
+// Phase 7: make the deployed dashboard enter the rewritten UI shell.
+(function () {
+  if (/[?&]legacy=1/.test(location.search)) return;
+  location.replace('ui/today.html' + location.search + location.hash);
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="cloudsync.js"></script>
 <script src="realtime.js" defer></script>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tasks — Life OS</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  body[data-page="today"] .tk-projbar { display: flex; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s4); }
+  body[data-page="today"] .tk-chip { padding: 6px var(--s3); border-radius: var(--r-pill); background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-2); font-size: 13px; cursor: pointer; }
+  body[data-page="today"] .tk-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  body[data-page="today"] .tk-card { display: flex; gap: var(--s3); align-items: flex-start; }
+  body[data-page="today"] .tk-card.done .tk-title { color: var(--text-3); text-decoration: line-through; }
+  body[data-page="today"] .tk-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border-strong); cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+  body[data-page="today"] .tk-check.on { background: var(--accent); border-color: var(--accent); }
+  body[data-page="today"] .tk-meta { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; margin-top: 4px; }
+  body[data-page="today"] .tk-sub { display: flex; align-items: center; gap: var(--s2); padding: 3px 0; font-size: 13px; }
+  body[data-page="today"] .tk-sub .c { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--border-strong); cursor: pointer; flex-shrink: 0; }
+  body[data-page="today"] .tk-sub .c.on { background: var(--accent); border-color: var(--accent); }
+  body[data-page="today"] .tk-sub .t.done { color: var(--text-3); text-decoration: line-through; }
+  body[data-page="today"] .tk-x { background: none; border: none; color: var(--text-3); cursor: pointer; min-width: 32px; min-height: 32px; }
+  body[data-page="today"] .tk-subadd { display: flex; gap: var(--s2); margin-top: var(--s2); }
+  body[data-page="today"] .tk-subadd .input { height: 34px; font-size: 13px; }
+</style>
+</head>
+<body data-page="today">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Tasks</h1><div class="page-date"><span id="progLabel">0 / 0</span> done</div></div>
+        <div class="page-head-r"><button class="btn btn-primary" id="addTask">+ Task</button><a class="btn btn-ghost btn-sm" href="today.html">‹ Today</a></div>
+      </header>
+      <div class="bar" style="margin-bottom:var(--s4)"><i id="progFill" style="width:0%"></i></div>
+      <div class="tk-projbar" id="projBar"></div>
+      <div class="segmented" role="tablist" id="filters" style="margin-bottom:var(--s4)">
+        <button role="tab" aria-selected="true" data-filter="all">Open</button>
+        <button role="tab" aria-selected="false" data-filter="today">Today</button>
+        <button role="tab" aria-selected="false" data-filter="week">Week</button>
+        <button role="tab" aria-selected="false" data-filter="overdue">Overdue</button>
+        <button role="tab" aria-selected="false" data-filter="done">Done</button>
+      </div>
+      <div id="list" class="stack"></div>
+    </div>
+  </main>
+</div>
+<script src="../dates.js"></script>
+<script src="ui.js"></script>
+<script src="../cloudsync.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  var TASK_KEY = 'tasks:v1', PROJ_KEY = 'tasks:projects:v1';
+  var COLORS = ['#34D399', '#5B9DFF', '#E07658', '#9B6BFF', '#F5A524', '#F2555A', '#4BC9A0', '#FF8FAB'];
+  var PRI = { urgent: 'red', high: 'amber', medium: 'violet', low: '' };
+  function lt() { try { return JSON.parse(localStorage.getItem(TASK_KEY) || '[]') || []; } catch (e) { return []; } }
+  function st(d) { localStorage.setItem(TASK_KEY, JSON.stringify(d)); }
+  function lp() { try { return JSON.parse(localStorage.getItem(PROJ_KEY) || '[]') || []; } catch (e) { return []; } }
+  function sp(d) { localStorage.setItem(PROJ_KEY, JSON.stringify(d)); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function eow() { var d = new Date(); d.setDate(d.getDate() + (7 - d.getDay())); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  var tasks = lt(), projects = lp(), activeProject = 'all', activeFilter = 'all';
+  if (!projects.length) { projects = [{ id: 'inbox', name: 'Inbox', color: '#34D399' }]; sp(projects); }
+  var listEl = document.getElementById('list');
+
+  function filtered() {
+    var out = tasks; if (activeProject !== 'all') out = out.filter(function (t) { return t.project === activeProject; });
+    var td = today(), ew = eow();
+    if (activeFilter === 'today') return out.filter(function (t) { return !t.done && t.due === td; });
+    if (activeFilter === 'week') return out.filter(function (t) { return !t.done && t.due && t.due <= ew; });
+    if (activeFilter === 'overdue') return out.filter(function (t) { return !t.done && t.due && t.due < td; });
+    if (activeFilter === 'done') return out.filter(function (t) { return t.done; });
+    return out.filter(function (t) { return !t.done; });
+  }
+  function projBar() {
+    document.getElementById('projBar').innerHTML =
+      '<button class="tk-chip' + (activeProject === 'all' ? ' active' : '') + '" data-pid="all">All</button>'
+      + projects.map(function (p) { return '<button class="tk-chip' + (activeProject === p.id ? ' active' : '') + '" data-pid="' + p.id + '"' + (activeProject === p.id ? ' style="background:' + p.color + ';border-color:' + p.color + '"' : '') + '>' + esc(p.name) + '</button>'; }).join('')
+      + '<button class="tk-chip" id="addProj">+ Project</button>';
+    document.querySelectorAll('#projBar [data-pid]').forEach(function (b) { b.onclick = function () { activeProject = b.dataset.pid; render(); }; });
+    document.getElementById('addProj').onclick = projSheet;
+  }
+  function taskCard(t) {
+    var proj = projects.find(function (p) { return p.id === t.project; }), td = today(), overdue = !t.done && t.due && t.due < td;
+    var dueLabel = t.due ? (t.due === td ? 'Today' : overdue ? 'Overdue ' + t.due : t.due) : null;
+    var sd = (t.subtasks || []).filter(function (s) { return s.done; }).length, stt = (t.subtasks || []).length;
+    var h = '<div class="card tk-card' + (t.done ? ' done' : '') + '"><div class="tk-check' + (t.done ? ' on' : '') + '" data-toggle="' + t.id + '"></div><div class="row-main">'
+      + '<div class="tk-title row-title">' + esc(t.title) + '</div>'
+      + '<div class="tk-meta"><span class="badge ' + (PRI[t.priority] || 'violet') + '">' + (t.priority || 'medium') + '</span>'
+      + (proj ? '<span class="t-cap" style="color:' + proj.color + '">' + esc(proj.name) + '</span>' : '')
+      + (dueLabel ? '<span class="t-cap"' + (overdue ? ' style="color:var(--red)"' : '') + '>' + esc(dueLabel) + '</span>' : '')
+      + (stt ? '<span class="t-cap">' + sd + '/' + stt + ' subtasks</span>' : '') + '</div>'
+      + (t.notes ? '<div class="t-cap" style="margin-top:4px">' + esc(t.notes) + '</div>' : '')
+      + (stt ? '<div style="margin-top:var(--s2)">' + t.subtasks.map(function (s, i) { return '<div class="tk-sub"><div class="c' + (s.done ? ' on' : '') + '" data-subtog="' + t.id + '" data-i="' + i + '"></div><span class="t' + (s.done ? ' done' : '') + '" style="flex:1">' + esc(s.text) + '</span><button class="tk-x" data-subdel="' + t.id + '" data-i="' + i + '">×</button></div>'; }).join('') + '</div>' : '')
+      + '<div class="tk-subadd"><input class="input" placeholder="Add subtask…" data-subinp="' + t.id + '" style="flex:1"><button class="btn btn-secondary btn-sm" data-subadd="' + t.id + '">+</button></div>'
+      + '</div><button class="tk-x" data-del="' + t.id + '" aria-label="Delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m-1 0v14H9V6"/></svg></button></div>';
+    return h;
+  }
+  function render() {
+    projBar();
+    var vis = activeProject === 'all' ? tasks : tasks.filter(function (t) { return t.project === activeProject; });
+    var done = vis.filter(function (t) { return t.done; }).length, pct = vis.length ? Math.round(done / vis.length * 100) : 0;
+    document.getElementById('progFill').style.width = pct + '%';
+    document.getElementById('progLabel').textContent = done + ' / ' + vis.length;
+    var f = filtered();
+    if (!f.length) { listEl.innerHTML = '<div class="card"><div class="empty"><span class="empty-title">' + (activeFilter === 'done' ? 'No completed tasks' : 'All clear') + '</span><span>Add a task with the + button.</span></div></div>'; return; }
+    var PO = { urgent: 0, high: 1, medium: 2, low: 3 };
+    listEl.innerHTML = f.slice().sort(function (a, b) { if (PO[a.priority] !== PO[b.priority]) return (PO[a.priority] || 2) - (PO[b.priority] || 2); if (a.due && b.due) return a.due.localeCompare(b.due); if (a.due) return -1; if (b.due) return 1; return 0; }).map(taskCard).join('');
+    wire();
+  }
+  function find(id) { return tasks.find(function (t) { return t.id === id; }); }
+  function wire() {
+    listEl.querySelectorAll('[data-toggle]').forEach(function (b) { b.onclick = function () { var t = find(b.dataset.toggle); if (t) { t.done = !t.done; t.doneAt = t.done ? new Date().toISOString() : null; st(tasks); render(); } }; });
+    listEl.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { UI.confirm({ title: 'Delete this task?', onConfirm: function () { tasks = tasks.filter(function (t) { return t.id !== b.dataset.del; }); st(tasks); render(); } }); }; });
+    listEl.querySelectorAll('[data-subtog]').forEach(function (b) { b.onclick = function () { var t = find(b.dataset.subtog); if (t && t.subtasks && t.subtasks[+b.dataset.i]) { t.subtasks[+b.dataset.i].done = !t.subtasks[+b.dataset.i].done; st(tasks); render(); } }; });
+    listEl.querySelectorAll('[data-subdel]').forEach(function (b) { b.onclick = function () { var t = find(b.dataset.subdel); if (t && t.subtasks) { t.subtasks.splice(+b.dataset.i, 1); st(tasks); render(); } }; });
+    listEl.querySelectorAll('[data-subadd]').forEach(function (b) { b.onclick = function () { var inp = listEl.querySelector('[data-subinp="' + b.dataset.subadd + '"]'), tx = inp && inp.value.trim(); if (!tx) return; var t = find(b.dataset.subadd); if (t) { (t.subtasks = t.subtasks || []).push({ text: tx, done: false }); st(tasks); render(); } }; });
+  }
+  function taskSheet() {
+    UI.sheet({ title: 'New task', body:
+      '<div class="field"><span class="label">Task</span><input class="input" id="tt"></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)"><div class="field"><span class="label">Project</span><select class="select" id="tp">' + projects.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + '</option>'; }).join('') + '</select></div><div class="field"><span class="label">Priority</span><select class="select" id="tpr"><option>medium</option><option>urgent</option><option>high</option><option>low</option></select></div></div>'
+      + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3);margin-top:var(--s3)"><div class="field"><span class="label">Due</span><input class="input" id="td" type="date"></div></div>'
+      + '<div class="field" style="margin-top:var(--s3)"><span class="label">Notes</span><input class="input" id="tn"></div>'
+      + '<button class="btn btn-primary btn-block" id="tsave" style="margin-top:var(--s4)">Add task</button>' });
+    var s = document.querySelector('.sheet');
+    s.querySelector('#tsave').addEventListener('click', function () {
+      var title = s.querySelector('#tt').value.trim(); if (!title) { UI.toast('Task title required'); return; }
+      tasks.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), title: title, project: s.querySelector('#tp').value, priority: s.querySelector('#tpr').value, due: s.querySelector('#td').value || null, notes: s.querySelector('#tn').value.trim() || null, done: false, subtasks: [], createdAt: new Date().toISOString() });
+      st(tasks); document.querySelector('.backdrop').click(); render(); UI.toast('Task added');
+    });
+  }
+  function projSheet() {
+    UI.sheet({ title: 'New project', body: '<div class="field"><span class="label">Name</span><input class="input" id="pn"></div><div class="field" style="margin-top:var(--s3)"><span class="label">Color</span><div class="inline" id="pcols" style="flex-wrap:wrap">' + COLORS.map(function (c, i) { return '<button class="check" data-c="' + c + '" style="background:' + c + ';border-color:' + c + ';width:28px;height:28px' + (i === 0 ? '' : ';opacity:.55') + '"></button>'; }).join('') + '</div></div><button class="btn btn-primary btn-block" id="psave" style="margin-top:var(--s4)">Create project</button>' });
+    var s = document.querySelector('.sheet'), picked = COLORS[0];
+    s.querySelectorAll('[data-c]').forEach(function (b) { b.onclick = function () { picked = b.dataset.c; s.querySelectorAll('[data-c]').forEach(function (x) { x.style.opacity = x === b ? '1' : '.55'; }); }; });
+    s.querySelector('#psave').addEventListener('click', function () { var nm = s.querySelector('#pn').value.trim(); if (!nm) { UI.toast('Name required'); return; } projects.push({ id: Date.now().toString(36), name: nm, color: picked }); sp(projects); document.querySelector('.backdrop').click(); render(); });
+  }
+  var fb = [].slice.call(document.querySelectorAll('#filters [role=tab]'));
+  fb.forEach(function (b, i) { b.addEventListener('click', function () { fb.forEach(function (x) { x.setAttribute('aria-selected', 'false'); }); b.setAttribute('aria-selected', 'true'); activeFilter = b.dataset.filter; render(); }); b.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight' && fb[i + 1]) fb[i + 1].focus(); if (e.key === 'ArrowLeft' && fb[i - 1]) fb[i - 1].focus(); }); });
+  document.getElementById('addTask').addEventListener('click', taskSheet);
+  window._tasksRenderAll = function () { tasks = lt(); projects = lp(); render(); };
+  if (window.LifeOSSync) { try { LifeOSSync.register('tasks-app', ['tasks:v1', 'tasks:projects:v1'], { onApply: window._tasksRenderAll }); } catch (e) {} }
+  render();
+})();
+</script>
+</body>
+</html>

@@ -55,7 +55,8 @@
     'body.html': '#30D158', 'ai.html': '#0A84FF',
     'log.html': '#0A84FF', 'coach.html': '#5E5CE6', 'money.html': '#00C7BE', 'more.html': '#8E8E93',
   };
-  document.documentElement.style.setProperty('--accent', ACCENTS[page] || '#0A84FF');
+  // Rewrite Phase 7: one violet accent app-wide (was per-module ACCENTS).
+  document.documentElement.style.setProperty('--accent', '#7C5CFF');
 
   // ---- LifeOS layer: AI service, context core, command bar ----
   // Loaded sequentially so command.js can rely on both globals.
@@ -168,10 +169,10 @@
   // Old pages stay reachable through the More sheet (full grid below)
   // and through the Log/Coach landing pages during migration.
   const BAR = [
-    { id: 'today', href: 'index.html',   label: 'Today', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' },
-    { id: 'log',   href: 'log.html',     label: 'Log',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
-    { id: 'coach', href: 'coach.html',   label: 'Coach', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>' },
-    { id: 'money', href: 'money.html', label: 'Money', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+    { id: 'today', href: 'ui/today.html',   label: 'Today', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' },
+    { id: 'log',   href: 'ui/log.html',     label: 'Log',   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>' },
+    { id: 'coach', href: 'ui/coach.html',   label: 'Coach', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>' },
+    { id: 'money', href: 'ui/money.html', label: 'Money', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
   ];
   const TAB_OF = {
     'index.html': 'today', 'calendar.html': 'today', 'tasks.html': 'today',
@@ -199,7 +200,7 @@
 
   // More is now a real searchable page (more.html), not a sheet.
   const moreLink = document.createElement('a');
-  moreLink.href = 'more.html';
+  moreLink.href = 'ui/more.html';
   moreLink.className = 'tab' + (activeTab === 'more' ? ' active' : '');
   if (activeTab === 'more') moreLink.setAttribute('aria-current', 'page');
   moreLink.innerHTML = '<span class="tab-icon">' + moreIcon + '</span><span>More</span>';

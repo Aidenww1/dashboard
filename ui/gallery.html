@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Life OS — Phase 0 Gallery</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  /* gallery-only scaffolding */
+  .gsec { margin-top: var(--s7); }
+  .gsec > h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin: 0 0 var(--s3); }
+  .swatches { display: flex; gap: var(--s2); flex-wrap: wrap; }
+  .sw { width: 96px; }
+  .sw i { display: block; height: 40px; border-radius: 8px; border: 1px solid var(--border); }
+  .sw span { font-size: 11px; color: var(--text-3); }
+  .demo-row { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ desktop sidebar ============ -->
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark"></span><span>Life OS</span></div>
+    <nav class="nav">
+      <button class="nav-item active"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span>Today</span></button>
+      <button class="nav-item"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></span><span>Log</span></button>
+      <button class="nav-item"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg></span><span>Coach</span></button>
+      <button class="nav-item"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/></svg></span><span>Money</span></button>
+      <button class="nav-item"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span><span>More</span></button>
+    </nav>
+    <div class="nav-spacer"></div>
+    <div class="user-row"><span class="avatar"></span><span class="ucol"><span style="font-size:13px;font-weight:600">Kees</span></span></div>
+  </aside>
+
+  <!-- ============ main ============ -->
+  <main class="main">
+  <div class="content">
+
+    <!-- page header -->
+    <header class="page-head">
+      <div class="page-head-l">
+        <h1 class="t-page">Today</h1>
+        <div class="page-date">Friday, May 16</div>
+      </div>
+      <div class="page-head-r">
+        <label class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input placeholder="Quick log anything..." aria-label="Quick log">
+          <span class="kbd">⌘K</span>
+        </label>
+        <button class="btn-icon" aria-label="Share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg></button>
+      </div>
+    </header>
+
+    <!-- ===== dashboard ===== -->
+    <div class="grid">
+
+      <!-- status region: Life Score / Readiness / Body trend -->
+      <div class="card col-4 accent-green">
+        <div class="card-head"><span class="card-title">Life Score</span><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M9 7h8v8"/></svg></span></div>
+        <div class="metric-row"><span class="t-metric">78</span><span class="metric-unit">/100</span></div>
+        <div class="delta up">▲ 6 <span style="color:var(--text-3);font-weight:400">from yesterday</span></div>
+        <div class="spark" data-spark="green"></div>
+      </div>
+      <div class="card col-4 accent-green">
+        <div class="card-head"><span class="card-title">Readiness</span><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 2-3.5 2-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 3 8.5c0 2 .5 4 2 5.5l7 7z"/></svg></span></div>
+        <div class="metric-row"><span class="t-metric">71</span><span class="metric-unit">%</span></div>
+        <div class="t-2" style="color:var(--green)">Good to go</div>
+        <div class="spark" data-spark="green"></div>
+      </div>
+      <div class="card col-4 accent-blue">
+        <div class="card-head"><span class="card-title">Body trend</span><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 15l5-5 4 4 6-7"/></svg></span></div>
+        <div class="metric-row"><span class="t-metric">84.2</span><span class="metric-unit">kg</span></div>
+        <div class="delta down">▼ 0.4 kg <span style="color:var(--text-3);font-weight:400">last 7 days</span></div>
+        <div class="spark" data-spark="blue"></div>
+      </div>
+
+      <!-- Priority (wide) + Schedule + Nutrition -->
+      <div class="card priority col-5">
+        <div class="card-head"><span class="card-title" style="color:var(--amber)"><span class="card-ic" style="color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>Priority</span></div>
+        <div class="priority-body">
+          <div class="stack">
+            <span class="t-h2">Take your supplements</span>
+            <span class="t-2">You have 2 supplements due before 13:00.</span>
+            <button class="btn btn-amber" style="align-self:flex-start;margin-top:var(--s2)">Mark as taken</button>
+          </div>
+          <div style="width:120px;height:96px;border-radius:12px;background:radial-gradient(circle at 60% 40%, #C9A86A, #6B5638);flex-shrink:0"></div>
+        </div>
+      </div>
+      <div class="card col-4 accent-violet">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>Schedule</span><button class="btn btn-ghost btn-sm">View full day</button></div>
+        <div class="tl-row next"><span class="tl-time">13:30</span><div class="row-main"><div class="row-title">Gym</div><div class="row-sub">Upper Body</div></div></div>
+        <div class="tl-row"><span class="tl-time">16:00</span><div class="row-main"><div class="row-title">Client Work</div></div></div>
+        <div class="tl-row"><span class="tl-time">18:00</span><div class="row-main"><div class="row-title">Evening Routine</div></div></div>
+        <div class="t-cap inline" style="margin-top:var(--s1)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>3 events today</div>
+      </div>
+      <div class="card col-3 accent-green">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 9-11 1 6-1 11-2 18z"/></svg></span>Nutrition</span></div>
+        <div class="between">
+          <div class="stack" style="gap:var(--s1)">
+            <div class="metric-row"><span class="t-metric-sm">840</span><span class="metric-unit">kcal left</span></div>
+            <div class="metric-row"><span class="t-metric-sm">62</span><span class="metric-unit">g protein</span></div>
+          </div>
+          <div class="ring"><svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="15" fill="none" stroke-width="4"/><circle class="fill" cx="18" cy="18" r="15" fill="none" stroke-width="4" stroke-dasharray="68 94"/></svg></div>
+        </div>
+        <div class="bar"><i style="width:68%"></i></div>
+        <button class="btn btn-secondary btn-sm btn-block" style="margin-top:var(--s2)">Log meal</button>
+      </div>
+
+      <!-- supporting: Recovery / Supplements / Money / Inbox -->
+      <div class="card col-3 accent-violet">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>Recovery</span></div>
+        <div class="between"><div class="stack" style="gap:0"><span class="t-cap">Sleep</span><span class="t-metric-sm">7h 22m</span></div><div class="stack" style="gap:0"><span class="t-cap">Sleep debt</span><span class="t-metric-sm" style="color:var(--amber)">-1h 10m</span></div></div>
+        <div class="t-cap" style="margin-top:var(--s2)">Readiness factors</div>
+        <div class="demo-row" style="gap:var(--s3)"><span class="inline t-cap"><span class="dot green"></span>Sleep</span><span class="inline t-cap"><span class="dot amber"></span>Training</span><span class="inline t-cap"><span class="dot blue"></span>HRV</span><span class="inline t-cap"><span class="dot green"></span>Stress</span></div>
+      </div>
+      <div class="card col-3">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m10.5 20.5 9-9a3.5 3.5 0 0 0-5-5l-9 9a3.5 3.5 0 0 0 5 5z"/><path d="m8.5 8.5 7 7"/></svg></span>Supplements</span><span class="badge violet">2 due</span></div>
+        <div class="row"><span class="dot amber"></span><div class="row-main"><div class="row-title">Creatine Monohydrate</div></div><span class="row-end">13:00</span></div>
+        <div class="row"><span class="dot amber"></span><div class="row-main"><div class="row-title">Vitamin D3</div></div><span class="row-end">13:00</span></div>
+        <button class="btn btn-ghost btn-sm btn-block" style="margin-top:var(--s2)">View all supplements</button>
+      </div>
+      <div class="card col-3 accent-green">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/></svg></span>Money</span><span class="badge green">On track</span></div>
+        <div class="metric-row"><span class="t-metric-sm">$1,230</span></div>
+        <div class="t-cap">saved this month</div>
+        <div class="between t-cap"><span>Budget progress</span><span class="num" style="color:var(--text-2)">62%</span></div>
+        <div class="bar"><i style="width:62%"></i></div>
+        <button class="btn btn-ghost btn-sm btn-block">View money</button>
+      </div>
+      <div class="card col-3">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/></svg></span>Inbox</span><span class="badge amber">2 unread</span></div>
+        <div class="row"><span class="dot blue"></span><div class="row-main"><div class="row-title">service@stripe.com</div><div class="row-sub">Payout of $1,230.00 is on the way</div></div></div>
+        <div class="row"><span class="dot blue"></span><div class="row-main"><div class="row-title">team@acme.com</div><div class="row-sub">Q2 planning: next steps</div></div></div>
+        <button class="btn btn-ghost btn-sm btn-block">Go to inbox</button>
+      </div>
+
+      <!-- analysis: Body composition / Health details / Attention queue -->
+      <div class="card col-5 accent-violet">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>Body composition</span><div class="segmented" role="tablist"><button role="tab" aria-selected="true">7-day</button><button role="tab" aria-selected="false">30-day</button></div></div>
+        <div class="between"><div class="stack" style="gap:0"><span class="t-cap">LBM</span><span class="t-metric-sm">69.1 <span class="metric-unit">kg</span></span><span class="delta up">▲ 0.3 kg</span></div><div class="stack" style="gap:0"><span class="t-cap">Body fat</span><span class="t-metric-sm">19.2 <span class="metric-unit">%</span></span><span class="delta down">▼ 0.3 %</span></div></div>
+        <div class="spark" data-spark="dual" style="height:48px"></div>
+      </div>
+      <div class="card col-4 accent-blue">
+        <div class="card-head"><span class="card-title"><span class="card-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.5-1.5 2-3.5 2-5.5A4.5 4.5 0 0 0 12 6 4.5 4.5 0 0 0 3 8.5c0 2 .5 4 2 5.5l7 7z"/></svg></span>Health details</span></div>
+        <div class="grid" style="grid-template-columns:1fr 1fr;gap:var(--s3)">
+          <div class="stack" style="gap:2px"><span class="t-cap">Steps</span><span class="t-metric-sm">8,642</span></div>
+          <div class="stack" style="gap:2px"><span class="t-cap">Sleep goal</span><span class="t-metric-sm">90%</span></div>
+          <div class="stack" style="gap:2px"><span class="t-cap">Resting HR</span><span class="t-metric-sm">52 <span class="metric-unit">bpm</span></span></div>
+          <div class="stack" style="gap:2px"><span class="t-cap">Recovery</span><span class="t-metric-sm" style="color:var(--green)">76</span></div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-block">View all health details</button>
+      </div>
+      <div class="card col-3 accent-amber">
+        <div class="card-head"><span class="card-title" style="color:var(--amber)"><span class="card-ic" style="color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>Attention queue</span><span class="badge amber">3 items</span></div>
+        <div class="row"><span class="dot amber"></span><div class="row-main"><div class="row-title">Weekly check-in</div><div class="row-sub">Your weekly review is ready</div></div></div>
+        <div class="row"><span class="dot amber"></span><div class="row-main"><div class="row-title">Bloodwork</div><div class="row-sub">Test is due in 5 days</div></div></div>
+        <div class="row"><span class="dot amber"></span><div class="row-main"><div class="row-title">Grocery list</div><div class="row-sub">Low on 4+ items</div></div></div>
+      </div>
+    </div>
+
+    <!-- ============ COMPONENT GALLERY ============ -->
+    <section class="gsec"><h2>Color tokens</h2><div class="swatches">
+      <div class="sw"><i style="background:var(--bg)"></i><span>canvas</span></div>
+      <div class="sw"><i style="background:var(--surface)"></i><span>surface</span></div>
+      <div class="sw"><i style="background:var(--surface-raised)"></i><span>raised</span></div>
+      <div class="sw"><i style="background:var(--accent)"></i><span>accent</span></div>
+      <div class="sw"><i style="background:var(--green)"></i><span>green</span></div>
+      <div class="sw"><i style="background:var(--amber)"></i><span>amber</span></div>
+      <div class="sw"><i style="background:var(--red)"></i><span>red</span></div>
+      <div class="sw"><i style="background:var(--blue)"></i><span>blue</span></div>
+    </div></section>
+
+    <section class="gsec"><h2>Buttons</h2><div class="demo-row">
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn btn-secondary">Secondary</button>
+      <button class="btn btn-ghost">Ghost</button>
+      <button class="btn btn-amber">Attention</button>
+      <button class="btn btn-danger">Delete</button>
+      <button class="btn btn-primary" disabled>Disabled</button>
+      <button class="btn-icon" aria-label="Add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div></section>
+
+    <section class="gsec"><h2>Form controls</h2><div class="demo-row" style="gap:var(--s4)">
+      <div class="field" style="width:180px"><span class="label">Text field</span><input class="input" placeholder="Placeholder"></div>
+      <div class="field" style="width:140px"><span class="label">Number</span><input class="input num" type="number" value="2600"></div>
+      <div class="field" style="width:160px"><span class="label">Select</span><select class="select"><option>kg</option><option>lb</option></select></div>
+      <div class="field"><span class="label">Toggle</span><button class="toggle" role="switch" aria-checked="true" data-toggle></button></div>
+      <div class="field"><span class="label">Checkbox</span><button class="check" role="checkbox" aria-checked="true" data-toggle>✓</button></div>
+      <div class="field"><span class="label">Segmented</span><div class="segmented" role="tablist"><button role="tab" aria-selected="true">Day</button><button role="tab" aria-selected="false">Week</button><button role="tab" aria-selected="false">Month</button></div></div>
+      <div class="field"><span class="label">Stepper</span><div class="stepper"><button data-step="-1">−</button><span class="val">250</span><button data-step="1">+</button></div></div>
+      <div class="field" style="width:160px"><span class="label">Date</span><input class="input" type="date" value="2025-05-16"></div>
+      <div class="field" style="width:130px"><span class="label">Time</span><input class="input" type="time" value="13:30"></div>
+    </div>
+    <div class="demo-row" style="gap:var(--s4);margin-top:var(--s4)">
+      <label class="search" style="max-width:320px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Search…" aria-label="Search"></label>
+      <button class="btn btn-secondary" id="menuBtn" aria-haspopup="menu">Actions ▾</button>
+    </div></section>
+
+    <section class="gsec"><h2>States — default / empty / loading / error / stale</h2><div class="grid">
+      <div class="card col-3"><div class="card-title">Default</div><div class="metric-row"><span class="t-metric-sm">8,642</span><span class="metric-unit">steps</span></div></div>
+      <div class="card col-3"><div class="empty"><svg class="empty-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg><span class="empty-title">No meals logged</span><span>Log your first meal to track intake.</span><button class="btn btn-secondary btn-sm" style="margin-top:var(--s2)">Log a meal</button></div></div>
+      <div class="card col-3"><div class="card-title">Loading</div><div class="skeleton line lg" style="width:60%"></div><div class="skeleton line"></div><div class="skeleton line short"></div></div>
+      <div class="card col-3"><div class="card-title">Inline error</div><div class="error-box"><span class="error-msg">Calendar didn't load.</span><button class="btn btn-secondary btn-sm" style="align-self:flex-start">Retry</button></div><span class="stale">⟳ Showing data from 2h ago</span></div>
+      <div class="card col-3"><div class="card-title">Section error</div><div class="section-error"><svg class="se-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg><span>Couldn't reach Health.</span><button class="btn btn-secondary btn-sm">Try again</button></div></div>
+    </div></section>
+
+    <section class="gsec"><h2>Overlays</h2><div class="demo-row">
+      <button class="btn btn-secondary" onclick="UI.sheet()">Open sheet</button>
+      <button class="btn btn-secondary" onclick="UI.dialog()">Open dialog</button>
+      <button class="btn btn-danger" onclick="UI.confirm()">Destructive + confirm</button>
+      <button class="btn btn-secondary" onclick="UI.toast('Saved')">Toast</button>
+      <button class="btn btn-secondary" onclick="UI.undo()">Delete + Undo</button>
+    </div></section>
+
+  </div>
+  </main>
+</div>
+
+<!-- mobile bottom nav -->
+<nav class="tabbar">
+  <a class="active"><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>Today</a>
+  <a><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></span>Log</a>
+  <a><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/></svg></span>Coach</a>
+  <a><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/></svg></span>Money</a>
+  <a><span class="nav-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></span>More</a>
+</nav>
+
+<script src="ui.js"></script>
+<script>
+  // fill sparklines per-element (no DOM rebuild, no lost listeners)
+  const spark = (pts, color) => `<svg viewBox="0 0 100 36" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  const up = "0,28 14,22 28,25 42,16 56,19 70,10 84,13 100,4";
+  const dn = "0,10 14,14 28,11 42,18 56,15 70,22 84,19 100,26";
+  const SP = {
+    green: spark(up, 'var(--green)'),
+    blue:  spark(dn, 'var(--blue)'),
+    dual:  spark("0,30 16,26 32,28 48,22 64,24 80,18 100,16", 'var(--accent)') + spark("0,12 16,16 32,13 48,18 64,15 80,20 100,18", 'var(--amber)'),
+  };
+  document.querySelectorAll('.spark[data-spark]').forEach(s => { s.innerHTML = SP[s.dataset.spark] || ''; });
+  document.getElementById('menuBtn').addEventListener('click', e => UI.menu(e.currentTarget, [
+    { label: 'Edit', onClick: () => UI.toast('Edit') },
+    { label: 'Duplicate', onClick: () => UI.toast('Duplicated') },
+    'hr',
+    { label: 'Delete', danger: true, onClick: () => UI.confirm() },
+  ]));
+</script>
+</body>
+</html>

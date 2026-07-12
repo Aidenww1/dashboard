@@ -1574,6 +1574,14 @@ document.getElementById('barcodeBtn').onclick = () => { bcModal.classList.add('o
 document.getElementById('barcodeClose').onclick = closeBcModal;
 bcModal.addEventListener('click', e => { if (e.target === bcModal) closeBcModal(); });
 
+// Deep-link launcher: the new Log (Food segment) links here with #ai / #barcode
+// to open the AI-photo or barcode flow directly. Additive; no effect without the hash.
+(function () {
+  var h = (location.hash || '').toLowerCase();
+  if (h === '#ai') document.getElementById('aiPhotoBtn').click();
+  else if (h === '#barcode') document.getElementById('barcodeBtn').click();
+})();
+
 async function handleBcFile(file) {
   if (!file) return;
   document.getElementById('bcPickedImg').src = URL.createObjectURL(file);

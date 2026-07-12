@@ -1,0 +1,83 @@
+/* ============================================================
+   Life OS — frontend rewrite design tokens (Phase 0).
+   Read from the desktop + mobile reference mockups. ISOLATED:
+   loaded only by ui/gallery.html, not by any production page.
+   One namespace, one accent (violet), semantic colors for state.
+   ============================================================ */
+:root {
+  /* ---- canvas + surfaces (max 3 levels) ---- */
+  --bg:             #07070A;            /* application canvas */
+  --surface:        #121216;            /* standard content surface (cards) */
+  --surface-raised: #1A1A20;            /* raised / interactive surface */
+  --surface-hover:  #222229;
+  --border:         rgba(255,255,255,0.085);
+  --border-strong:  rgba(255,255,255,0.18);
+
+  /* ---- text ---- */
+  --text:    #F6F6F8;                   /* strong */
+  --text-2:  #B9B8C2;                   /* normal / secondary */
+  --text-3:  #858491;                   /* muted */
+  --text-4:  #54545C;                   /* disabled */
+
+  /* ---- one application accent: violet ---- */
+  --accent:        #9B6CFF;
+  --accent-press:  #8556F1;
+  --accent-soft:   rgba(155,108,255,0.16);
+  --accent-border: rgba(155,108,255,0.42);
+  --on-accent:     #FFFFFF;
+
+  /* ---- semantic (meaning, not module themes) ---- */
+  --green: #34D399; --green-soft: rgba(52,211,153,0.13);
+  --amber: #F5A524; --amber-soft: rgba(245,165,36,0.13);
+  --red:   #F2555A; --red-soft:   rgba(242,85,90,0.13);
+  --blue:  #5B9DFF; --blue-soft:  rgba(91,157,255,0.13);
+
+  /* ---- radius ---- */
+  --r-card:    14px;
+  --r-control: 9px;
+  --r-pill:    999px;
+
+  /* ---- spacing scale (4-point) ---- */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 40px; --s8: 48px;
+
+  /* ---- typography ---- */
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  --num: "Inter", -apple-system, BlinkMacSystemFont, sans-serif; /* tabular numerals */
+
+  /* ---- documented z-index scale ---- */
+  --z-base: 0;
+  --z-nav: 100;
+  --z-sticky: 150;
+  --z-backdrop: 200;
+  --z-sheet: 210;
+  --z-dialog: 300;
+  --z-menu: 350;
+  --z-toast: 400;
+  --z-command: 500;
+
+  /* ---- motion ---- */
+  --dur: 0.22s;
+  --dur-fast: 0.14s;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ---- layout ---- */
+  --sidebar-w: 210px;
+  --content-max: 1364px;
+  --tabbar-h: 60px;
+}
+
+/* type scale (utility classes; tabular numerals on metrics) */
+.t-page    { font-size: 32px; font-weight: 700; letter-spacing: -0.02em;  line-height: 1.1; }
+.t-h2      { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
+.t-card    { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; }
+.t-metric  { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.t-metric-sm { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+.t-body    { font-size: 14px; font-weight: 400; line-height: 1.45; }
+.t-2       { font-size: 13px; font-weight: 400; color: var(--text-2); }
+.t-cap     { font-size: 12px; font-weight: 500; color: var(--text-3); }
+.num       { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
