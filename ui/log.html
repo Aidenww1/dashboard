@@ -2493,15 +2493,23 @@
   }
 
   /* ============================================================
-     Training panel — subtabbed view (Overview / Cardio / Progress /
-     History). Every figure derives from the real gym stores:
-     po_coach_v1 (exercises + per-set logs), po_coach_workout_done,
-     gym:cardio:v1, gym:prs:v1. Readiness/deload come from the
-     lifeos-core engine. Empty stores render honest empty states;
-     deep editing lives in ../gym.html.
+     Training panel — subtabbed view (Overview / Strength / Cardio /
+     Progress / History). Every figure derives from the real gym
+     stores: po_coach_v1 (exercises + per-set logs), po_coach_workout_done,
+     gym:cardio:v1, gym:prs:v1, gym:templates:v1, gym:rest:v1, plus
+     health:metrics:v1 (HRV/RHR) and the lifeos-core readiness/deload
+     engine. Empty stores render honest empty states; deep editing
+     lives in ../gym.html.
      ============================================================ */
   var trainSub = 'overview';
   var trainExSel = null;
+  var trainHistSel = null;
+  var trainHistFilter = 'all';
+  var trainHistCount = 10;
+  var trainProgMetric = 'volume';
+  var trainProgRange = 16;
+  var trainCardTab = 'all';
+  var trainModSel = null;
   function renderTrainingPanel(p) {
     var dumbIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h18M6 9v6M18 9v6M9 7v10M15 7v10"/></svg>';
     var playIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z" fill="currentColor" stroke="none"/></svg>';
@@ -2510,13 +2518,13 @@
     var heartIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.4-9.4-9A5.4 5.4 0 0 1 12 6.1 5.4 5.4 0 0 1 21.4 12C19 16.6 12 21 12 21z"/></svg>';
     var boltIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>';
     var calIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/></svg>';
-    var infoIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
     var trophyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M9 20h6M12 15v5"/></svg>';
     var runIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="15" cy="5" r="2"/><path d="M9 20l3-4-2-4 4-2 2 3 3 1M6 12l3-3 4 1"/></svg>';
+    var clockIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
     var upIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="#5ee6a8" stroke-width="2"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
     var flatIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2"><path d="M5 12h14"/></svg>';
     var downIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
-    var chev = '<span style="color:var(--text-3)">&rsaquo;</span>';
+    var moonIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 15.6A8.8 8.8 0 0 1 8.4 3.5a8.8 8.8 0 1 0 12.1 12.1z"/></svg>';
 
     var t = today();
     var st = lsget('po_coach_v1', {}) || {};
@@ -2526,6 +2534,15 @@
     var done = lsget('po_coach_workout_done', {}) || {};
     var cardio = (lsget('gym:cardio:v1', []) || []).filter(function (c) { return c && c.date; });
     var prsMap = lsget('gym:prs:v1', {}) || {};
+    var tpls = lsget('gym:templates:v1', []) || [];
+    var restM = lsget('gym:rest:v1', {}) || {};
+    var metrics = lsget('health:metrics:v1', []) || [];
+
+    function lastMetric(field) {
+      for (var i = metrics.length - 1; i >= 0; i--) { if (metrics[i] && metrics[i][field] > 0) return metrics[i][field]; }
+      return null;
+    }
+    var hrv = lastMetric('hrv'), rhr = lastMetric('rhr');
 
     function dsAgo(n) {
       var d = new Date(); d.setDate(d.getDate() - n);
@@ -2545,10 +2562,19 @@
     var vol7 = weekVol(0), volPrev = weekVol(1);
     var volSeries = []; for (var wv = 7; wv >= 0; wv--) volSeries.push(weekVol(wv));
     function sessionsIn(n) { var c = 0; for (var i = 0; i < n; i++) { var ds = dsAgo(i); if (byDay[ds] || done[ds]) c++; } return c; }
-    var sess7 = sessionsIn(7);
     var trainedToday = !!(byDay[t] || done[t]);
+    /* current calendar week (Mon-based) */
+    var dowNow = (new Date().getDay() + 6) % 7;
+    var sessThisWk = 0;
+    for (var dw = 0; dw <= dowNow; dw++) { var dws = dsAgo(dw); if (byDay[dws] || done[dws]) sessThisWk++; }
+    var rotation = Array.isArray(st.splitRotation) && st.splitRotation.length ? st.splitRotation : ['Full Body', 'Rest'];
+    var trainDaysInRot = rotation.filter(function (r) { return !/rest/i.test(String(r)); }).length;
+    var weekGoal = Math.max(1, Math.min(7, Math.floor(7 * trainDaysInRot / rotation.length)));
+    var rotLabel = (rotation.filter(function (r) { return !/rest/i.test(String(r)); })[0] || 'Training') + ' ' + weekGoal + 'x / week';
     var card7 = cardio.filter(function (c) { return c.date >= dsAgo(6); });
     var cardMin7 = card7.reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0);
+    var cardPrev7 = cardio.filter(function (c) { return c.date >= dsAgo(13) && c.date < dsAgo(6); })
+      .reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0);
     var rd = {}; try { rd = (L.readiness && L.readiness()) || {}; } catch (e) {}
     var dl = {}; try { dl = (L.deloadSignal && L.deloadSignal()) || {}; } catch (e) {}
     function e1rm(w, r) { return w > 0 && r > 0 ? w * (1 + r / 30) : 0; }
@@ -2560,6 +2586,33 @@
         if (v > (m[dk] || 0)) m[dk] = v;
       });
       return Object.keys(m).sort().map(function (dk) { return { d: dk, v: Math.round(m[dk] * 10) / 10 }; });
+    }
+    function lastLog(exId) {
+      var arr = (logs[exId] || []).slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+      return arr.length ? arr[arr.length - 1] : null;
+    }
+    /* prescription — mirrors gym.html getRx() so both views agree */
+    function rxFor(ex) {
+      var arr = (logs[ex.id] || []).slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+      if (!arr.length) return null;
+      var last = arr[arr.length - 1];
+      var w = Number(last.weight) || 0, reps = Number(last.reps) || 0, rpe = Number(last.rpe) || null;
+      var repMin = Number(ex.repMin) || 6, repMax = Number(ex.repMax) || 8, step = Number(ex.step) || 2.5;
+      var upgradeAt = Math.min(8, repMax);
+      var stuck = 0;
+      for (var i = arr.length - 1; i >= 0; i--) { if ((Number(arr[i].weight) || 0) === w) stuck++; else break; }
+      if (ex.bw) {
+        if (reps >= upgradeAt) return { dir: 'up', label: '+1 rep' };
+        if (reps >= repMin) return { dir: 'flat', label: 'Add a rep' };
+        return { dir: 'flat', label: 'Repeat' };
+      }
+      if (stuck >= 3 && reps < repMin) return { dir: 'down', label: 'Deload soon' };
+      if (reps >= upgradeAt) {
+        if (rpe && rpe >= 10) return { dir: 'flat', label: 'Own it first' };
+        return { dir: 'up', label: '+' + step + ' ' + units + ' next session' };
+      }
+      if (reps >= repMin) return { dir: 'up', label: '+1 rep' };
+      return { dir: 'flat', label: 'Keep load' };
     }
     var cut30 = dsAgo(30);
     var exVol = {};
@@ -2580,7 +2633,29 @@
       .filter(function (pr) { return pr && pr.date; })
       .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
 
-    var SUBS = [['overview', 'Overview'], ['cardio', 'Cardio'], ['progress', 'Progress'], ['history', 'History']];
+    function fmtVol(v) { return v >= 10000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v)); }
+    function fmtPace(minutes, km) {
+      if (!(minutes > 0) || !(km > 0)) return null;
+      var mpk = minutes / km, mm = Math.floor(mpk), ss = Math.round((mpk - mm) * 60);
+      if (ss === 60) { mm++; ss = 0; }
+      return mm + ':' + String(ss).padStart(2, '0');
+    }
+    function typeLabel(c) { var s = String(c.type || 'cardio'); return s.charAt(0).toUpperCase() + s.slice(1); }
+    function deltaHtml(cur, prev, suffix) {
+      if (!prev) return '';
+      var pctD = Math.round((cur - prev) / prev * 100);
+      var col = pctD > 0 ? 'var(--green)' : pctD < 0 ? 'var(--amber)' : 'var(--text-3)';
+      return '<span style="color:' + col + '">' + (pctD > 0 ? '+' : '') + pctD + '% ' + (suffix || 'vs last week') + '</span>';
+    }
+    function dots(nOn, nTotal) {
+      var h = '<span class="lg-dots">';
+      for (var i = 0; i < Math.min(7, Math.max(nTotal, nOn)); i++) h += '<i' + (i < nOn ? '' : ' class="off"') + '></i>';
+      return h + '</span>';
+    }
+    function pbar(pct, color) {
+      return '<div style="height:6px;border-radius:3px;background:rgba(255,255,255,.09);margin-top:8px;overflow:hidden"><i style="display:block;height:100%;width:' + Math.max(0, Math.min(100, pct)) + '%;border-radius:3px;background:' + (color || 'var(--accent)') + '"></i></div>';
+    }
+    var SUBS = [['overview', 'Overview'], ['strength', 'Strength'], ['cardio', 'Cardio'], ['progress', 'Progress'], ['history', 'History']];
     function subtabsBar(right) {
       return '<div class="lg-subtabs-row"><div class="lg-subtabs">'
         + SUBS.map(function (s) { return '<button data-sub="' + s[0] + '"' + (s[0] === trainSub ? ' aria-selected="true"' : '') + '>' + s[1] + '</button>'; }).join('')
@@ -2591,24 +2666,79 @@
         + '<div class="lg-card-sub" style="margin-top:6px">' + esc(sub) + '</div>'
         + '<a class="btn btn-primary btn-sm" style="margin-top:12px;align-self:flex-start" href="' + href + '">' + esc(cta) + '</a></section>';
     }
-    function fmtVol(v) { return v >= 10000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v)); }
-    function deltaHtml(cur, prev, unit) {
-      if (!prev) return '';
-      var pctD = Math.round((cur - prev) / prev * 100);
-      var col = pctD > 0 ? 'var(--green)' : pctD < 0 ? 'var(--amber)' : 'var(--text-3)';
-      return '<span style="color:' + col + '">' + (pctD > 0 ? '+' : '') + pctD + '% vs last week</span>';
-    }
     function coachRows() {
       var rows = '';
       function row(icon, color, title, sub) {
         rows += '<div class="lg-trow" style="grid-template-columns:26px 1fr"><span style="color:' + color + ';display:inline-flex">' + icon + '</span>'
           + '<span><strong style="font-size:13px;font-weight:600">' + esc(title) + '</strong><span class="lg-card-sub" style="display:block">' + esc(sub) + '</span></span></div>';
       }
-      if (dl.due) row(boltIcon, 'var(--amber)', 'Deload recommended', dl.reason || 'Recent RPEs are running hot.');
+      if (dl.due) row(boltIcon, 'var(--amber)', 'Deload due soon', dl.reason || 'Recent RPEs are running hot.');
       else if (dl.avg != null) row(boltIcon, 'var(--green)', 'Training load OK', 'Avg RPE ' + dl.avg + ' over ' + dl.sets + ' sets in 10 days.');
-      if (rd.score != null) row(heartIcon, rd.score >= 70 ? 'var(--green)' : 'var(--amber)', 'Readiness ' + rd.score + '/100', rd.advice || rd.label || '');
+      if (rd.score != null) row(heartIcon, rd.score >= 70 ? 'var(--green)' : 'var(--amber)', 'Recovery ' + (rd.score >= 70 ? 'on track' : 'needs attention'), rd.advice || rd.label || '');
       if (hasStrength) row(cardioIcon, cardMin7 >= 90 ? 'var(--green)' : 'var(--accent)', 'Cardio this week: ' + cardMin7 + ' min', card7.length + ' session' + (card7.length === 1 ? '' : 's') + ' logged.');
+      if (sessThisWk < weekGoal && !trainedToday) row(calIcon, 'var(--accent)', 'Cadence', sessThisWk + ' of ' + weekGoal + ' sessions this week so far.');
       return rows || '<div class="lg-card-sub" style="margin-top:8px">Log training and the engine surfaces guidance here.</div>';
+    }
+    function suggestionRows(ids, cap) {
+      var rows = '';
+      ids.slice(0, cap || 5).forEach(function (id) {
+        var ex = exById[id]; if (!ex) return;
+        var rx = rxFor(ex); if (!rx) return;
+        var col = rx.dir === 'up' ? 'var(--green)' : rx.dir === 'down' ? 'var(--amber)' : 'var(--text-2)';
+        var ic = rx.dir === 'up' ? upIcon : rx.dir === 'down' ? downIcon : flatIcon;
+        rows += '<div class="lg-trow lg-prog"><span>' + esc(ex.name) + '</span>'
+          + '<span class="lg-card-sub" style="color:' + col + ';text-align:right">' + esc(rx.label) + '</span>'
+          + '<span class="lg-updot">' + ic + '</span></div>';
+      });
+      return rows;
+    }
+    function frameworkRows(cap) {
+      var list = exs.slice(0, cap || 8);
+      return list.map(function (ex, i) {
+        var ll = lastLog(ex.id);
+        var lastTxt = ll ? (ex.bw ? (ll.reps + ' reps') : ((Number(ll.weight) || 0) + ' ' + units + ' &times; ' + ll.reps)) : '&mdash;';
+        return '<div class="lg-trow lg-fw"><span class="t-cap">' + (i + 1) + '</span>'
+          + '<span class="t-cap">' + esc(ex.muscle || (ex.bw ? 'Bodyweight' : '')) + '</span>'
+          + '<span style="font-weight:500">' + esc(ex.name) + '</span>'
+          + '<span class="t-cap num">' + (ex.repMin || 6) + '&ndash;' + (ex.repMax || 8) + '</span>'
+          + '<span class="t-cap num" style="text-align:right">' + lastTxt + '</span></div>';
+      }).join('');
+    }
+    function fwHead() {
+      return '<div class="lg-trow lg-fw" style="min-height:28px;border-bottom:1px solid var(--border)"><span class="lg-lab-head">#</span><span class="lg-lab-head">Slot</span><span class="lg-lab-head">Exercise</span><span class="lg-lab-head">Reps</span><span class="lg-lab-head" style="text-align:right">Last result</span></div>';
+    }
+    function perfCard(span) {
+      var selId = trainExSel && exById[trainExSel] ? trainExSel : topExIds[0];
+      if (!selId) return '';
+      var series = exSeries(selId);
+      var latest = series[series.length - 1], prev = series[series.length - 2];
+      var best = null;
+      (logs[selId] || []).forEach(function (s) {
+        var v = e1rm(Number(s.weight) || 0, Number(s.reps) || 0);
+        if (!best || v > best.v) best = { v: v, w: Number(s.weight) || 0, r: Number(s.reps) || 0, d: String(s.date).slice(0, 10) };
+      });
+      var tabs = topExIds.map(function (id) {
+        return '<button role="tab" data-ex="' + esc(id) + '"' + (id === selId ? ' aria-selected="true"' : '') + '>' + esc((exById[id] || {}).name || 'Exercise') + '</button>';
+      }).join('');
+      return '<section class="card ' + span + '"><div class="lg-card-row"><div class="lg-card-title">Exercise performance</div><a class="lg-card-link" href="../gym.html">View all &rarr;</a></div>'
+        + '<div class="segmented lg-chip-seg" style="align-self:flex-start;margin-top:4px">' + tabs + '</div>'
+        + '<div class="between" style="margin-top:10px"><div><div class="lg-lab-head">Est. 1RM</div><div class="lg-body-val" style="font-size:20px">' + (latest ? latest.v : '&mdash;') + ' <small>' + units + '</small>'
+        + (latest && prev && latest.v !== prev.v ? ' <span style="font-size:12px;color:' + (latest.v > prev.v ? 'var(--green)' : 'var(--amber)') + '">' + (latest.v > prev.v ? '+' : '') + Math.round((latest.v - prev.v) * 10) / 10 + ' ' + units + '</span>' : '')
+        + '</div></div><div style="text-align:right"><div class="lg-lab-head">Best set</div><div class="lg-body-val" style="font-size:20px">' + (best ? best.w + ' <small>' + units + ' &times; ' + best.r + '</small>' : '&mdash;') + '</div>'
+        + (best ? '<div class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(best.d) : best.d) + '</div>' : '') + '</div></div>'
+        + bodyChart(series.slice(-12).map(function (x) { return x.v; })) + '</section>';
+    }
+    function muscleStatus(sets) { return sets >= 10 ? ['Optimal', 'var(--green)'] : sets >= 4 ? ['Moderate', 'var(--amber)'] : ['Low', '#ff9f43']; }
+    function muscleWeek(w) {
+      var m = {};
+      for (var i = 0; i < 7; i++) {
+        (byDay[dsAgo(w * 7 + i)] || []).forEach(function (x) {
+          var k = x.ex.muscle || 'Other';
+          m[k] = m[k] || { vol: 0, sets: 0 };
+          m[k].vol += setVol(x.set); m[k].sets++;
+        });
+      }
+      return m;
     }
 
     /* ---------- Overview ---------- */
@@ -2619,87 +2749,128 @@
         return h;
       }
       h += '<div class="lg-statgrid c4">'
-        + kpiCard(dumbIcon, 'Weekly volume', fmtVol(vol7) + ' <small>' + units + '</small>', deltaHtml(vol7, volPrev) || 'load &times; reps, 7 days')
-        + kpiCard(calIcon, 'Sessions (7d)', String(sess7), trainedToday ? '<span style="color:var(--green)">Trained today</span>' : 'Not trained today yet')
-        + '<section class="card"><div class="kpi-top"><span class="lg-body-ic">' + heartIcon + '</span>Readiness</div>'
-        + '<div style="display:flex;align-items:center;gap:12px;margin-top:6px"><div style="flex:1">'
-        + '<div style="color:' + (rd.score >= 70 ? 'var(--green)' : 'var(--amber)') + ';font-weight:600">' + esc(rd.label || '—') + '</div>'
-        + '<div class="lg-card-sub">' + esc(rd.advice || 'Log sleep + mood to fuel this') + '</div></div>'
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + dumbIcon + '</span>Weekly volume</div>'
+        + '<div class="between"><div><div class="kpi-val">' + fmtVol(vol7) + ' <small>' + units + '</small></div><div class="kpi-sub">' + (deltaHtml(vol7, volPrev) || 'load &times; reps, 7 days') + '</div></div>' + spark(volSeries, '#5ee6a8') + '</div></section>'
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + calIcon + '</span>Sessions this week</div>'
+        + '<div class="kpi-val">' + sessThisWk + '</div><div class="kpi-sub between">' + dots(sessThisWk, weekGoal) + '<span>Goal ' + weekGoal + ' sessions</span></div></section>'
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + heartIcon + '</span>Recovery / readiness</div>'
+        + '<div style="display:flex;align-items:center;gap:12px;margin-top:4px"><div style="flex:1;min-width:0">'
+        + '<div style="color:' + (rd.score >= 70 ? 'var(--green)' : 'var(--amber)') + ';font-weight:600">' + esc(rd.label || '&mdash;') + '</div>'
+        + '<div class="lg-card-sub">' + (hrv != null ? 'HRV ' + hrv + ' ms' : '') + (hrv != null && rhr != null ? '<br>' : '') + (rhr != null ? 'RHR ' + rhr + ' bpm' : '') + (hrv == null && rhr == null ? esc(rd.advice || 'Log sleep + mood to fuel this') : '') + '</div></div>'
         + (rd.score != null ? ring(rd.score, '') : '') + '</div></section>'
-        + kpiCard(cardioIcon, 'Cardio (7d)', cardMin7 + ' <small>min</small>', card7.length + ' session' + (card7.length === 1 ? '' : 's'))
+        + '<section class="card lg-kpi"><div class="lg-card-row" style="margin:0"><div class="kpi-top"><span class="lg-body-ic">' + calIcon + '</span>Weekly cadence</div></div>'
+        + '<div class="kpi-val" style="font-size:17px">' + esc(rotLabel) + '</div><div class="kpi-sub">' + (rotation.length > 1 ? 'Rotation: ' + esc(rotation.join(' &middot; ').replace(/&middot;/g, '·')) : 'Flexible schedule') + '</div>'
+        + '<div class="kpi-sub">' + Math.min(sessThisWk, weekGoal) + ' of ' + weekGoal + ' sessions completed</div>' + pbar(sessThisWk / weekGoal * 100) + '</section>'
         + '</div>';
 
       h += '<div class="lg-body-grid">';
-      h += '<section class="card lg-span-4"><div class="lg-card-title">Log workout</div><div class="lg-act3">'
-        + '<a class="lg-act-tile" href="../gym.html"><span class="ico">' + playIcon + '</span><strong>Start session</strong><span>Track sets</span></a>'
-        + '<a class="lg-act-tile" href="../gym.html#templates"><span class="ico">' + gridIcon + '</span><strong>Templates</strong><span>Pick a workout</span></a>'
-        + '<button class="lg-act-tile" data-goto-cardio><span class="ico">' + cardioIcon + '</span><strong>Log cardio</strong><span>Quick entry</span></button>'
+      h += '<section class="card lg-span-3"><div class="lg-card-title">Log workout</div><div class="lg-act3" style="grid-template-columns:1fr">'
+        + '<a class="lg-act-tile" href="../gym.html" style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + playIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>Start session</strong><span style="font-size:11px;color:var(--text-3)">Track workout</span></span></a>'
+        + '<a class="lg-act-tile" href="../gym.html#templates" style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + gridIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>Choose template</strong><span style="font-size:11px;color:var(--text-3)">' + (tpls.length ? tpls.length + ' saved' : 'Pick a workout') + '</span></span></a>'
+        + '<button class="lg-act-tile" data-goto-cardio style="min-height:64px;flex-direction:row;justify-content:flex-start;padding:10px 12px;text-align:left"><span class="ico" style="flex-shrink:0">' + cardioIcon + '</span><span style="display:flex;flex-direction:column;gap:2px"><strong>Log cardio</strong><span style="font-size:11px;color:var(--text-3)">Track cardio session</span></span></button>'
         + '</div></section>';
 
-      var selId = trainExSel && exById[trainExSel] ? trainExSel : topExIds[0];
-      if (selId) {
-        var series = exSeries(selId);
-        var latest = series[series.length - 1], prev = series[series.length - 2];
-        var tabs = topExIds.map(function (id) {
-          return '<button role="tab" data-ex="' + esc(id) + '"' + (id === selId ? ' aria-selected="true"' : '') + '>' + esc((exById[id] || {}).name || 'Exercise') + '</button>';
-        }).join('');
-        h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Exercise performance</div><a class="lg-card-link" href="../gym.html">Open Gym &rarr;</a></div>'
-          + '<div class="segmented" style="align-self:flex-start;margin-top:4px">' + tabs + '</div>'
-          + '<div class="between" style="margin-top:8px"><div><div class="t-cap">Est. 1RM</div><div class="lg-body-val" style="font-size:20px">' + (latest ? latest.v : '—') + ' <small>' + units + '</small>'
-          + (latest && prev && latest.v !== prev.v ? '<span class="lg-trend" style="color:' + (latest.v > prev.v ? 'var(--green)' : 'var(--amber)') + '">' + (latest.v > prev.v ? '+' : '') + Math.round((latest.v - prev.v) * 10) / 10 + '</span>' : '')
-          + '</div></div><div style="text-align:right"><div class="t-cap">Logged days</div><div class="lg-body-val" style="font-size:20px">' + series.length + '</div></div></div>'
-          + bodyChart(series.slice(-12).map(function (x) { return x.v; })) + '</section>';
-      }
+      var restDef = Number(restM.default) || 180;
+      h += '<section class="card lg-span-5"><div class="lg-card-row"><div class="lg-card-title">' + esc(rotLabel.indexOf('Full') === 0 ? 'Full body framework' : 'Training framework') + '</div><span class="t-cap">' + exs.length + ' exercises</span></div>'
+        + (exs.length ? fwHead() + frameworkRows(8) + (exs.length > 8 ? '<div class="lg-card-sub" style="margin-top:6px">+' + (exs.length - 8) + ' more in the Gym module</div>' : '')
+          : '<div class="lg-card-sub" style="margin-top:8px">Add exercises in the Gym module to build your framework.</div>')
+        + '<div class="inline" style="gap:10px;margin-top:12px"><a class="btn btn-primary" style="flex:1;text-align:center" href="../gym.html">Start session</a>'
+        + '<a class="btn btn-secondary" href="../gym.html" style="display:inline-flex;align-items:center;gap:6px">' + clockIcon.replace('stroke-width="1.7"', 'stroke-width="1.7" style="width:15px;height:15px"') + ' Rest timer &middot; ' + Math.round(restDef / 60) + ' min</a></div>'
+        + '<div class="lg-card-sub" style="margin-top:8px">Repeat this framework ' + weekGoal + 'x per week. Loads and reps adjust from your logged results.</div></section>';
 
-      var progRows = topExIds.map(function (id) {
-        var s = exSeries(id);
-        if (s.length < 2) return '';
-        var a = s[s.length - 1].v, b = s[s.length - 2].v;
-        var icon = a > b ? upIcon : a < b ? downIcon : flatIcon;
-        var msg = a > b ? 'Progressing — add load when ready' : a < b ? 'Down last session — check recovery' : 'Holding steady';
-        var col = a > b ? 'var(--green)' : a < b ? 'var(--amber)' : 'var(--text-3)';
-        return '<div class="lg-trow lg-prog"><span>' + esc((exById[id] || {}).name || '') + '</span><span class="lg-card-sub" style="color:' + col + ';text-align:right">' + msg + '</span><span class="lg-updot">' + icon + '</span></div>';
-      }).join('');
-      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Progression</div><span class="t-cap">est. 1RM direction</span></div>'
-        + (progRows || '<div class="lg-card-sub" style="margin-top:8px">Log an exercise on two different days to see direction.</div>')
-        + '<div class="lg-card-sub" style="margin-top:8px">Computed from your last two logged days per lift.</div></section>';
+      h += perfCard('lg-span-4');
       h += '</div>';
-
-      var mus = {};
-      for (var i = 0; i < 7; i++) {
-        (byDay[dsAgo(i)] || []).forEach(function (x) {
-          var m = x.ex.muscle || 'Other';
-          mus[m] = (mus[m] || 0) + setVol(x.set);
-        });
-      }
-      var musKeys = Object.keys(mus).sort(function (a, b) { return mus[b] - mus[a]; });
-      var musMax = musKeys.length ? mus[musKeys[0]] : 1;
-      var musRows = musKeys.map(function (m) {
-        return '<div class="lg-factor-row"><span class="fr-label">' + esc(m) + '</span><div class="bar"><i style="width:' + Math.round(mus[m] / musMax * 100) + '%;background:var(--accent)"></i></div><span class="fr-state num">' + fmtVol(mus[m]) + '</span></div>';
-      }).join('');
-
-      var prRows = prsList.slice(0, 3).map(function (pr) {
-        return '<div class="lg-trow" style="grid-template-columns:24px 1fr auto"><span style="color:#ffd43b;display:inline-flex">' + trophyIcon + '</span>'
-          + '<span>' + esc(pr.name || 'PR') + '<span class="lg-card-sub" style="display:block">' + esc(pr.date) + ' &middot; ' + pr.weight + units + ' &times; ' + pr.reps + '</span></span>'
-          + '<span class="num">' + pr.e1rm + ' ' + units + '</span></div>';
-      }).join('');
-
-      var recCardio = card7.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 3).map(function (c) {
-        return '<div class="lg-trow" style="grid-template-columns:22px 1fr auto"><span style="color:var(--accent);display:inline-flex">' + runIcon + '</span>'
-          + '<span>' + esc(String(c.type || 'cardio').charAt(0).toUpperCase() + String(c.type || 'cardio').slice(1)) + '</span>'
-          + '<span class="t-cap">' + (c.duration ? c.duration + ' min' : '') + (c.distance ? ' &middot; ' + c.distance + ' km' : '') + '</span></div>';
-      }).join('');
 
       h += '<div class="lg-body-grid">';
-      h += '<section class="card lg-span-3"><div class="lg-card-title">Muscle volume</div><div class="lg-card-sub">Last 7 days</div>'
-        + (musRows || '<div class="lg-card-sub" style="margin-top:8px">No sets logged this week.</div>') + '</section>';
-      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Cardio snapshot</div><button class="lg-card-link" data-goto-cardio style="background:none;border:0;cursor:pointer">View &rarr;</button></div>'
-        + '<div style="display:flex;align-items:center;gap:12px;margin-top:6px"><div><div class="t-cap">This week</div><div class="lg-body-val" style="font-size:24px">' + cardMin7 + ' <small>min</small></div></div></div>'
-        + (recCardio || '<div class="lg-card-sub" style="margin-top:8px">No cardio this week.</div>') + '</section>';
-      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">PRs</div><a class="lg-card-link" href="../gym.html">All &rarr;</a></div>'
-        + (prRows || '<div class="lg-card-sub" style="margin-top:8px">PRs are detected automatically from your logged sets.</div>') + '</section>';
-      h += '<section class="card lg-span-3"><div class="lg-card-title">Coach signals</div>' + coachRows() + '</section>';
+      var sugg = suggestionRows(topExIds.concat(exs.map(function (e) { return e.id; }).filter(function (id) { return topExIds.indexOf(id) < 0; })), 5);
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Progression suggestions</div><a class="lg-card-link" href="../gym.html">View all &rarr;</a></div>'
+        + (sugg || '<div class="lg-card-sub" style="margin-top:8px">Log sets and per-lift suggestions appear here.</div>')
+        + '<div class="lg-card-sub" style="margin-top:8px">Suggestions based on your reps, RPE and rep targets per lift.</div></section>';
+
+      var mus = muscleWeek(0);
+      var musKeys = Object.keys(mus).sort(function (a, b) { return mus[b].vol - mus[a].vol; });
+      var musMax = musKeys.length ? mus[musKeys[0]].vol : 1;
+      var musRows = musKeys.map(function (m) {
+        var stt = muscleStatus(mus[m].sets);
+        return '<div class="lg-factor-row"><span class="fr-label">' + esc(m) + '</span><div class="bar" style="height:6px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><i style="display:block;height:100%;width:' + Math.round(mus[m].vol / musMax * 100) + '%;background:' + stt[1] + ';border-radius:3px"></i></div><span class="fr-state" style="color:' + stt[1] + '">' + stt[0] + '</span></div>';
+      }).join('');
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Muscle volume</div><span class="t-cap">last 7 days</span></div>'
+        + (musRows || '<div class="lg-card-sub" style="margin-top:8px">No sets logged this week.</div>')
+        + '<div class="lg-card-sub" style="margin-top:8px">Status from working sets per muscle per week.</div></section>';
+
+      var recCardio = card7.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 3).map(function (c) {
+        var pace = fmtPace(Number(c.duration), Number(c.distance));
+        return '<div class="lg-trow" style="grid-template-columns:22px 1fr auto"><span style="color:var(--accent);display:inline-flex">' + runIcon + '</span>'
+          + '<span>' + esc(typeLabel(c)) + '</span>'
+          + '<span class="t-cap">' + (c.duration ? c.duration + ' min' : '') + (c.hr ? ' &middot; ' + c.hr + ' bpm' : pace ? ' &middot; ' + pace + ' /km' : '') + '</span></div>';
+      }).join('');
+      var cGoal = 150;
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Cardio snapshot</div><button class="lg-card-link" data-goto-cardio style="background:none;border:0;cursor:pointer">View cardio &rarr;</button></div>'
+        + '<div style="display:flex;align-items:center;gap:14px;margin-top:4px"><div style="flex:1"><div class="lg-lab-head">This week</div><div class="lg-body-val" style="font-size:24px">' + cardMin7 + ' <small>min</small></div><div class="lg-card-sub">' + Math.round(cardMin7 / cGoal * 100) + '% of ' + cGoal + ' min guideline</div></div>'
+        + ring(Math.min(100, Math.round(cardMin7 / cGoal * 100)), 'goal') + '</div>'
+        + (recCardio ? '<div class="lg-lab-head" style="margin-top:8px">Recent cardio sessions</div>' + recCardio : '<div class="lg-card-sub" style="margin-top:8px">No cardio this week.</div>') + '</section>';
       h += '</div>';
+
+      var prRows = prsList.slice(0, 4).map(function (pr) {
+        return '<div class="lg-trow" style="grid-template-columns:24px 1fr auto"><span style="color:#ffd43b;display:inline-flex">' + trophyIcon + '</span>'
+          + '<span>' + esc(pr.name || 'PR') + ' 1RM<span class="lg-card-sub" style="display:block">' + esc(typeof dateLabel === 'function' ? dateLabel(pr.date) : pr.date) + ' &middot; ' + pr.weight + units + ' &times; ' + pr.reps + '</span></span>'
+          + '<span class="num">' + pr.e1rm + ' ' + units + '</span></div>';
+      }).join('');
+      var monthPRsN = prsList.filter(function (pr) { return String(pr.date).slice(0, 7) === t.slice(0, 7); }).length;
+      h += '<div class="lg-body-grid">';
+      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">PRs / milestones</div><span class="t-cap">' + monthPRsN + ' this month</span></div>'
+        + (prRows || '<div class="lg-card-sub" style="margin-top:8px">PRs are detected automatically from your logged sets.</div>')
+        + (prsList.length > 4 ? '<div class="lg-card-sub" style="margin-top:8px;text-align:center">+ ' + (prsList.length - 4) + ' more PRs</div>' : '') + '</section>';
+      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Coach insights</div><a class="lg-card-link" href="coach.html">View all &rarr;</a></div>' + coachRows() + '</section>';
+      h += '</div>';
+      return h;
+    }
+
+    /* ---------- Strength ---------- */
+    function strengthView() {
+      var h = '<section class="card" style="padding:0">' + subtabsBar('') + '</section>';
+      if (!hasStrength) {
+        h += emptyCard('No strength data yet', 'Log sets in the Gym module and this view builds itself from your history.', '../gym.html', 'Open Gym');
+        return h;
+      }
+      var sets7 = 0; for (var i = 0; i < 7; i++) sets7 += (byDay[dsAgo(i)] || []).length;
+      var best = null;
+      prsList.forEach(function (pr) { if (!best || pr.e1rm > best.e1rm) best = pr; });
+      var monthPRs = prsList.filter(function (pr) { return String(pr.date).slice(0, 7) === t.slice(0, 7); });
+      h += '<div class="lg-statgrid c4">'
+        + kpiCard(dumbIcon, 'Weekly volume', fmtVol(vol7) + ' <small>' + units + '</small>', deltaHtml(vol7, volPrev) || 'load &times; reps, 7 days')
+        + kpiCard(gridIcon, 'Working sets (7d)', String(sets7), sessThisWk + ' session' + (sessThisWk === 1 ? '' : 's') + ' this week')
+        + kpiCard(trophyIcon, 'Top lift', best ? best.e1rm + ' <small>' + units + '</small>' : '&mdash;', best ? esc(best.name) + ' est. 1RM' : 'no PRs yet')
+        + kpiCard(boltIcon, 'PRs this month', String(monthPRs.length), monthPRs.length ? esc(monthPRs.slice(0, 2).map(function (x) { return x.name; }).join(', ')) : 'keep pushing')
+        + '</div>';
+
+      h += '<div class="lg-body-grid">';
+      var allRows = exs.map(function (ex, i) {
+        var ll = lastLog(ex.id);
+        var rx = rxFor(ex);
+        var lastTxt = ll ? (ex.bw ? (ll.reps + ' reps') : ((Number(ll.weight) || 0) + ' ' + units + ' &times; ' + ll.reps)) + (ll.rpe ? ' @ RPE ' + ll.rpe : '') : '&mdash;';
+        var col = rx ? (rx.dir === 'up' ? 'var(--green)' : rx.dir === 'down' ? 'var(--amber)' : 'var(--text-2)') : 'var(--text-3)';
+        return '<div class="lg-trow" style="grid-template-columns:16px 1fr 110px minmax(0,1fr)"><span class="t-cap">' + (i + 1) + '</span>'
+          + '<span style="font-weight:500">' + esc(ex.name) + '<span class="lg-card-sub" style="display:block">' + esc(ex.muscle || '') + ' &middot; ' + (ex.repMin || 6) + '&ndash;' + (ex.repMax || 8) + ' reps</span></span>'
+          + '<span class="t-cap num">' + lastTxt + '</span>'
+          + '<span class="lg-card-sub" style="color:' + col + ';text-align:right">' + (rx ? esc(rx.label) : 'not logged yet') + '</span></div>';
+      }).join('');
+      h += '<section class="card lg-span-7"><div class="lg-card-row"><div class="lg-card-title">All exercises</div><a class="lg-card-link" href="../gym.html">Edit in Gym &rarr;</a></div>' + allRows + '</section>';
+      h += '<div class="col lg-span-5" style="display:flex;flex-direction:column;gap:12px">' + perfCard('')
+        + '<section class="card"><div class="lg-card-title">Progression suggestions</div>' + (suggestionRows(exs.map(function (e) { return e.id; }), 6) || '<div class="lg-card-sub" style="margin-top:8px">Log sets to see suggestions.</div>') + '</section></div>';
+      h += '</div>';
+
+      var days = Object.keys(byDay).sort().reverse().slice(0, 6);
+      var histRows = days.map(function (dk) {
+        var sets = byDay[dk];
+        var names = [];
+        sets.forEach(function (x) { if (names.indexOf(x.ex.name) < 0) names.push(x.ex.name); });
+        return '<div class="lg-hist-row"><div class="min-0"><div class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(dk) : dk) + '</div>'
+          + '<div style="font-weight:600;margin:2px 0">' + esc(names.slice(0, 3).join(', ')) + (names.length > 3 ? ' +' + (names.length - 3) : '') + '</div>'
+          + '<div class="t-cap">' + sets.length + ' sets &middot; ' + fmtVol(volFor(dk)) + ' ' + units + '</div></div>'
+          + '<a class="lg-edit" href="../gym.html" aria-label="Open in Gym"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M19 5l-8 8M11 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg></a></div>';
+      }).join('');
+      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Recent strength sessions</div><a class="lg-card-link" href="../gym.html">Open Gym &rarr;</a></div>' + histRows + '</section>';
       return h;
     }
 
@@ -2709,66 +2880,179 @@
       var dist7 = card7.reduce(function (a, c) { return a + (Number(c.distance) || 0); }, 0);
       var hrs = card7.filter(function (c) { return Number(c.hr) > 0; });
       var avgHr = hrs.length ? Math.round(hrs.reduce(function (a, c) { return a + Number(c.hr); }, 0) / hrs.length) : null;
+      var wkMinBars = [];
+      for (var w = 7; w >= 0; w--) {
+        var lo = dsAgo(w * 7 + 6), hi = dsAgo(w * 7);
+        wkMinBars.push(cardio.filter(function (c) { return c.date >= lo && c.date <= hi; })
+          .reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0));
+      }
       h += '<div class="lg-statgrid c4">'
-        + kpiCard(cardioIcon, 'Minutes (7d)', cardMin7 + ' <small>min</small>', card7.length + ' session' + (card7.length === 1 ? '' : 's'))
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + cardioIcon + '</span>Cardio minutes this week</div>'
+        + '<div class="between"><div><div class="kpi-val">' + cardMin7 + ' <small>min</small></div><div class="kpi-sub">' + (cardPrev7 ? deltaHtml(cardMin7, cardPrev7) : card7.length + ' session' + (card7.length === 1 ? '' : 's')) + '</div></div>' + spark(wkMinBars, '#5ee6a8') + '</div></section>'
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + calIcon + '</span>Cardio sessions</div>'
+        + '<div class="kpi-val">' + card7.length + '</div><div class="kpi-sub">' + dots(card7.length, Math.max(card7.length, 5)) + '</div></section>'
         + kpiCard(runIcon, 'Distance (7d)', (Math.round(dist7 * 10) / 10) + ' <small>km</small>', 'across logged sessions')
         + kpiCard(heartIcon, 'Avg HR (7d)', avgHr != null ? avgHr + ' <small>bpm</small>' : '&mdash;', avgHr != null ? 'from ' + hrs.length + ' session' + (hrs.length === 1 ? '' : 's') : 'log HR to see this')
-        + kpiCard(calIcon, 'Total logged', String(cardio.length), cardio.length ? 'since ' + esc(cardio.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })[0].date) : 'no sessions yet')
         + '</div>';
 
       h += '<div class="lg-body-grid">';
+      /* log form */
       h += '<section class="card lg-span-4"><div class="lg-card-title">Log cardio session</div>'
         + '<div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">'
         + '<div class="field"><span class="label">Type</span><select class="select" id="cd-type"><option value="run">Run</option><option value="bike">Cycle</option><option value="row">Row</option><option value="swim">Swim</option><option value="walk">Walk</option><option value="hiit">HIIT</option><option value="other">Other</option></select></div>'
+        + '<div class="field"><span class="label">Date</span><input class="input" id="cd-date" type="date" value="' + t + '" max="' + t + '"></div>'
         + '<div class="field"><span class="label">Duration (min)</span><input class="input num" id="cd-dur" type="number" inputmode="numeric" placeholder="30"></div>'
         + '<div class="field"><span class="label">Distance (km)</span><input class="input num" id="cd-dist" type="number" inputmode="decimal" placeholder="5.2"></div>'
         + '<div class="field"><span class="label">Avg HR (bpm)</span><input class="input num" id="cd-hr" type="number" inputmode="numeric" placeholder="145"></div>'
+        + '<div class="field"><span class="label">Pace</span><input class="input" id="cd-pace" disabled placeholder="auto from time + km"></div>'
         + '</div>'
-        + '<div class="field" style="margin-top:10px"><span class="label">Notes</span><input class="input" id="cd-notes" placeholder="Easy effort..."></div>'
+        + '<div class="field" style="margin-top:10px"><span class="label">Notes</span><input class="input" id="cd-notes" placeholder="Felt great, easy effort..."></div>'
         + '<button class="btn btn-primary btn-block" id="cd-save" style="margin-top:12px">Log cardio session</button>'
         + '<div class="lg-card-sub" style="text-align:center;margin-top:8px">Saves to the same store the Gym module uses.</div></section>';
 
-      var wkBars = [];
-      for (var w = 7; w >= 0; w--) {
-        var lo = dsAgo(w * 7 + 6), hi = dsAgo(w * 7);
-        wkBars.push(cardio.filter(function (c) { return c.date >= lo && c.date <= hi; })
-          .reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0));
-      }
-      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Weekly minutes</div><span class="t-cap">8 weeks</span></div>'
-        + (wkBars.some(function (v) { return v > 0; }) ? barChart(wkBars, 0) : '<div class="lg-card-sub" style="margin-top:8px">No cardio logged yet.</div>')
+      /* recent cardio performance */
+      var perfTabs = [['all', 'All'], ['run', 'Run'], ['bike', 'Cycle']];
+      var typesPresent = {};
+      cardio.forEach(function (c) { typesPresent[c.type || 'other'] = 1; });
+      perfTabs = perfTabs.filter(function (pt) { return pt[0] === 'all' || typesPresent[pt[0]]; });
+      var perfPool = cardio.filter(function (c) { return trainCardTab === 'all' || (c.type || 'other') === trainCardTab; })
+        .slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
+      var perf30 = perfPool.filter(function (c) { return c.date >= dsAgo(29); });
+      var paced = perf30.filter(function (c) { return Number(c.duration) > 0 && Number(c.distance) > 0; });
+      var avgPace = paced.length ? fmtPace(paced.reduce(function (a, c) { return a + Number(c.duration); }, 0), paced.reduce(function (a, c) { return a + Number(c.distance); }, 0)) : null;
+      var longest = perf30.reduce(function (a, c) { return Math.max(a, Number(c.distance) || 0); }, 0);
+      var perfHr = perf30.filter(function (c) { return Number(c.hr) > 0; });
+      var perfAvgHr = perfHr.length ? Math.round(perfHr.reduce(function (a, c) { return a + Number(c.hr); }, 0) / perfHr.length) : null;
+      var paceSeries = perfPool.slice(-10).map(function (c) {
+        return (Number(c.duration) > 0 && Number(c.distance) > 0) ? Math.round(Number(c.duration) / Number(c.distance) * 100) / 100 : null;
+      }).filter(function (v) { return v != null; });
+      h += '<section class="card lg-span-8"><div class="lg-card-row"><div class="lg-card-title">Recent cardio performance</div>'
+        + '<div class="segmented lg-chip-seg">' + perfTabs.map(function (pt) { return '<button role="tab" data-ctype="' + pt[0] + '"' + (pt[0] === trainCardTab ? ' aria-selected="true"' : '') + '>' + pt[1] + '</button>'; }).join('') + '</div></div>'
+        + '<div class="lg-metric-strip" style="grid-template-columns:repeat(3,1fr);border-top:0;margin:0;padding-top:4px">'
+        + '<div><div class="lg-lab-head">Avg pace (30d)</div><div class="lg-body-val" style="font-size:20px">' + (avgPace ? avgPace + ' <small>/km</small>' : '&mdash;') + '</div></div>'
+        + '<div><div class="lg-lab-head">Longest distance</div><div class="lg-body-val" style="font-size:20px">' + (longest ? (Math.round(longest * 10) / 10) + ' <small>km</small>' : '&mdash;') + '</div></div>'
+        + '<div><div class="lg-lab-head">Avg HR</div><div class="lg-body-val" style="font-size:20px">' + (perfAvgHr != null ? perfAvgHr + ' <small>bpm</small>' : '&mdash;') + '</div></div></div>'
+        + (paceSeries.length >= 2 ? bodyChart(paceSeries) + '<div class="lg-card-sub">Pace per session (min/km), last ' + paceSeries.length + ' sessions with time + distance. Lower is faster.</div>'
+          : '<div class="lg-card-sub" style="margin-top:10px">Log time + distance on two or more sessions to see the pace trend.</div>')
         + '</section>';
-
-      var byType = {};
-      cardio.filter(function (c) { return c.date >= dsAgo(29); }).forEach(function (c) {
-        var k = c.type || 'other';
-        byType[k] = byType[k] || { n: 0, min: 0 };
-        byType[k].n++; byType[k].min += Number(c.duration) || 0;
-      });
-      var typeRows = Object.keys(byType).sort(function (a, b) { return byType[b].min - byType[a].min; }).map(function (k) {
-        return '<div class="lg-kv-row"><span class="k">' + esc(k.charAt(0).toUpperCase() + k.slice(1)) + '</span><span class="num">' + byType[k].n + '&times; &middot; ' + byType[k].min + ' min</span></div>';
-      }).join('');
-      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">By modality</div><span class="t-cap">30 days</span></div>'
-        + (typeRows || '<div class="lg-card-sub" style="margin-top:8px">Nothing in the last 30 days.</div>') + '</section>';
       h += '</div>';
 
+      h += '<div class="lg-body-grid">';
+      /* fatigue & recovery from readiness engine */
+      var parts = Array.isArray(rd.parts) ? rd.parts : [];
+      var fRows = parts.map(function (pt) {
+        var pct = pt.max ? pt.pts / pt.max : 0;
+        var stt = pct >= 0.7 ? ['Good', 'var(--green)'] : pct >= 0.45 ? ['Moderate', 'var(--amber)'] : ['Low', '#ff9f43'];
+        return '<div class="lg-trow" style="grid-template-columns:1fr auto 10px;min-height:34px"><span class="lg-card-sub" style="color:var(--text-2)">' + esc(pt.label) + '<span style="display:block;font-size:11px;color:var(--text-3)">' + esc(pt.detail || '') + '</span></span>'
+          + '<span style="color:' + stt[1] + ';font-size:12px">' + stt[0] + '</span><i style="width:8px;height:8px;border-radius:50%;background:' + stt[1] + '"></i></div>';
+      }).join('');
+      h += '<section class="card lg-span-4"><div class="lg-card-title">Fatigue &amp; recovery</div>'
+        + (rd.score != null ? '<div style="display:flex;align-items:center;gap:14px;margin-top:4px">' + ring(rd.score, esc(rd.label || '')) + '<div style="flex:1;min-width:0">' + fRows + '</div></div>'
+          : '<div class="lg-card-sub" style="margin-top:8px">Log sleep and mood to build your readiness breakdown.</div>' + fRows)
+        + (rd.advice ? '<div class="lg-note-card" style="margin-top:10px"><span class="lg-lab-head" style="margin-right:4px">Guidance</span>' + esc(rd.advice) + '</div>' : '') + '</section>';
+
+      /* modality trend */
+      var modTypes = Object.keys(typesPresent).sort();
+      var mSel = trainModSel && typesPresent[trainModSel] ? trainModSel : modTypes[0];
+      var mPool30 = cardio.filter(function (c) { return (c.type || 'other') === mSel && c.date >= dsAgo(29); });
+      var mMin = mPool30.reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0);
+      var mPaced = mPool30.filter(function (c) { return Number(c.duration) > 0 && Number(c.distance) > 0; });
+      var mPace = mPaced.length ? fmtPace(mPaced.reduce(function (a, c) { return a + Number(c.duration); }, 0), mPaced.reduce(function (a, c) { return a + Number(c.distance); }, 0)) : null;
+      var mBars = [];
+      for (var mw = 7; mw >= 0; mw--) {
+        var mlo = dsAgo(mw * 7 + 6), mhi = dsAgo(mw * 7);
+        mBars.push(cardio.filter(function (c) { return (c.type || 'other') === mSel && c.date >= mlo && c.date <= mhi; })
+          .reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0));
+      }
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Modality trend</div>'
+        + (modTypes.length ? '<select class="select" id="md-sel" style="width:auto;min-height:32px;padding:2px 26px 2px 10px;font-size:12px">' + modTypes.map(function (k) { return '<option value="' + esc(k) + '"' + (k === mSel ? ' selected' : '') + '>' + esc(k.charAt(0).toUpperCase() + k.slice(1)) + '</option>'; }).join('') + '</select>' : '') + '</div>'
+        + (modTypes.length ? '<div class="lg-metric-strip" style="grid-template-columns:repeat(3,1fr);border-top:0;margin:0;padding-top:4px">'
+          + '<div><div class="lg-lab-head">Minutes (30d)</div><div class="lg-body-val" style="font-size:18px">' + mMin + '</div></div>'
+          + '<div><div class="lg-lab-head">Sessions</div><div class="lg-body-val" style="font-size:18px">' + mPool30.length + '</div></div>'
+          + '<div><div class="lg-lab-head">Avg pace</div><div class="lg-body-val" style="font-size:18px">' + (mPace ? mPace : '&mdash;') + '</div></div></div>'
+          + (mBars.some(function (v) { return v > 0; }) ? barChart(mBars, 0) : '<div class="lg-card-sub" style="margin-top:8px">Nothing in the last 8 weeks.</div>')
+          : '<div class="lg-card-sub" style="margin-top:8px">Log cardio to see per-modality trends.</div>') + '</section>';
+
+      /* zone distribution — estimated from each session's avg HR */
+      var ZONES = [['Z5', 180, 999, '#ff5a5a'], ['Z4', 160, 179, '#ff9f43'], ['Z3', 140, 159, '#ffd43b'], ['Z2', 120, 139, '#5ee6a8'], ['Z1', 0, 119, '#4dabf7']];
+      var zoned = card7.filter(function (c) { return Number(c.hr) > 0 && Number(c.duration) > 0; });
+      var zTot = zoned.reduce(function (a, c) { return a + Number(c.duration); }, 0);
+      var zRows = ZONES.map(function (z) {
+        var min = zoned.filter(function (c) { return Number(c.hr) >= z[1] && Number(c.hr) <= z[2]; })
+          .reduce(function (a, c) { return a + Number(c.duration); }, 0);
+        var pct = zTot ? Math.round(min / zTot * 100) : 0;
+        var range = z[2] > 900 ? z[1] + '+ bpm' : z[1] + '&ndash;' + z[2] + ' bpm';
+        return '<div class="lg-trow" style="grid-template-columns:12px 34px 1fr auto auto;min-height:30px;border-bottom:0"><i style="width:8px;height:8px;border-radius:50%;background:' + z[3] + '"></i><span class="t-cap">' + z[0] + '</span><span class="lg-card-sub">' + range + '</span><span class="num" style="font-size:12px">' + min + ' min</span><span class="t-cap" style="width:34px;text-align:right">' + pct + '%</span></div>';
+      }).join('');
+      var z2min = zoned.filter(function (c) { return Number(c.hr) >= 120 && Number(c.hr) <= 139; }).reduce(function (a, c) { return a + Number(c.duration); }, 0);
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Zone distribution</div><span class="t-cap">this week</span></div>'
+        + (zoned.length ? zRows
+          + '<div class="between" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><div><div class="lg-lab-head">Zone 2 focus</div><div class="lg-body-val" style="font-size:18px">' + z2min + ' <small>min</small></div></div><div style="flex:1;max-width:150px;margin-left:12px"><div class="t-cap" style="text-align:right">Guideline: 120&ndash;180 min</div>' + pbar(z2min / 150 * 100, '#5ee6a8') + '</div></div>'
+          + '<div class="lg-card-sub" style="margin-top:8px">Estimated from each session’s average HR.</div>'
+          : '<div class="lg-card-sub" style="margin-top:8px">Log HR on your cardio sessions to see zone estimates.</div>') + '</section>';
+      h += '</div>';
+
+      h += '<div class="lg-body-grid">';
+      /* trends */
+      var wkKm = [], wkHr = [];
+      for (var w2 = 7; w2 >= 0; w2--) {
+        var lo2 = dsAgo(w2 * 7 + 6), hi2 = dsAgo(w2 * 7);
+        var pool = cardio.filter(function (c) { return c.date >= lo2 && c.date <= hi2; });
+        wkKm.push(Math.round(pool.reduce(function (a, c) { return a + (Number(c.distance) || 0); }, 0) * 10) / 10);
+        var ph = pool.filter(function (c) { return Number(c.hr) > 0; });
+        wkHr.push(ph.length ? Math.round(ph.reduce(function (a, c) { return a + Number(c.hr); }, 0) / ph.length) : 0);
+      }
+      var trendTxt = cardMin7 > cardPrev7 && cardPrev7 > 0 ? 'Cardio volume is trending up. Great consistency — keep building easy aerobic capacity.'
+        : cardMin7 < cardPrev7 ? 'Cardio volume dipped vs last week. A couple of easy sessions get you back on track.'
+        : cardio.length ? 'Cardio volume is steady week over week.' : 'Log cardio sessions to see trends.';
+      var hrSeries = wkHr.filter(function (v) { return v > 0; });
+      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Cardio trends</div><span class="t-cap">8 weeks</span></div>'
+        + '<div class="lg-metric-strip" style="grid-template-columns:repeat(3,1fr);border-top:0;margin:0;padding-top:4px">'
+        + '<div><div class="lg-lab-head">Minutes</div><div class="lg-body-val" style="font-size:18px">' + cardMin7 + '</div><div class="t-cap">' + (deltaHtml(cardMin7, cardPrev7, 'vs prior week') || '&nbsp;') + '</div>' + spark(wkMinBars, '#5ee6a8') + '</div>'
+        + '<div><div class="lg-lab-head">Distance</div><div class="lg-body-val" style="font-size:18px">' + wkKm[wkKm.length - 1] + ' <small>km</small></div><div class="t-cap">' + (deltaHtml(wkKm[wkKm.length - 1], wkKm[wkKm.length - 2], 'vs prior week') || '&nbsp;') + '</div>' + spark(wkKm, '#4dabf7') + '</div>'
+        + '<div><div class="lg-lab-head">Avg HR</div><div class="lg-body-val" style="font-size:18px">' + (wkHr[wkHr.length - 1] || '&mdash;') + (wkHr[wkHr.length - 1] ? ' <small>bpm</small>' : '') + '</div><div class="t-cap">&nbsp;</div>' + (hrSeries.length >= 2 ? spark(hrSeries, '#b98cff') : '') + '</div></div>'
+        + '<div class="lg-note-card" style="margin-top:12px"><span class="lg-lab-head" style="margin-right:4px">Trend summary</span>' + esc(trendTxt) + '</div></section>';
+
+      /* recent sessions w/ repeat + delete */
       var recent = cardio.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 8);
-      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Recent sessions</div><a class="lg-card-link" href="../gym.html#cardio">Open in Gym &rarr;</a></div>'
+      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Recent sessions</div><a class="lg-card-link" href="../gym.html#cardio">Open in Gym &rarr;</a></div>'
         + (recent.length ? recent.map(function (c) {
             var bits = [c.duration ? c.duration + ' min' : null, c.distance ? c.distance + ' km' : null, c.hr ? c.hr + ' bpm' : null].filter(Boolean).join(' &middot; ');
-            return '<div class="lg-trow" style="grid-template-columns:22px 1fr auto auto;gap:10px"><span style="color:var(--accent);display:inline-flex">' + runIcon + '</span>'
-              + '<span>' + esc(String(c.type || 'cardio').charAt(0).toUpperCase() + String(c.type || 'cardio').slice(1)) + (c.notes ? '<span class="lg-card-sub" style="display:block">' + esc(c.notes) + '</span>' : '') + '</span>'
-              + '<span class="t-cap">' + bits + '</span>'
-              + '<span class="t-cap" style="text-align:right">' + esc(c.date) + ' <button class="lg-ic-btn" data-del-cardio="' + esc(String(c.id)) + '" aria-label="Delete session">&times;</button></span></div>';
-          }).join('') : '<div class="lg-card-sub" style="margin-top:8px">No cardio logged yet — use the form above.</div>')
+            return '<div class="lg-trow" style="grid-template-columns:22px 1fr auto auto auto;gap:8px"><span style="color:var(--accent);display:inline-flex">' + runIcon + '</span>'
+              + '<span>' + esc(typeLabel(c)) + (c.notes ? '<span class="lg-card-sub" style="display:block">' + esc(c.notes) + '</span>' : '') + '</span>'
+              + '<span class="t-cap">' + bits + '</span><span class="t-cap">' + esc(c.date) + '</span>'
+              + '<span style="display:inline-flex"><button class="lg-ic-btn" data-repeat-cardio="' + esc(String(c.id)) + '" aria-label="Log again today" title="Log again today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12a8 8 0 1 1 2.4 5.7M4 18v-5h5"/></svg></button>'
+              + '<button class="lg-ic-btn" data-del-cardio="' + esc(String(c.id)) + '" aria-label="Delete session">&times;</button></span></div>';
+          }).join('') : '<div class="lg-card-sub" style="margin-top:8px">No cardio logged yet — use the form.</div>')
         + '</section>';
+      h += '</div>';
+
+      /* weekly breakdown */
+      var DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      var wkCells = '';
+      var wkTotal = 0;
+      for (var dd = 0; dd < 7; dd++) {
+        var offset = dowNow - dd;
+        var future = offset < 0;
+        var ds2 = future ? null : dsAgo(offset);
+        var minD = ds2 ? cardio.filter(function (c) { return c.date === ds2; }).reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0) : 0;
+        wkTotal += minD;
+        var isToday = offset === 0;
+        wkCells += '<div class="d"' + (isToday ? ' style="border-color:var(--accent)"' : '') + '><span class="t-cap">' + DOW[dd] + '</span>'
+          + '<strong style="font-size:13px">' + (minD ? minD + ' min' : '&mdash;') + '</strong>'
+          + (minD ? '<span style="color:var(--green);display:inline-flex">' + chk(true) + '</span>' : '') + '</div>';
+      }
+      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Weekly breakdown</div><div style="text-align:right"><span class="lg-lab-head">Weekly total </span><strong>' + wkTotal + ' min</strong></div></div>'
+        + '<div class="lg-daycol">' + wkCells + '</div>'
+        + '<div style="max-width:320px;margin-left:auto;margin-top:10px"><div class="t-cap" style="text-align:right">' + Math.round(wkTotal / 150 * 100) + '% of 150 min guideline</div>' + pbar(wkTotal / 150 * 100, '#5ee6a8') + '</div></section>';
       return h;
     }
 
     /* ---------- Progress ---------- */
     function progressView() {
       var h = '<section class="card" style="padding:0">' + subtabsBar('') + '</section>';
-      if (!hasStrength) {
-        h += emptyCard('No strength data yet', 'Log sets in the Gym module and progress charts build themselves from your history.', '../gym.html', 'Open Gym');
+      if (!hasStrength && !cardio.length) {
+        h += emptyCard('No progress data yet', 'Log training in the Gym module and progress charts build themselves from your history.', '../gym.html', 'Open Gym');
         return h;
       }
       var cut28 = dsAgo(28);
@@ -2777,42 +3061,129 @@
         if (!s.length) return null;
         var latest = s[s.length - 1].v;
         var old = (s.filter(function (x) { return x.d <= cut28; }).pop() || s[0]).v;
-        return { id: id, latest: latest, old: old, pct: old ? Math.round((latest - old) / old * 100) : 0 };
+        return { id: id, latest: latest, old: old, pct: old ? Math.round((latest - old) / old * 100) : 0, series: s };
       }).filter(Boolean);
       var avgPct = liftDeltas.length ? Math.round(liftDeltas.reduce(function (a, x) { return a + x.pct; }, 0) / liftDeltas.length) : 0;
       var cardioWeeks = 0;
-      for (var w = 0; w < 8; w++) {
+      var consBars = [];
+      for (var w = 7; w >= 0; w--) {
         var lo = dsAgo(w * 7 + 6), hi = dsAgo(w * 7);
-        if (cardio.some(function (c) { return c.date >= lo && c.date <= hi; })) cardioWeeks++;
+        var has = cardio.some(function (c) { return c.date >= lo && c.date <= hi; });
+        if (has) cardioWeeks++;
+        consBars.push(has ? 1 : 0);
       }
       h += '<div class="lg-statgrid c4">'
-        + kpiCard(dumbIcon, 'Weekly volume', fmtVol(vol7) + ' <small>' + units + '</small>', deltaHtml(vol7, volPrev) || '&nbsp;')
-        + kpiCard(boltIcon, 'Strength trend', (avgPct > 0 ? '+' : '') + avgPct + '%', 'top lifts est. 1RM vs 4 weeks ago')
-        + kpiCard(cardioIcon, 'Cardio consistency', Math.round(cardioWeeks / 8 * 100) + '%', cardioWeeks + ' of 8 weeks')
-        + '<section class="card"><div class="kpi-top"><span class="lg-body-ic">' + heartIcon + '</span>Readiness</div>'
-        + '<div style="display:flex;align-items:center;gap:12px;margin-top:6px"><div style="flex:1"><div style="color:' + (rd.score >= 70 ? 'var(--green)' : 'var(--amber)') + ';font-weight:600">' + esc(rd.label || '—') + '</div></div>'
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + dumbIcon + '</span>Weekly volume trend</div>'
+        + '<div class="between"><div><div class="kpi-val">' + fmtVol(vol7) + ' <small>' + units + '</small></div><div class="kpi-sub">' + (deltaHtml(vol7, volPrev) || '&nbsp;') + '</div></div>' + spark(volSeries, '#5ee6a8') + '</div></section>'
+        + kpiCard(boltIcon, 'Strength trend (est. 1RM)', (avgPct > 0 ? '+' : '') + avgPct + '%', 'top lifts vs 4 weeks ago')
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + cardioIcon + '</span>Cardio consistency</div>'
+        + '<div class="between"><div><div class="kpi-val">' + Math.round(cardioWeeks / 8 * 100) + '%</div><div class="kpi-sub">' + cardioWeeks + ' of 8 weeks</div></div>' + spark(consBars, '#4dabf7') + '</div></section>'
+        + '<section class="card lg-kpi"><div class="kpi-top"><span class="lg-body-ic">' + heartIcon + '</span>Recovery trend</div>'
+        + '<div style="display:flex;align-items:center;gap:12px;margin-top:4px"><div style="flex:1"><div style="color:' + (rd.score >= 70 ? 'var(--green)' : 'var(--amber)') + ';font-weight:600">' + esc(rd.label || '&mdash;') + '</div>'
+        + '<div class="lg-card-sub">' + (hrv != null ? 'HRV ' + hrv + ' ms' : '') + (hrv != null && rhr != null ? '<br>' : '') + (rhr != null ? 'RHR ' + rhr + ' bpm' : '') + '</div></div>'
         + (rd.score != null ? ring(rd.score, '') : '') + '</div></section>'
         + '</div>';
 
+      /* progress overview big chart */
+      var nWeeks = trainProgRange;
+      function seriesFor(metric) {
+        var out = [];
+        for (var w = nWeeks - 1; w >= 0; w--) {
+          if (metric === 'volume') out.push(weekVol(w));
+          else if (metric === 'cardio') {
+            var lo = dsAgo(w * 7 + 6), hi = dsAgo(w * 7);
+            out.push(cardio.filter(function (c) { return c.date >= lo && c.date <= hi; }).reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0));
+          } else if (metric === 'e1rm') {
+            var end = dsAgo(w * 7);
+            var vals = [];
+            liftDeltas.forEach(function (x) {
+              var pt = null;
+              x.series.forEach(function (sp) { if (sp.d <= end) pt = sp.v; });
+              if (pt != null) vals.push(pt);
+            });
+            out.push(vals.length ? Math.round(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length) : 0);
+          }
+        }
+        return out;
+      }
+      var METRICS = [['volume', 'Volume'], ['e1rm', 'Est. 1RM'], ['cardio', 'Cardio minutes']];
+      var mSeries = seriesFor(trainProgMetric);
+      var mLast = mSeries[mSeries.length - 1];
+      var capTxt = trainProgMetric === 'volume' ? 'Volume includes load &times; reps across all logged strength exercises.'
+        : trainProgMetric === 'e1rm' ? 'Average est. 1RM across your top lifts, by week.'
+        : 'Total cardio minutes per week.';
       h += '<div class="lg-body-grid">';
-      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Weekly volume</div><span class="t-cap">8 weeks &middot; ' + units + '</span></div>'
-        + bodyChart(volSeries) + '<div class="lg-card-sub">Volume = load &times; reps across all logged sets.</div></section>';
-      var klRows = liftDeltas.map(function (x) {
+      h += '<section class="card lg-span-8"><div class="lg-card-row"><div class="lg-card-title">Progress overview</div>'
+        + '<select class="select" id="pr-range" style="width:auto;min-height:32px;padding:2px 26px 2px 10px;font-size:12px"><option value="8"' + (nWeeks === 8 ? ' selected' : '') + '>Last 8 weeks</option><option value="16"' + (nWeeks === 16 ? ' selected' : '') + '>Last 16 weeks</option></select></div>'
+        + '<div class="segmented lg-chip-seg" style="align-self:flex-start;margin-bottom:4px">' + METRICS.map(function (mm) { return '<button role="tab" data-pmetric="' + mm[0] + '"' + (mm[0] === trainProgMetric ? ' aria-selected="true"' : '') + '>' + mm[1] + '</button>'; }).join('') + '</div>'
+        + (mSeries.some(function (v) { return v > 0; }) ? bodyChart(mSeries) + '<div class="between"><div class="lg-card-sub">' + capTxt + '</div><span class="badge violet num">' + (trainProgMetric === 'cardio' ? mLast + ' min' : fmtVol(mLast) + ' ' + units) + '</span></div>'
+          : '<div class="lg-card-sub" style="margin-top:10px">Nothing logged in this range yet.</div>')
+        + '</section>';
+
+      var klRows = liftDeltas.map(function (x, i) {
         var col = x.pct > 0 ? 'var(--green)' : x.pct < 0 ? 'var(--amber)' : 'var(--text-3)';
-        return '<div class="lg-trow" style="grid-template-columns:1fr auto 64px"><span>' + esc((exById[x.id] || {}).name || '') + '</span>'
+        var pr = prsMap[x.id];
+        return '<div class="lg-trow" style="grid-template-columns:16px 1fr auto 72px"><span class="t-cap">' + (i + 1) + '</span>'
+          + '<span style="font-weight:500">' + esc((exById[x.id] || {}).name || '') + (pr ? '<span class="lg-card-sub" style="display:block">PR ' + pr.weight + units + ' &times; ' + pr.reps + ' &middot; ' + esc(typeof dateLabel === 'function' ? dateLabel(pr.date) : pr.date) + '</span>' : '') + '</span>'
           + '<span class="num">' + x.latest + ' ' + units + '</span>'
-          + '<span class="lg-card-sub" style="color:' + col + ';text-align:right">' + (x.pct > 0 ? '+' : '') + x.pct + '%</span></div>';
+          + '<span style="color:' + col + ';text-align:right;font-size:12px">' + (x.pct > 0 ? '+' : '') + x.pct + '%' + spark(x.series.slice(-8).map(function (s2) { return s2.v; }), x.pct >= 0 ? '#5ee6a8' : '#ff9f43') + '</span></div>';
       }).join('');
-      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Key lifts</div><span class="t-cap">vs 4w ago</span></div>' + klRows + '</section>';
+      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Key lifts progress</div><span class="t-cap">vs 4w ago</span></div>'
+        + (klRows || '<div class="lg-card-sub" style="margin-top:8px">Log lifts on multiple days to see progress.</div>')
+        + '<div class="lg-card-sub" style="margin-top:8px">PRs are auto-detected from your logged sets.</div></section>';
+      h += '</div>';
+
+      /* muscle volume heat table, 8 weeks */
+      var weeks = [];
+      for (var hw = 7; hw >= 0; hw--) weeks.push(muscleWeek(hw));
+      var allMus = {};
+      weeks.forEach(function (wm) { Object.keys(wm).forEach(function (k) { allMus[k] = 1; }); });
+      var musNames = Object.keys(allMus).sort();
+      var heatMax = 1;
+      weeks.forEach(function (wm) { musNames.forEach(function (k) { if (wm[k] && wm[k].vol > heatMax) heatMax = wm[k].vol; }); });
+      var heatRows = musNames.map(function (k) {
+        var cells = weeks.map(function (wm) {
+          var v = wm[k] ? wm[k].vol : 0;
+          var alpha = v ? (0.12 + 0.68 * (v / heatMax)).toFixed(2) : 0;
+          return '<span class="hc" style="background:rgba(155,108,255,' + alpha + ')">' + (v ? fmtVol(v) : '&middot;') + '</span>';
+        }).join('');
+        var first = weeks[0][k] ? weeks[0][k].vol : 0, last = weeks[7][k] ? weeks[7][k].vol : 0;
+        var tr = first ? Math.round((last - first) / first * 100) : (last ? 100 : 0);
+        return '<div class="lg-heat-row"><span class="lbl">' + esc(k) + '</span>' + cells + '<span style="font-size:11px;text-align:right;color:' + (tr >= 0 ? 'var(--green)' : 'var(--amber)') + '">' + (tr > 0 ? '+' : '') + tr + '%</span></div>';
+      }).join('');
+      var heatHead = '<div class="lg-heat-row"><span class="lbl"></span>' + [8, 7, 6, 5, 4, 3, 2].map(function (n) { return '<span class="t-cap" style="text-align:center">Wk -' + n + '</span>'; }).join('') + '<span class="t-cap" style="text-align:center">This wk</span><span class="t-cap" style="text-align:right">Trend</span></div>';
+      h += '<div class="lg-body-grid">';
+      h += '<section class="card lg-span-6"><div class="lg-card-row"><div class="lg-card-title">Muscle volume</div><span class="t-cap">last 8 weeks &middot; ' + units + '</span></div>'
+        + (musNames.length ? '<div class="lg-heat">' + heatHead + heatRows + '</div>'
+          + '<div class="between" style="margin-top:10px"><span class="t-cap">Lower</span><div style="flex:1;height:6px;margin:0 10px;border-radius:3px;background:linear-gradient(90deg,rgba(155,108,255,.12),rgba(155,108,255,.8))"></div><span class="t-cap">Higher</span></div>'
+          + '<div class="lg-card-sub" style="margin-top:6px">Total volume = load &times; reps. Darker = more volume.</div>'
+          : '<div class="lg-card-sub" style="margin-top:8px">Tag exercises with a muscle group in the Gym module to see this table.</div>') + '</section>';
+
       var msRows = prsList.slice(0, 6).map(function (pr) {
         return '<div class="lg-trow" style="grid-template-columns:24px 1fr auto"><span style="color:#ffd43b;display:inline-flex">' + trophyIcon + '</span>'
-          + '<span>' + esc(pr.name || 'PR') + '<span class="lg-card-sub" style="display:block">' + pr.weight + units + ' &times; ' + pr.reps + '</span></span>'
-          + '<span class="t-cap">' + esc(pr.date) + '</span></div>';
+          + '<span>' + esc(pr.name || 'PR') + ' PR<span class="lg-card-sub" style="display:block">' + pr.weight + units + ' &times; ' + pr.reps + ' &middot; est. ' + pr.e1rm + ' ' + units + '</span></span>'
+          + '<span class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(pr.date) : pr.date) + '</span></div>';
       }).join('');
-      h += '<section class="card lg-span-3"><div class="lg-card-title">PR timeline</div>'
+      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Milestones &amp; PR timeline</div><a class="lg-card-link" href="../gym.html">View all &rarr;</a></div>'
         + (msRows || '<div class="lg-card-sub" style="margin-top:8px">No PRs detected yet.</div>') + '</section>';
+
+      var wkMin8 = [], wkKm8 = [];
+      for (var cw = 7; cw >= 0; cw--) {
+        var clo = dsAgo(cw * 7 + 6), chi = dsAgo(cw * 7);
+        var cpool = cardio.filter(function (c) { return c.date >= clo && c.date <= chi; });
+        wkMin8.push(cpool.reduce(function (a, c) { return a + (Number(c.duration) || 0); }, 0));
+        wkKm8.push(Math.round(cpool.reduce(function (a, c) { return a + (Number(c.distance) || 0); }, 0) * 10) / 10);
+      }
+      var paceAll = cardio.filter(function (c) { return Number(c.duration) > 0 && Number(c.distance) > 0 && c.date >= dsAgo(6); });
+      var wkPace = paceAll.length ? fmtPace(paceAll.reduce(function (a, c) { return a + Number(c.duration); }, 0), paceAll.reduce(function (a, c) { return a + Number(c.distance); }, 0)) : null;
+      h += '<section class="card lg-span-3"><div class="lg-card-row"><div class="lg-card-title">Cardio progress</div><a class="lg-card-link" data-goto-cardio style="background:none;border:0;cursor:pointer">View &rarr;</a></div>'
+        + '<div class="lg-lab-head" style="margin-top:4px">Weekly minutes</div><div class="lg-body-val" style="font-size:20px">' + wkMin8[7] + ' <small>min</small> ' + (deltaHtml(wkMin8[7], wkMin8[6], 'vs prior week') || '') + '</div>' + spark(wkMin8, '#5ee6a8')
+        + '<div class="lg-lab-head" style="margin-top:10px">Distance (week)</div><div class="lg-body-val" style="font-size:20px">' + wkKm8[7] + ' <small>km</small></div>' + spark(wkKm8, '#4dabf7')
+        + '<div class="lg-lab-head" style="margin-top:10px">Avg pace (week)</div><div class="lg-body-val" style="font-size:20px">' + (wkPace ? wkPace + ' <small>/km</small>' : '&mdash;') + '</div></section>';
       h += '</div>';
-      h += '<section class="card"><div class="lg-card-title">Coach signals</div>' + coachRows() + '</section>';
+
+      h += '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Coach insights</div><a class="lg-card-link" href="coach.html">View all coach feedback &rarr;</a></div>' + coachRows() + '</section>';
+      h += '<div class="lg-card-sub" style="text-align:center">All metrics are based on logged data. Consistency over time drives progress.</div>';
       return h;
     }
 
@@ -2824,42 +3195,123 @@
         return h;
       }
       var ym = t.slice(0, 7);
+      var prevYm = dsAgo(new Date().getDate() + 1).slice(0, 7);
       var monthDays = Object.keys(byDay).filter(function (dk) { return dk.slice(0, 7) === ym; });
+      var prevMonthDays = Object.keys(byDay).filter(function (dk) { return dk.slice(0, 7) === prevYm; });
       var monthVol = monthDays.reduce(function (a, dk) { return a + volFor(dk); }, 0);
+      var prevMonthVol = prevMonthDays.reduce(function (a, dk) { return a + volFor(dk); }, 0);
       var monthCardio = cardio.filter(function (c) { return String(c.date).slice(0, 7) === ym; });
       var monthKm = monthCardio.reduce(function (a, c) { return a + (Number(c.distance) || 0); }, 0);
       var monthPRs = prsList.filter(function (pr) { return String(pr.date).slice(0, 7) === ym; });
+      var totSessions = monthDays.length + monthCardio.length;
       h += '<div class="lg-statgrid c4">'
-        + kpiCard(calIcon, 'Sessions this month', String(monthDays.length), 'strength days with sets')
-        + kpiCard(dumbIcon, 'Volume this month', fmtVol(monthVol) + ' <small>' + units + '</small>', 'load &times; reps')
-        + kpiCard(cardioIcon, 'Cardio this month', String(monthCardio.length), (Math.round(monthKm * 10) / 10) + ' km total')
-        + kpiCard(trophyIcon, 'PRs this month', String(monthPRs.length), monthPRs.length ? esc(monthPRs.slice(0, 2).map(function (x) { return x.name; }).join(', ')) : 'none yet')
+        + kpiCard(calIcon, 'Total sessions this month', String(totSessions), monthDays.length + ' strength &middot; ' + monthCardio.length + ' cardio')
+        + kpiCard(dumbIcon, 'Total volume this month', fmtVol(monthVol) + ' <small>' + units + '</small>', deltaHtml(monthVol, prevMonthVol, 'vs last month') || 'load &times; reps')
+        + kpiCard(heartIcon, 'Cardio this month', String(monthCardio.length), (Math.round(monthKm * 10) / 10) + ' km total' + (monthCardio.length ? ' &middot; ' + (Math.round(monthKm / monthCardio.length * 10) / 10) + ' avg km' : ''))
+        + kpiCard(trophyIcon, 'PRs this month', String(monthPRs.length), monthPRs.length ? esc(monthPRs.slice(0, 3).map(function (x) { return x.name; }).join(', ')) : 'none yet')
         + '</div>';
 
-      var days = Object.keys(byDay).sort().reverse().slice(0, 8);
-      var histRows = days.map(function (dk) {
+      /* merged timeline of strength days + cardio sessions */
+      var items = [];
+      Object.keys(byDay).forEach(function (dk) {
         var sets = byDay[dk];
         var names = [];
         sets.forEach(function (x) { if (names.indexOf(x.ex.name) < 0) names.push(x.ex.name); });
-        return '<div class="lg-hist-row"><div class="min-0"><div class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(dk) : dk) + '</div>'
-          + '<div style="font-weight:600;margin:2px 0"><span>' + esc(names.slice(0, 3).join(', ')) + (names.length > 3 ? ' +' + (names.length - 3) : '') + '</span> <span class="badge violet">Strength</span></div>'
-          + '<div class="t-cap">' + sets.length + ' sets &middot; ' + fmtVol(volFor(dk)) + ' ' + units + '</div></div>'
-          + '<a class="lg-edit" href="../gym.html" aria-label="Open in Gym"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 5h5v5M19 5l-8 8M11 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg></a></div>';
-      }).join('');
+        var hasPR = prsList.some(function (pr) { return String(pr.date).slice(0, 10) === dk; });
+        items.push({ kind: 'strength', date: dk, key: 's:' + dk, names: names, sets: sets, vol: volFor(dk), pr: hasPR });
+      });
+      cardio.forEach(function (c) {
+        items.push({ kind: 'cardio', date: String(c.date).slice(0, 10), key: 'c:' + c.id, c: c });
+      });
+      items.sort(function (a, b) { return b.date.localeCompare(a.date); });
+      var filtered = items.filter(function (it) {
+        if (trainHistFilter === 'strength') return it.kind === 'strength';
+        if (trainHistFilter === 'cardio') return it.kind === 'cardio';
+        if (trainHistFilter === 'prs') return it.kind === 'strength' && it.pr;
+        return true;
+      });
+      var shown = filtered.slice(0, trainHistCount);
+      var sel = null;
+      shown.forEach(function (it) { if (it.key === trainHistSel) sel = it; });
+      if (!sel && shown.length) sel = shown[0];
 
-      var clRows = cardio.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 5).map(function (c) {
-        var bits = [c.duration ? c.duration + ' min' : null, c.distance ? c.distance + ' km' : null, c.hr ? c.hr + ' bpm' : null].filter(Boolean).join(' &middot; ');
+      var FILTERS = [['all', 'All'], ['strength', 'Strength'], ['cardio', 'Cardio'], ['prs', 'PRs']];
+      var chips = '<div class="segmented lg-chip-seg" style="align-self:flex-start;margin:4px 0 8px">'
+        + FILTERS.map(function (f) { return '<button role="tab" data-hfilter="' + f[0] + '"' + (f[0] === trainHistFilter ? ' aria-selected="true"' : '') + '>' + f[1] + '</button>'; }).join('') + '</div>';
+      var listRows = shown.map(function (it) {
+        var on = sel && it.key === sel.key;
+        var inner;
+        if (it.kind === 'strength') {
+          inner = '<div class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(it.date) : it.date) + '</div>'
+            + '<div style="font-weight:600;margin:2px 0">' + esc(it.names.slice(0, 3).join(', ')) + (it.names.length > 3 ? ' +' + (it.names.length - 3) : '') + ' <span class="badge violet">Strength</span>' + (it.pr ? ' <span style="color:#ffd43b;display:inline-flex;vertical-align:-3px;width:14px;height:14px">' + trophyIcon + '</span>' : '') + '</div>'
+            + '<div class="t-cap">' + it.sets.length + ' sets &middot; ' + fmtVol(it.vol) + ' ' + units + '</div>';
+        } else {
+          var c = it.c;
+          inner = '<div class="t-cap">' + esc(typeof dateLabel === 'function' ? dateLabel(it.date) : it.date) + '</div>'
+            + '<div style="font-weight:600;margin:2px 0">' + esc(typeLabel(c)) + ' <span class="badge" style="background:rgba(77,171,247,.14);color:#4dabf7">Cardio</span></div>'
+            + '<div class="t-cap">' + [c.duration ? c.duration + ' min' : null, c.distance ? c.distance + ' km' : null, c.hr ? c.hr + ' bpm' : null].filter(Boolean).join(' &middot; ') + '</div>';
+        }
+        return '<button class="lg-hist-row" data-sess="' + esc(it.key) + '" style="width:100%;text-align:left;background:' + (on ? 'rgba(155,108,255,.08)' : 'none') + ';border:0;border-bottom:1px solid var(--border);cursor:pointer;font:inherit;color:inherit;border-radius:' + (on ? '8px' : '0') + ';padding:12px ' + (on ? '10px' : '0') + '"><div class="min-0">' + inner + '</div></button>';
+      }).join('');
+      var moreBtn = filtered.length > trainHistCount ? '<button class="btn btn-secondary btn-sm" data-hist-more style="margin-top:10px;align-self:center">Load more</button>' : '';
+
+      /* detail pane */
+      var detail;
+      if (sel && sel.kind === 'strength') {
+        var byEx = {};
+        sel.sets.forEach(function (x) {
+          var k = x.ex.id;
+          byEx[k] = byEx[k] || { ex: x.ex, sets: [] };
+          byEx[k].sets.push(x.set);
+        });
+        var exRows = Object.keys(byEx).map(function (k) {
+          var g = byEx[k];
+          var reps = g.sets.map(function (s) { return Number(s.reps) || 0; });
+          var loads = [];
+          g.sets.forEach(function (s) { var w2 = Number(s.weight) || 0; if (loads.indexOf(w2) < 0) loads.push(w2); });
+          var bestE = Math.round(g.sets.reduce(function (a, s) { return Math.max(a, e1rm(Number(s.weight) || 0, Number(s.reps) || 0)); }, 0) * 10) / 10;
+          var isPR = prsMap[k] && String(prsMap[k].date).slice(0, 10) === sel.date;
+          var rpes = g.sets.map(function (s) { return s.rpe; }).filter(Boolean);
+          return '<div class="lg-ex-row"><span style="font-weight:500">' + esc(g.ex.name) + (isPR ? ' <span style="color:#ffd43b;display:inline-flex;vertical-align:-3px;width:13px;height:13px">' + trophyIcon + '</span>' : '') + '</span>'
+            + '<span class="num">' + g.sets.length + '</span>'
+            + '<span class="num">' + reps.join(', ') + '</span>'
+            + '<span class="num">' + (g.ex.bw ? 'bodyweight' : loads.join(', ') + ' ' + units) + '</span>'
+            + '<span class="num" style="text-align:right">' + (g.ex.bw ? '&mdash;' : bestE + ' ' + units) + (rpes.length ? '<span class="lg-card-sub" style="display:block">RPE ' + rpes.join(', ') + '</span>' : '') + '</span></div>';
+        }).join('');
+        var exHead = '<div class="lg-ex-row" style="min-height:26px"><span class="lg-lab-head">Exercise</span><span class="lg-lab-head">Sets</span><span class="lg-lab-head">Reps</span><span class="lg-lab-head">Load</span><span class="lg-lab-head" style="text-align:right">1RM est.</span></div>';
+        detail = '<div class="lg-card-row"><div><div class="lg-card-title">' + esc(typeof dateLabel === 'function' ? dateLabel(sel.date) : sel.date) + ' &middot; Strength session</div>'
+          + '<div class="lg-card-sub">' + sel.sets.length + ' sets &middot; ' + fmtVol(sel.vol) + ' ' + units + (sel.pr ? ' &middot; PR day' : '') + '</div></div>'
+          + '<a class="btn btn-secondary btn-sm" href="../gym.html">Edit / Open</a></div>'
+          + '<div class="lg-lab-head" style="margin-top:8px">Exercises</div>' + exHead + exRows;
+      } else if (sel && sel.kind === 'cardio') {
+        var c2 = sel.c;
+        var pace2 = fmtPace(Number(c2.duration), Number(c2.distance));
+        detail = '<div class="lg-card-row"><div><div class="lg-card-title">' + esc(typeof dateLabel === 'function' ? dateLabel(sel.date) : sel.date) + ' &middot; ' + esc(typeLabel(c2)) + '</div>'
+          + '<div class="lg-card-sub">Cardio session</div></div>'
+          + '<a class="btn btn-secondary btn-sm" href="../gym.html#cardio">Open in Gym</a></div>'
+          + '<div class="lg-metric-strip" style="grid-template-columns:repeat(4,1fr);margin-top:10px">'
+          + '<div><div class="lg-lab-head">Duration</div><div class="lg-body-val" style="font-size:18px">' + (c2.duration ? c2.duration + ' <small>min</small>' : '&mdash;') + '</div></div>'
+          + '<div><div class="lg-lab-head">Distance</div><div class="lg-body-val" style="font-size:18px">' + (c2.distance ? c2.distance + ' <small>km</small>' : '&mdash;') + '</div></div>'
+          + '<div><div class="lg-lab-head">Avg HR</div><div class="lg-body-val" style="font-size:18px">' + (c2.hr ? c2.hr + ' <small>bpm</small>' : '&mdash;') + '</div></div>'
+          + '<div><div class="lg-lab-head">Pace</div><div class="lg-body-val" style="font-size:18px">' + (pace2 ? pace2 + ' <small>/km</small>' : '&mdash;') + '</div></div></div>'
+          + (c2.notes ? '<div class="lg-lab-head" style="margin-top:12px">Session notes</div><div class="lg-card-sub" style="margin-top:4px">' + esc(c2.notes) + '</div>' : '');
+      } else {
+        detail = '<div class="lg-card-sub" style="margin-top:8px">Select a session on the left to see details.</div>';
+      }
+
+      /* right column bits */
+      var clRows = cardio.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 3).map(function (c) {
+        var pace = fmtPace(Number(c.duration), Number(c.distance));
         return '<div class="lg-trow" style="grid-template-columns:22px 1fr auto"><span style="color:var(--accent);display:inline-flex">' + runIcon + '</span>'
-          + '<span>' + esc(String(c.type || 'cardio').charAt(0).toUpperCase() + String(c.type || 'cardio').slice(1)) + '<span class="lg-card-sub" style="display:block">' + bits + '</span></span>'
-          + '<span class="t-cap">' + esc(c.date) + '</span></div>';
+          + '<span>' + esc(typeLabel(c)) + '<span class="lg-card-sub" style="display:block">' + esc(typeof dateLabel === 'function' ? dateLabel(String(c.date).slice(0, 10)) : c.date) + '</span></span>'
+          + '<span class="t-cap" style="text-align:right">' + [c.distance ? c.distance + ' km' : null, c.hr ? c.hr + ' bpm' : null, pace ? pace + ' /km' : null].filter(Boolean).join(' &middot; ') + (c.duration ? '<span style="display:block">' + c.duration + ' min</span>' : '') + '</span></div>';
       }).join('');
 
-      /* monthly calendar with strength/cardio dots from real data */
       var y = Number(t.slice(0, 4)), mo = Number(t.slice(5, 7));
       var dim = new Date(y, mo, 0).getDate();
-      var firstDow = (new Date(y, mo - 1, 1).getDay() + 6) % 7; /* Mon = 0 */
+      var firstDow = (new Date(y, mo - 1, 1).getDay() + 6) % 7;
       var cardioDays = {};
-      monthCardio.forEach(function (c) { cardioDays[c.date] = 1; });
+      monthCardio.forEach(function (c) { cardioDays[String(c.date).slice(0, 10)] = 1; });
       var cal = '<div class="lg-cal">' + ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (d) { return '<div class="t-cap">' + d + '</div>'; }).join('');
       for (var b = 0; b < firstDow; b++) cal += '<div class="d" style="border:0"></div>';
       for (var dn = 1; dn <= dim; dn++) {
@@ -2871,17 +3323,20 @@
       var legend = '<div class="inline" style="gap:14px;margin-top:8px;font-size:11px;color:var(--text-3)"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:4px"></i>Strength</span><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#4dabf7;margin-right:4px"></i>Cardio</span></div>';
 
       h += '<div class="lg-body-grid">';
-      h += '<section class="card lg-span-4"><div class="lg-card-title">Training history</div>'
-        + (histRows || '<div class="lg-card-sub" style="margin-top:8px">No strength sessions logged.</div>')
-        + '<a class="lg-card-link" href="../gym.html" style="display:inline-block;margin-top:10px">Open Gym &rarr;</a></section>';
-      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Recent cardio</div><button class="lg-card-link" data-goto-cardio style="background:none;border:0;cursor:pointer">View all &rarr;</button></div>'
-        + (clRows || '<div class="lg-card-sub" style="margin-top:8px">No cardio logged.</div>') + '</section>';
-      h += '<section class="card lg-span-4"><div class="lg-card-row"><div class="lg-card-title">Monthly activity</div><span class="t-cap">' + esc(new Date(y, mo - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })) + '</span></div>' + cal + legend + '</section>';
+      h += '<section class="card lg-span-4" style="display:flex;flex-direction:column"><div class="lg-card-title">Training history</div>' + chips
+        + (listRows || '<div class="lg-card-sub" style="margin-top:8px">Nothing matches this filter.</div>') + moreBtn + '</section>';
+      h += '<section class="card lg-span-5">' + detail + '</section>';
+      h += '<div class="col lg-span-3" style="display:flex;flex-direction:column;gap:12px">'
+        + '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Recent cardio logs</div><button class="lg-card-link" data-goto-cardio style="background:none;border:0;cursor:pointer">View all &rarr;</button></div>'
+        + (clRows || '<div class="lg-card-sub" style="margin-top:8px">No cardio logged.</div>') + '</section>'
+        + '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Monthly activity</div><span class="t-cap">' + esc(new Date(y, mo - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })) + '</span></div>' + cal + legend + '</section>'
+        + '<section class="card"><div class="lg-card-row"><div class="lg-card-title">Coach review</div><a class="lg-card-link" href="coach.html">View all &rarr;</a></div>' + coachRows() + '</section>'
+        + '</div>';
       h += '</div>';
       return h;
     }
 
-    var tviews = { overview: overviewView, cardio: cardioView, progress: progressView, history: historyView };
+    var tviews = { overview: overviewView, strength: strengthView, cardio: cardioView, progress: progressView, history: historyView };
     var builder = tviews[trainSub] || overviewView;
     p.innerHTML = '<div class="lg-body-wrap">' + builder() + '</div>';
 
@@ -2894,10 +3349,41 @@
     p.querySelectorAll('[data-ex]').forEach(function (b) {
       b.addEventListener('click', function () { trainExSel = b.getAttribute('data-ex'); renderTrainingPanel(p); });
     });
+    p.querySelectorAll('[data-ctype]').forEach(function (b) {
+      b.addEventListener('click', function () { trainCardTab = b.getAttribute('data-ctype'); renderTrainingPanel(p); });
+    });
+    p.querySelectorAll('[data-pmetric]').forEach(function (b) {
+      b.addEventListener('click', function () { trainProgMetric = b.getAttribute('data-pmetric'); renderTrainingPanel(p); });
+    });
+    p.querySelectorAll('[data-hfilter]').forEach(function (b) {
+      b.addEventListener('click', function () { trainHistFilter = b.getAttribute('data-hfilter'); trainHistCount = 10; renderTrainingPanel(p); });
+    });
+    p.querySelectorAll('[data-sess]').forEach(function (b) {
+      b.addEventListener('click', function () { trainHistSel = b.getAttribute('data-sess'); renderTrainingPanel(p); });
+    });
+    var histMore = p.querySelector('[data-hist-more]');
+    if (histMore) histMore.addEventListener('click', function () { trainHistCount += 10; renderTrainingPanel(p); });
+    var prRange = p.querySelector('#pr-range');
+    if (prRange) prRange.addEventListener('change', function () { trainProgRange = parseInt(prRange.value, 10) || 16; renderTrainingPanel(p); });
+    var mdSel = p.querySelector('#md-sel');
+    if (mdSel) mdSel.addEventListener('change', function () { trainModSel = mdSel.value; renderTrainingPanel(p); });
+
+    function paceInputSync() {
+      var dur = parseFloat(p.querySelector('#cd-dur').value) || 0;
+      var dist = parseFloat(p.querySelector('#cd-dist').value) || 0;
+      var pv = fmtPace(dur, dist);
+      p.querySelector('#cd-pace').value = pv ? pv + ' /km' : '';
+    }
+    ['#cd-dur', '#cd-dist'].forEach(function (sq) {
+      var el = p.querySelector(sq);
+      if (el) el.addEventListener('input', paceInputSync);
+    });
     var cdSave = p.querySelector('#cd-save');
     if (cdSave) cdSave.addEventListener('click', function () {
       var dur = parseInt(p.querySelector('#cd-dur').value, 10) || 0;
       if (!dur) { UI.toast('Enter a duration'); return; }
+      var dsel = p.querySelector('#cd-date').value || t;
+      if (dsel > t) dsel = t;
       var arr = lsget('gym:cardio:v1', []) || [];
       arr.push({
         id: String(Date.now()),
@@ -2906,10 +3392,22 @@
         distance: parseFloat(p.querySelector('#cd-dist').value) || null,
         hr: parseInt(p.querySelector('#cd-hr').value, 10) || null,
         notes: p.querySelector('#cd-notes').value.trim(),
-        date: t,
+        date: dsel,
       });
       lsset('gym:cardio:v1', arr); fire();
       UI.toast('Cardio logged'); renderTrainingPanel(p);
+    });
+    p.querySelectorAll('[data-repeat-cardio]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var id = b.getAttribute('data-repeat-cardio');
+        var arr = lsget('gym:cardio:v1', []) || [];
+        var src = null;
+        arr.forEach(function (c) { if (String(c.id) === id) src = c; });
+        if (!src) return;
+        arr.push({ id: String(Date.now()), type: src.type, duration: src.duration, distance: src.distance, hr: src.hr, notes: src.notes, date: t });
+        lsset('gym:cardio:v1', arr); fire();
+        UI.toast('Session logged for today'); renderTrainingPanel(p);
+      });
     });
     p.querySelectorAll('[data-del-cardio]').forEach(function (b) {
       b.addEventListener('click', function () {
