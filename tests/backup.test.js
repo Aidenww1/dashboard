@@ -17,11 +17,11 @@ if (start < 0 || end < 0 || end <= start) {
 const src = html.slice(start, end);
 
 // localStorage shim: data keys enumerable (Object.keys works), methods hidden.
-function makeLS() {
+function makeLS(failKey) {
   const ls = {};
   Object.defineProperties(ls, {
     getItem: { value: function (k) { return Object.prototype.hasOwnProperty.call(ls, k) ? ls[k] : null; } },
-    setItem: { value: function (k, v) { Object.defineProperty(ls, k, { value: String(v), enumerable: true, writable: true, configurable: true }); } },
+    setItem: { value: function (k, v) { if (k === failKey) throw new Error('quota'); Object.defineProperty(ls, k, { value: String(v), enumerable: true, writable: true, configurable: true }); } },
     removeItem: { value: function (k) { delete ls[k]; } },
     clear: { value: function () { Object.keys(ls).forEach(function (k) { delete ls[k]; }); } },
   });
@@ -64,7 +64,17 @@ eq(n, 5, 'applySnapshot wrote all 5 keys');
 // --- defensive: applySnapshot tolerates junk ---
 eq(F.applySnapshot(null), 0, 'applySnapshot(null) -> 0, no throw');
 eq(F.applySnapshot('nope'), 0, 'applySnapshot(non-object) -> 0, no throw');
+eq(F.applySnapshot([]), 0, 'applySnapshot(array) -> 0, no throw');
 eq(F.applySnapshot({}), 0, 'applySnapshot({}) -> 0');
+
+// --- atomicity: a failed write rolls earlier keys back ---
+const flaky = makeLS('boom');
+flaky.setItem('keep', 'old');
+// eslint-disable-next-line no-new-func -- first-party source, test-only.
+const FlakyF = new Function('localStorage', src + '\nreturn { applySnapshot: applySnapshot };')(flaky);
+eq(FlakyF.applySnapshot({ keep: 'new', boom: 'blocked' }), 0, 'failed restore reports rollback');
+eq(flaky.getItem('keep'), 'old', 'failed restore restores overwritten values');
+eq(flaky.getItem('boom'), null, 'failed restore removes partially-created keys');
 
 // --- documented limitation: a value stored AS a quoted JSON string is lossy
 // (JSON.parse unwraps the quotes, restore writes the unwrapped form). No known

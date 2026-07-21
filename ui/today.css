@@ -1,0 +1,318 @@
+/* Phase 2: Today command center. Loaded after the legacy inline styles. */
+body[data-page="today"] .content {
+  max-width: 1470px;
+  padding-top: 18px;
+  padding-bottom: 32px;
+}
+body[data-page="today"] .page-head {
+  min-height: 76px;
+  margin-bottom: 10px;
+}
+body[data-page="today"] .page-head-r {
+  min-width: min(42vw, 580px);
+}
+body[data-page="today"] .t-page,
+body[data-page="today"] .td-big .num,
+body[data-page="today"] .td-kv .value {
+  letter-spacing: 0;
+}
+body[data-page="today"] .grid {
+  align-items: stretch;
+}
+body[data-page="today"] .td-card {
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+body[data-page="today"] .td-card::after {
+  display: none;
+}
+body[data-page="today"] .td-metric-card {
+  min-height: 116px;
+  padding: 14px 16px;
+}
+body[data-page="today"] .td-metric-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+body[data-page="today"] .td-icbox {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-control);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--text-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+body[data-page="today"] .td-icbox svg {
+  width: 18px;
+  height: 18px;
+}
+body[data-page="today"] .td-big {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 8px;
+}
+body[data-page="today"] .td-big .num {
+  font-size: 29px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+body[data-page="today"] .td-big .unit {
+  color: var(--text-2);
+  font-size: 13px;
+}
+body[data-page="today"] .td-spark {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: 43%;
+  height: 42px;
+  opacity: 0.96;
+}
+body[data-page="today"] .td-spark svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+body[data-page="today"] .td-trend-empty {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 42%;
+  color: var(--text-3);
+  font-size: 11px;
+  text-align: right;
+}
+body[data-page="today"] .td-priority,
+body[data-page="today"] .td-plan,
+body[data-page="today"] .td-nutrition {
+  height: 228px;
+}
+body[data-page="today"] .td-priority {
+  padding: 18px 22px;
+  background: var(--surface);
+  border-color: var(--border);
+}
+body[data-page="today"] .td-priority.td-priority-supps {
+  border-color: rgba(245,165,36,0.28);
+  background:
+    linear-gradient(90deg, rgba(18,18,22,0.99) 0%, rgba(18,18,22,0.94) 45%, rgba(18,18,22,0.46) 76%, rgba(18,18,22,0.18) 100%),
+    url("assets/priority-supplements.png") center right / cover no-repeat;
+}
+body[data-page="today"] .td-priority .stack {
+  max-width: 64%;
+  gap: 13px;
+}
+body[data-page="today"] .td-priority .t-h2 {
+  font-size: 19px;
+}
+body[data-page="today"] .td-plan-row {
+  display: grid;
+  grid-template-columns: 68px minmax(0,1fr);
+  gap: 12px;
+  align-items: baseline;
+  min-height: 42px;
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+}
+body[data-page="today"] .td-plan-row:first-of-type {
+  border-top: 0;
+}
+body[data-page="today"] .td-plan-kind {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+body[data-page="today"] .td-nutrition {
+  display: block;
+  padding-right: 124px;
+}
+body[data-page="today"] .td-nutrition .card-head {
+  margin-bottom: 14px;
+}
+body[data-page="today"] .td-nutrition .stack {
+  gap: 8px;
+}
+body[data-page="today"] .td-ring {
+  position: absolute;
+  right: 18px;
+  top: 76px;
+  width: 84px;
+  height: 84px;
+}
+body[data-page="today"] .td-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+body[data-page="today"] .td-ring .track {
+  stroke: var(--surface-raised);
+}
+body[data-page="today"] .td-ring .fill {
+  stroke: var(--green);
+  stroke-linecap: round;
+}
+body[data-page="today"] .td-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 12px;
+}
+body[data-page="today"] .td-kv {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+body[data-page="today"] .td-kv .value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+body[data-page="today"] .td-summary-card,
+body[data-page="today"] .td-list-card {
+  min-height: 172px;
+}
+body[data-page="today"] .td-factor-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+body[data-page="today"] .td-micro-chart {
+  height: 52px;
+  margin-top: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+body[data-page="today"] .td-micro-chart svg {
+  width: 100%;
+  height: 100%;
+}
+body[data-page="today"] .td-health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 8px;
+}
+body[data-page="today"] .td-health-tile {
+  min-height: 54px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: var(--r-control);
+  background: var(--surface-raised);
+}
+body[data-page="today"] .td-row-tight {
+  min-height: 34px;
+  padding: 5px 0;
+}
+body[data-page="today"] .td-empty {
+  min-height: 104px;
+  justify-content: center;
+}
+body[data-page="today"] .td-empty .btn {
+  margin-top: 6px;
+}
+body[data-page="today"] .td-card-error {
+  min-height: 116px;
+}
+body[data-page="today"] .td-stale {
+  color: var(--amber);
+  font-size: 11px;
+}
+body[data-page="today"] .td-loading {
+  min-height: 116px;
+}
+body[data-page="today"] .td-loading:nth-child(n+4) {
+  min-height: 172px;
+}
+body[data-page="today"] .td-attention-row {
+  color: inherit;
+  text-decoration: none;
+}
+body[data-page="today"] .td-attention-row:hover .row-title {
+  color: var(--accent);
+}
+body[data-page="today"] .td-good { color: var(--green); }
+body[data-page="today"] .td-blue { color: var(--blue); }
+body[data-page="today"] .td-amber { color: var(--amber); }
+body[data-page="today"] .td-violet { color: var(--accent); }
+
+@media (max-width: 1180px) {
+  body[data-page="today"] .page-head-r {
+    min-width: 0;
+  }
+  body[data-page="today"] .td-priority .stack {
+    max-width: 72%;
+  }
+  body[data-page="today"] .td-ring {
+    display: none;
+  }
+  body[data-page="today"] .td-nutrition {
+    padding-right: 16px;
+  }
+}
+@media (max-width: 900px) {
+  body[data-page="today"] .content {
+    padding-top: 18px;
+    padding-bottom: 112px;
+  }
+  body[data-page="today"] .td-spark,
+  body[data-page="today"] .td-trend-empty {
+    position: static;
+    width: 100%;
+    margin-top: 10px;
+    text-align: left;
+  }
+  body[data-page="today"] .td-priority .stack {
+    max-width: 100%;
+  }
+  body[data-page="today"] .td-priority.td-priority-supps::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(10,10,12,0.46);
+  }
+  body[data-page="today"] .td-priority.td-priority-supps > * {
+    position: relative;
+  }
+  body[data-page="today"] .td-priority,
+  body[data-page="today"] .td-plan,
+  body[data-page="today"] .td-nutrition {
+    height: auto;
+    min-height: 210px;
+  }
+}
+@media (max-width: 640px) {
+  body[data-page="today"] .page-head {
+    min-height: 0;
+  }
+  body[data-page="today"] .page-head-r {
+    width: 100%;
+  }
+  body[data-page="today"] .td-metric-card {
+    min-height: 104px;
+  }
+  body[data-page="today"] .td-priority {
+    min-height: 220px;
+    background-position: 68% center;
+  }
+  body[data-page="today"] .td-summary-card,
+  body[data-page="today"] .td-list-card {
+    min-height: 0;
+  }
+  body[data-page="today"] .td-health-grid {
+    grid-template-columns: 1fr;
+  }
+}

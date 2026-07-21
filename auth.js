@@ -25,16 +25,55 @@
   var SUPA_URL = 'https://nwdyuiimfqhlqscnbqmq.supabase.co';
   var SUPA_KEY = 'sb_publishable_KFOU1sDCxRp8c1M3kSytHg_nuQWzfPT';
   var REQUIRED_KEY = 'auth:required:v1';
+  var SESSION_KEY = 'lifeos:auth-session:v1';
 
   var session = null;      // cached for sync token()
+  try {
+    session = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if (!session) {
+      for (var sessionIndex = 0; sessionIndex < localStorage.length; sessionIndex += 1) {
+        var sessionStorageKey = localStorage.key(sessionIndex);
+        if (!/^sb-.*-auth-token$/.test(sessionStorageKey || '')) continue;
+        var sdkSession = JSON.parse(localStorage.getItem(sessionStorageKey));
+        session = sdkSession && (sdkSession.currentSession || sdkSession.session || sdkSession);
+        if (session && session.access_token && session.user) break;
+        session = null;
+      }
+    }
+  } catch (_) { session = null; }
   var ready = false;
   var readyCbs = [];
   var changeCbs = [];
 
   function client() {
-    if (!window.supabase) return null;          // CDN not loaded yet
-    if (!window.__cloudClient) window.__cloudClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    return window.__cloudClient;
+    if (window.supabase) {
+      if (!window.__cloudClient) window.__cloudClient = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+      return window.__cloudClient;
+    }
+    if (!window.fetch) return null;
+    if (!window.__lifeosRestAuthClient) window.__lifeosRestAuthClient = {
+      auth: {
+        getSession: function () {
+          var saved = null;
+          try { saved = JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (_) {}
+          if (!saved || !saved.access_token || !saved.user) return Promise.resolve({ data: { session: null }, error: null });
+          return Promise.resolve({ data: { session: saved }, error: null });
+        },
+        signInWithPassword: function (credentials) {
+          return fetch(SUPA_URL + '/auth/v1/token?grant_type=password', { method: 'POST', headers: { apikey: SUPA_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(credentials) })
+            .then(function (response) { return response.json().then(function (body) { if (!response.ok) return { data: { session: null }, error: { message: body.msg || body.error_description || body.message || 'Sign-in failed' } }; body.expires_at = body.expires_at || Math.floor(Date.now() / 1000) + Number(body.expires_in || 3600); return { data: { session: body }, error: null }; }); })
+            .catch(function (error) { return { data: { session: null }, error: { message: error.message || 'Sign-in unavailable' } }; });
+        },
+        signOut: function () {
+          var token = session && session.access_token;
+          try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
+          if (!token) return Promise.resolve();
+          return fetch(SUPA_URL + '/auth/v1/logout', { method: 'POST', headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + token } }).catch(function () {});
+        },
+        onAuthStateChange: function () { return { data: { subscription: { unsubscribe: function () {} } } }; },
+      },
+    };
+    return window.__lifeosRestAuthClient;
   }
 
   function required() {
@@ -45,6 +84,7 @@
 
   function setSession(s) {
     session = s || null;
+    try { if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session)); else localStorage.removeItem(SESSION_KEY); } catch (_) {}
     if (required()) renderGate();   // show/hide login overlay as needed
     emitChange();
   }
@@ -71,20 +111,16 @@
   };
 
   // ---- initial session resolve ----
-  var initTries = 0;
   function init() {
     var c = client();
     if (!c) {
-      // supabase CDN may still be loading; retry briefly before giving up.
-      if (initTries++ < 20) { setTimeout(init, 150); return; }
       ready = true; readyCbs.forEach(function (cb) { cb(); }); readyCbs = []; return;
     }
     c.auth.getSession().then(function (r) {
-      session = (r.data && r.data.session) || null;
+      setSession((r.data && r.data.session) || null);
       ready = true;
       readyCbs.forEach(function (cb) { try { cb(); } catch (e) {} }); readyCbs = [];
       if (required()) renderGate();
-      emitChange();
     });
     c.auth.onAuthStateChange(function (_evt, s) { setSession(s); });
   }

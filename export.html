@@ -256,13 +256,16 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
   document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
   document.getElementById('importFile').addEventListener('change', e => {
     const file = e.target.files[0]; if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { showStatus('Backup file is too large.', 'danger'); e.target.value = ''; return; }
     const reader = new FileReader();
     reader.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (typeof data !== 'object') throw new Error('Invalid format');
+        if (!window.__isValidSnapshot(data)) throw new Error('Invalid format');
         if (!confirm('This will overwrite your current data with the backup. Continue?')) return;
-        Object.entries(data).forEach(([k,v]) => localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)));
+        window.__downloadCurrentState();
+        const restored = window.__applySnapshot(data);
+        if (restored !== Object.keys(data).length) throw new Error('Restore rolled back');
         showStatus('Backup restored successfully. Reload the page.');
         updateStats();
       } catch { showStatus('Invalid backup file.', 'danger'); }
@@ -618,16 +621,43 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
     });
     return all;
   }
+  function isValidSnapshot(snap) {
+    if (!snap || Object.prototype.toString.call(snap) !== '[object Object]') return false;
+    var keys = Object.keys(snap);
+    if (keys.length > 2000) return false;
+    try {
+      return keys.every(function (k) {
+        return k.length > 0 && k.length <= 256 && JSON.stringify(snap[k]) !== undefined;
+      });
+    } catch (e) { return false; }
+  }
   function applySnapshot(snap) {
-    if (!snap || typeof snap !== 'object') return 0;
-    var n = 0;
-    Object.keys(snap).forEach(function (k) {
-      try { localStorage.setItem(k, typeof snap[k] === 'string' ? snap[k] : JSON.stringify(snap[k])); n++; } catch (e) {}
+    if (!isValidSnapshot(snap)) return 0;
+    var keys = Object.keys(snap);
+    var prepared = keys.map(function (k) {
+      return [k, typeof snap[k] === 'string' ? snap[k] : JSON.stringify(snap[k])];
     });
-    return n;
+    var original = keys.map(function (k) {
+      var value = localStorage.getItem(k);
+      return [k, value !== null, value];
+    });
+    try {
+      prepared.forEach(function (entry) { localStorage.setItem(entry[0], entry[1]); });
+      return prepared.length;
+    } catch (e) {
+      original.forEach(function (entry) {
+        try {
+          if (entry[1]) localStorage.setItem(entry[0], entry[2]);
+          else localStorage.removeItem(entry[0]);
+        } catch (_) {}
+      });
+      return 0;
+    }
   }
   window.__snapshot = snapshot;             // test hooks (pure)
   window.__applySnapshot = applySnapshot;
+  window.__isValidSnapshot = isValidSnapshot;
+  window.__downloadCurrentState = downloadCurrentState;
 
   function downloadCurrentState() {
     var all = snapshot();
@@ -646,9 +676,9 @@ body::before{content:'';position:fixed;inset:-10%;z-index:-2;background:radial-g
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (rows) {
         var snap = rows[0] && rows[0].data && rows[0].data.snapshot;
-        if (!snap || typeof snap !== 'object' || !Object.keys(snap).length) throw new Error('Backup slot is empty');
+        if (!isValidSnapshot(snap) || !Object.keys(snap).length) throw new Error('Backup slot is empty or invalid');
         downloadCurrentState();
-        applySnapshot(snap);
+        if (applySnapshot(snap) !== Object.keys(snap).length) throw new Error('Restore rolled back');
         setCloudStatus('Restored ' + Object.keys(snap).length + ' keys from ' + date + '. Reloading…');
         setTimeout(function () { location.reload(); }, 1200);
       })

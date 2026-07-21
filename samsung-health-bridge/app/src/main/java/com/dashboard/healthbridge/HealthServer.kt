@@ -1,6 +1,7 @@
 package com.dashboard.healthbridge
 
 import kotlinx.coroutines.runBlocking
+import java.net.InetAddress
 import java.net.ServerSocket
 
 class HealthServer(private val reader: HealthReader) {
@@ -8,7 +9,9 @@ class HealthServer(private val reader: HealthReader) {
     private var thread: Thread? = null
 
     fun start() {
-        serverSocket = ServerSocket(8765)
+        // The web dashboard reaches this bridge from the same device. Keeping the
+        // listener on loopback prevents health data from being exposed to the LAN.
+        serverSocket = ServerSocket(8765, 50, InetAddress.getLoopbackAddress())
         thread = Thread {
             while (!Thread.currentThread().isInterrupted) {
                 try {

@@ -1,4 +1,4 @@
-const CACHE = 'dashboard-v58';
+const CACHE = 'dashboard-v64';
 const SHARE_CACHE = 'share-target-v1';
 const PRECACHE = [
   '/', '/index.html', '/health.html', '/water.html', '/gym.html',
@@ -7,11 +7,15 @@ const PRECACHE = [
   '/skin.html', '/watch.html', '/usage.html', '/tabbar.js', '/topbar.js', '/bus.js', '/pwa.js',
   '/design.css', '/claude.js', '/body.html', '/mood.html', '/review.html',
   '/lifeos-core.js', '/command.js', '/mail.html', '/radar.html', '/share.html',
+  '/data-registry.js', '/canonical-events.js', '/event-repository.js', '/canonical-sync.js', '/projection-engine.js',
+  '/bloodwork-model-registry.js', '/bloodwork-outlook.js', '/projection-definitions.js',
   '/photo-store.js', '/errlog.js', '/dates.js', '/cloudsync.js', '/privacy.html',
   '/fix.html', '/fixdata.js', '/ds.html', '/ds.js',
   '/log.html', '/coach.html', '/money.html', '/more.html',
   '/ui/today.html', '/ui/log.html', '/ui/coach.html', '/ui/money.html', '/ui/more.html',
   '/ui/glowlab.html', '/ui/tokens.css', '/ui/components.css', '/ui/ui.js', '/ui/shell.js', '/ui/data.js',
+  '/ui/compatibility-store.js',
+  '/ui/assets/life-os-icon.svg',
   '/ui/assets/priority-supplements.png', '/ui/assets/body-progress-comparison.png',
   '/auth.js',
 ];
@@ -36,12 +40,12 @@ function routeFor(kind, action, data) {
   var id = data.id ? '&id=' + encodeURIComponent(data.id) : '';
   if (action === 'snooze' || action === 'skip') return null; // dismiss only
   switch (kind) {
-    case 'supplement':     return '/reminders.html?na=supp-taken' + id;
+    case 'supplement':     return '/ui/log.html?na=supp-taken' + id + '#supps';
     case 'order':          return action === 'received' ? '/mail.html?na=order-received' + id : (data.url || '/mail.html?qa=orders');
     case 'email':          return action === 'draft' ? '/mail.html?na=draft' + id : (data.url || '/mail.html');
-    case 'progress-photo': return '/body.html?qa=photo';
-    case 'skin-photo':     return '/skin.html?qa=photo';
-    case 'briefing':       return data.url || '/index.html?qa=briefing';
+    case 'progress-photo': return '/ui/log.html#body';
+    case 'skin-photo':     return '/ui/log.html#skin';
+    case 'briefing':       return data.url || '/ui/coach.html#briefing';
     default:               return data.url || '/';
   }
 }

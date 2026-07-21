@@ -7,9 +7,9 @@
 -- Run in the Supabase SQL editor. Section 4 (rollback) is at the bottom.
 
 -- ============================================================
--- 0. Set the owner once for this session.
+-- 0. Replace the zero UUID inside the block with the owner auth UID.
+--    The sentinel check aborts before any schema or data changes.
 -- ============================================================
-\set OWNER_UID '00000000-0000-0000-0000-000000000000'   -- <-- REPLACE
 
 -- ============================================================
 -- 1. Add owner scoping + RLS to every table, idempotently.
@@ -18,6 +18,7 @@
 do $$
 declare
   t text;
+  owner_uid uuid := '00000000-0000-0000-0000-000000000000'; -- <-- REPLACE
   tbls text[] := array[
     'app_state','events',
     'heart_rate','steps','calories','sleep','height','weight','oxygen_saturation',
@@ -26,6 +27,10 @@ declare
     'basal_metabolic_rate','body_fat','distance','mood','bloodwork','habits'
   ];
 begin
+  if owner_uid = '00000000-0000-0000-0000-000000000000'::uuid then
+    raise exception 'Replace owner_uid before running the Phase 10 RLS migration';
+  end if;
+
   foreach t in array tbls loop
     -- skip tables that don't exist in this project (defensive)
     if to_regclass('public.' || t) is null then
@@ -38,7 +43,7 @@ begin
 
     -- 1b. backfill existing rows to the owner (set via :OWNER_UID above)
     execute format(
-      'update public.%I set user_id = %L where user_id is null', t, :'OWNER_UID');
+      'update public.%I set user_id = %L::uuid where user_id is null', t, owner_uid);
 
     -- 1c. enforce not-null after backfill
     execute format(

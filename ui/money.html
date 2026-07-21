@@ -178,6 +178,8 @@
 
   @media (max-width: 900px) {
     body[data-page="money"] .page-head-r { min-width: 0; flex-wrap: wrap; }
+    body[data-page="money"] .mn-tabs { flex-wrap: wrap; gap: 0 10px; overflow-x: visible; padding: 4px 0; }
+    body[data-page="money"] .mn-tabs button { flex: 1 1 22%; min-width: 72px; min-height: 38px; }
     body[data-page="money"] .mn-split { grid-template-columns: 1fr; }
     body[data-page="money"] .mn-tip { flex-direction: column; align-items: stretch; }
     body[data-page="money"] .mn-tbl { min-width: 640px; }
@@ -196,7 +198,7 @@
         <div class="page-head-r">
           <label class="search">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
-            <input type="search" placeholder="Quick log (e.g. &euro;42 groceries, &euro;1,500 invoice paid)" aria-label="Quick log">
+            <input id="mnQuick" type="search" placeholder="Quick log (e.g. &euro;42 groceries, &euro;1,500 invoice paid)" aria-label="Quick log">
           </label>
           <button class="btn btn-primary" id="mnAdd">+ Add transaction</button>
           <button class="btn btn-secondary" id="mnImport">
@@ -218,9 +220,20 @@
 
 <script src="../dates.js"></script>
 <script src="../lifeos-core.js"></script>
+<script src="../data-registry.js"></script>
+<script src="../auth.js"></script>
+<script src="compatibility-store.js"></script>
+<script src="../canonical-events.js"></script>
+<script src="../event-repository.js"></script>
+<script src="../canonical-sync.js"></script>
+<script src="../projection-engine.js"></script>
+<script src="../bloodwork-model-registry.js"></script>
+<script src="../bloodwork-outlook.js"></script>
+<script src="../projection-definitions.js"></script>
 <script src="data.js"></script>
 <script src="ui.js"></script>
 <script src="shell.js"></script>
+<script src="canonical-runtime.js"></script>
 <script>
 (function () {
   'use strict';
@@ -512,6 +525,84 @@
   var revYtd = sumYear(bizRev), expYtd = sumYear(bizExp);
   var hasBiz = bizRev.length > 0 || bizExp.length > 0;
   var savingsRate = snap.savings_rate_last_month_actual_pct != null ? snap.savings_rate_last_month_actual_pct : snap.savings_rate_pct;
+  var moneyPhase = {};
+  var moneyCanonicalLoading = false;
+  var moneyUnsubscribe = null;
+
+  function phaseValue(id) {
+    var envelope = moneyPhase[id];
+    return envelope && envelope.value ? envelope.value : {};
+  }
+  function rebuildTransactionAggregates() {
+    hasTx = tx.length > 0;
+    mAgg = {};
+    tx.forEach(function (t) {
+      var key = ymOf(t.date);
+      mAgg[key] = mAgg[key] || { inn: 0, out: 0 };
+      var amount = parseFloat(t.amount) || 0;
+      if (amount > 0) mAgg[key].inn += amount;
+      else mAgg[key].out += Math.abs(amount);
+    });
+    txMonths = Object.keys(mAgg).sort();
+    last6m = txMonths.slice(-6);
+    curM = mAgg[nowYm] || { inn: 0, out: 0 };
+    curNet = curM.inn - curM.out;
+    prevYmKey = txMonths.filter(function (key) { return key < nowYm; }).pop();
+    prevM = prevYmKey ? mAgg[prevYmKey] : null;
+  }
+  function applyCanonicalMoney(state) {
+    moneyPhase = state || {};
+    var projectedTransactions = phaseValue('finance.transactions').items;
+    if (Array.isArray(projectedTransactions)) {
+      tx = projectedTransactions.map(function (item) {
+        return Object.assign({}, item, { amount: Number(item.amount_minor || 0) / 100 });
+      }).sort(function (a, b) { return String(a.occurred_at || a.date).localeCompare(String(b.occurred_at || b.date)); });
+      rebuildTransactionAggregates();
+    }
+
+    var accountProjection = phaseValue('finance.accounts');
+    if (Array.isArray(accountProjection.items)) {
+      finAccounts = accountProjection.items.map(function (item) {
+        return Object.assign({}, item, { balance: Number(item.balance_minor || 0) / 100 });
+      });
+      NW_CATS.forEach(function (cat) { nwItems[cat.key] = []; nwTotals[cat.key] = 0; });
+      finAccounts.forEach(function (account) {
+        if (account.liability || account.type === 'credit' || account.type === 'loan') return;
+        var key = account.type === 'investment' ? 'nw:stocks'
+          : account.type === 'crypto' ? 'nw:crypto'
+          : ['cash', 'checking', 'savings', 'bank'].indexOf(account.type) >= 0 ? 'nw:bank' : 'nw:other';
+        var row = { id: account.id, name: account.name, amount: account.balance, currency: account.currency };
+        nwItems[key].push(row);
+        nwTotals[key] += account.balance;
+      });
+      nwTotal = Number(accountProjection.net_worth_minor || 0) / 100;
+    }
+
+    var business = phaseValue('finance.business');
+    if (business.truth_class && business.truth_class !== 'missing-data') {
+      revYtd = Number(business.ytd_revenue_minor || 0) / 100;
+      expYtd = Number(business.ytd_expenses_minor || 0) / 100;
+      hasBiz = true;
+    }
+    var planning = phaseValue('finance.planning');
+    if (planning.savings_rate_pct != null) savingsRate = planning.savings_rate_pct;
+
+    if (typeof built !== 'undefined' && tabsEl) {
+      built = {};
+      show(location.hash.slice(1));
+    }
+  }
+  function loadCanonicalMoney() {
+    if (!window.CanonicalRuntime || moneyCanonicalLoading) return;
+    moneyCanonicalLoading = true;
+    CanonicalRuntime.phaseH().then(function (state) {
+      applyCanonicalMoney(state);
+      if (!moneyUnsubscribe && CanonicalRuntime.subscribePhaseH) {
+        moneyUnsubscribe = CanonicalRuntime.subscribePhaseH(function () { loadCanonicalMoney(); });
+      }
+      moneyCanonicalLoading = false;
+    }, function () { moneyCanonicalLoading = false; });
+  }
 
   function emptyCard(span, title, sub, href, cta) {
     return card(span, head(title, '')
@@ -520,7 +611,8 @@
   }
   function txRow(t) {
     var a = parseFloat(t.amount) || 0;
-    return row(ti(a > 0 ? 'up' : 'box', a > 0 ? 'green' : 'violet'), esc(String(t.description || 'Transaction').slice(0, 40)), esc(t.date),
+    var sourceLabel = t.truth_class === 'provider-sourced' ? 'Imported' : t.truth_class === 'manual' ? 'Manual' : '';
+    return row(ti(a > 0 ? 'up' : 'box', a > 0 ? 'green' : 'violet'), esc(String(t.description || 'Transaction').slice(0, 40)), esc(t.date) + (sourceLabel ? ' &middot; ' + sourceLabel : ''),
       '<span class="num ' + (a > 0 ? 'pos' : '') + '">' + (a > 0 ? '+' : '') + money(a) + '</span>');
   }
   function goalRow(g) {
@@ -605,7 +697,16 @@
         + kv('<b>Net Profit</b>', '<b class="' + (revYtd - expYtd >= 0 ? 'pos' : 'neg') + '">' + money(revYtd - expYtd) + '</b>', 'strong'))
       : emptyCard('col-4', 'Business', 'Log business revenue and expenses in Finance for a live P&L.', '../finance.html#business', 'Open business');
 
-    return kpis + nwCard + monthCard + recentCard + goalsCard + subsCard + bizCard;
+    var reconciliation = phaseValue('finance.reconciliation');
+    var reconciliationCard = card('col-12 mn-tip', tile(reconciliation.status === 'review' ? 'alertT' : 'check', reconciliation.status === 'review' ? 'amber' : 'green')
+      + '<div class="mn-tb"><b>Transaction reconciliation</b><p>'
+      + (reconciliation.status === 'no-data' || !reconciliation.status
+        ? 'No transaction records are available yet.'
+        : reconciliation.imported + ' imported and ' + reconciliation.manual + ' manual records. '
+          + (reconciliation.unreconciled ? reconciliation.unreconciled + ' need review.' : 'All records passed identity and schema checks.'))
+      + '</p></div><a class="btn btn-secondary" href="../finance.html#transactions">Review transactions</a>');
+
+    return kpis + nwCard + monthCard + recentCard + goalsCard + subsCard + bizCard + reconciliationCard;
   }
 
   // =====================================================================
@@ -926,7 +1027,9 @@
     if (!TABS.some(function (t) { return t[0] === id; })) id = TABS[0][0];
     TABS.forEach(function (t) {
       var on = t[0] === id;
-      tabsEl.querySelector('[data-tab="' + t[0] + '"]').setAttribute('aria-selected', on ? 'true' : 'false');
+      var tab = tabsEl.querySelector('[data-tab="' + t[0] + '"]');
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      tab.setAttribute('tabindex', on ? '0' : '-1');
       var p = document.getElementById('p-' + t[0]);
       p.hidden = !on;
       if (on && !built[id]) { p.innerHTML = t[2](); built[id] = 1; if (window.UI) UI.bind(p); }
@@ -984,6 +1087,33 @@
     + '<span style="color:var(--text-4)">•</span><span>' + d.toLocaleDateString('en-US', { weekday: 'long' }) + '</span>';
 
   document.getElementById('mnAdd').addEventListener('click', function () { location.href = '../finance.html#transactions'; });
+  document.getElementById('mnQuick').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    var input = e.currentTarget;
+    var raw = input.value.trim();
+    var match = raw.match(/([+-]?)\s*(?:\u20ac|\$|\u00a3)?\s*(\d[\d,]*(?:\.\d{1,2})?)/i);
+    if (!match) { if (window.UI) UI.toast('Include an amount, for example: 42 groceries.'); return; }
+    var amount = parseFloat(match[2].replace(/,/g, '')) || 0;
+    if (!amount) return;
+    var description = raw.replace(match[0], '').replace(/^\s*(?:for|on)\s+/i, '').trim() || 'Quick log';
+    var income = match[1] === '+' || /\b(invoice paid|income|salary|refund|deposit|received)\b/i.test(raw);
+    var quickRow = { id: 'quick-' + Date.now(), date: new Date().toISOString().slice(0, 10), description: description, amount: income ? amount : -amount, source: 'quick-log', imported: false };
+    function saveCompatibilityRow() {
+      var rows = ls('ing:tx', []) || [];
+      rows.push(quickRow);
+      window.LifeOSCompatibilityStore.set('ing:tx', rows);
+      input.value = '';
+      location.reload();
+    }
+    if (window.CanonicalRuntime && CanonicalRuntime.saveFinanceTransaction) {
+      CanonicalRuntime.saveFinanceTransaction(quickRow).then(saveCompatibilityRow, function () {
+        if (window.UI) UI.toast('The transaction could not be saved. Try again.');
+      });
+    } else {
+      saveCompatibilityRow();
+    }
+  });
   document.getElementById('mnImport').addEventListener('click', function () { location.href = '../finance.html#accounts'; });
   document.getElementById('mnMore').addEventListener('click', function (e) {
     UI.menu(e.currentTarget, [
@@ -994,6 +1124,8 @@
     ]);
   });
 
+  loadCanonicalMoney();
+  window.addEventListener('beforeunload', function () { if (typeof moneyUnsubscribe === 'function') moneyUnsubscribe(); });
   document.getElementById('disclaimer').textContent =
     'For tracking and education only. Not financial advice — figures are estimates from your own entries and imports. Verify before making decisions.';
 })();

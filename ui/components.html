@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Components - Life OS</title>
+<link rel="icon" href="assets/life-os-icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  .gallery-section { scroll-margin-top: 16px; margin-bottom: var(--s5); }
+  .gallery-title { margin: 0 0 var(--s3); font-size: 13px; color: var(--text-3); text-transform: uppercase; }
+  .gallery-demo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
+  .gallery-swatches { display: grid; grid-template-columns: repeat(8, minmax(90px, 1fr)); gap: var(--s2); }
+  .gallery-swatch { min-width: 0; }
+  .gallery-swatch i { display: block; height: 44px; border: 1px solid var(--border); border-radius: var(--r-control); }
+  .gallery-swatch span { display: block; margin-top: 5px; color: var(--text-3); font-size: 11px; }
+  .gallery-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+  .gallery-states { align-items: stretch; }
+  .gallery-chart { min-height: 190px; }
+  .gallery-chart svg { height: 150px; }
+  @media (max-width: 900px) { .gallery-swatches { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 640px) { .gallery-form { grid-template-columns: 1fr; } .gallery-swatches { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body data-page="more">
+<div class="app">
+  <main class="main">
+    <div class="content">
+      <header class="page-head">
+        <div class="page-head-l"><h1 class="t-page">Components</h1><div class="page-date">Shared production foundation</div></div>
+        <div class="page-head-r">
+          <label class="search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="componentSearch" placeholder="Filter components" aria-label="Filter components"></label>
+        </div>
+      </header>
+
+      <nav class="subnav" aria-label="Component groups">
+        <a href="#foundations" aria-current="page">Foundations</a>
+        <a href="#navigation">Navigation</a>
+        <a href="#content">Content</a>
+        <a href="#forms">Forms</a>
+        <a href="#states">States</a>
+        <a href="#overlays">Overlays</a>
+      </nav>
+
+      <section class="gallery-section" id="foundations" data-component-group="foundations tokens color typography">
+        <h2 class="gallery-title">Foundations</h2>
+        <div class="gallery-swatches">
+          <div class="gallery-swatch"><i style="background:var(--bg)"></i><span>Canvas</span></div>
+          <div class="gallery-swatch"><i style="background:var(--surface)"></i><span>Surface</span></div>
+          <div class="gallery-swatch"><i style="background:var(--surface-raised)"></i><span>Raised</span></div>
+          <div class="gallery-swatch"><i style="background:var(--accent)"></i><span>Accent</span></div>
+          <div class="gallery-swatch"><i style="background:var(--green)"></i><span>Success</span></div>
+          <div class="gallery-swatch"><i style="background:var(--amber)"></i><span>Attention</span></div>
+          <div class="gallery-swatch"><i style="background:var(--red)"></i><span>Error</span></div>
+          <div class="gallery-swatch"><i style="background:var(--blue)"></i><span>Information</span></div>
+        </div>
+        <div class="card" style="margin-top:var(--s3)">
+          <div class="gallery-demo"><span class="t-page">Page</span><span class="t-h2">Section</span><span class="t-card">Card</span><span class="t-body">Body copy</span><span class="t-cap">Caption</span><span class="t-metric num">1,234</span></div>
+        </div>
+      </section>
+
+      <section class="gallery-section" id="navigation" data-component-group="navigation shell tabs subnav buttons">
+        <h2 class="gallery-title">Navigation and commands</h2>
+        <div class="card">
+          <div class="gallery-demo">
+            <button class="btn btn-primary">Primary</button>
+            <button class="btn btn-secondary">Secondary</button>
+            <button class="btn btn-ghost">Ghost</button>
+            <button class="btn btn-amber">Attention</button>
+            <button class="btn btn-danger">Delete</button>
+            <button class="btn btn-primary" disabled>Disabled</button>
+            <button class="btn-icon" data-tooltip="Add item" aria-label="Add item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></button>
+          </div>
+          <div class="segmented" role="tablist" aria-label="Time range">
+            <button role="tab" aria-selected="true">Day</button>
+            <button role="tab" aria-selected="false">Week</button>
+            <button role="tab" aria-selected="false">Month</button>
+          </div>
+          <div class="domain-tabs" role="tablist" aria-label="Log domains" style="width:100%;margin:0">
+            <button role="tab" aria-selected="true"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3v7M9 3v7M6 7h3M7.5 10v11M16 3v18M16 3c3 3 3 8 0 10"/></svg><span>Food</span></button>
+            <button role="tab" aria-selected="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M6 21v-3a6 6 0 0 1 12 0v3"/></svg><span>Body</span></button>
+            <button role="tab" aria-selected="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 9v6M3 10v4M18 9v6M21 10v4M6 12h12"/></svg><span>Training</span></button>
+            <button role="tab" aria-selected="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 3 2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/><path d="m18 16 1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Z"/></svg><span>Skin</span></button>
+            <button role="tab" aria-selected="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11Z"/></svg><span>Water</span></button>
+            <button role="tab" aria-selected="false"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m7 17 10-10a4 4 0 1 1 0 6L13 17a4 4 0 0 1-6 0Z"/><path d="m9 11 4 4"/></svg><span>Supplements</span></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="gallery-section" id="content" data-component-group="content cards rows metrics charts compact">
+        <h2 class="gallery-title">Content</h2>
+        <div class="grid">
+          <article class="card metric-card col-3"><div class="metric"><span class="metric-label">Metric</span><span class="metric-value">84.2 kg</span><span class="delta down">Down 0.4 kg</span></div><div class="t-cap">Updated today</div></article>
+          <article class="card metric-card col-3"><div class="metric"><span class="metric-label">Readiness</span><span class="metric-value">72%</span><span class="delta up">Good</span></div><div class="t-cap">7-day recovery context</div></article>
+          <article class="card col-6">
+            <div class="card-head"><span class="card-title">Compact rows</span><span class="badge green">Current</span></div>
+            <div class="compact-row"><span class="dot green"></span><span class="row-main">First item</span><span class="row-end">09:30</span></div>
+            <div class="compact-row"><span class="dot amber"></span><span class="row-main">Second item</span><span class="row-end">13:00</span></div>
+          </article>
+          <article class="card col-8">
+            <div class="card-head"><span class="card-title">Chart frame</span><div class="chart-legend"><span class="inline"><i class="dot violet"></i>Series</span><span class="inline"><i class="dot green"></i>Target</span></div></div>
+            <div id="galleryChart" class="gallery-chart"></div>
+          </article>
+          <article class="card col-4" id="undoCard">
+            <div class="card-head"><span class="card-title">Undo transaction</span><button class="btn btn-danger btn-sm" id="deleteSpecimen">Delete row</button></div>
+            <div class="row" id="undoRow"><span class="dot violet"></span><div class="row-main"><div class="row-title">Recoverable row</div><div class="row-sub">Commit occurs after the Undo window.</div></div></div>
+          </article>
+          <article class="card col-12">
+            <div class="section-head"><div><div class="section-title">Responsive data table</div><div class="t-cap">Sticky header on desktop, labeled rows on phone</div></div><button class="btn btn-secondary btn-sm">Export</button></div>
+            <div class="table-wrap">
+              <table class="data-table" data-responsive="stack">
+                <thead><tr><th>Entry</th><th>Domain</th><th>Status</th><th class="numeric">Value</th></tr></thead>
+                <tbody>
+                  <tr><td data-label="Entry">Morning hydration</td><td data-label="Domain">Water</td><td data-label="Status"><span class="badge green">Synced</span></td><td data-label="Value" class="numeric">500 ml</td></tr>
+                  <tr><td data-label="Entry">Chicken bowl</td><td data-label="Domain">Nutrition</td><td data-label="Status"><span class="badge violet">Local</span></td><td data-label="Value" class="numeric">684 kcal</td></tr>
+                  <tr><td data-label="Entry">Bench press</td><td data-label="Domain">Training</td><td data-label="Status"><span class="badge amber">Pending</span></td><td data-label="Value" class="numeric">100 kg</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="gallery-section" id="forms" data-component-group="forms fields inputs selects toggles stepper checkbox">
+        <h2 class="gallery-title">Forms</h2>
+        <div class="card gallery-form">
+          <label class="field"><span class="label">Text</span><input class="input" placeholder="Enter a value"></label>
+          <label class="field"><span class="label">Number</span><input class="input num" type="number" value="250"></label>
+          <label class="field"><span class="label">Option</span><select class="select"><option>First option</option><option>Second option</option></select></label>
+          <label class="field"><span class="label">Validation</span><input class="input" aria-invalid="true" aria-describedby="field-error" value="Invalid value"><span class="field-error" id="field-error">Enter a value greater than zero.</span></label>
+          <label class="field"><span class="label">Notes</span><textarea class="textarea" placeholder="Add context"></textarea><span class="field-help">Optional context stays private.</span></label>
+          <div class="field"><span class="label">Toggle</span><button class="toggle" role="switch" aria-checked="true" data-toggle aria-label="Example toggle"></button></div>
+          <div class="field"><span class="label">Checkbox</span><button class="check" role="checkbox" aria-checked="true" data-toggle aria-label="Example checkbox">&#10003;</button></div>
+          <div class="field"><span class="label">Stepper</span><div class="stepper"><button data-step="-1" aria-label="Decrease">-</button><span class="val">250</span><button data-step="1" aria-label="Increase">+</button></div></div>
+        </div>
+      </section>
+
+      <section class="gallery-section" id="states" data-component-group="states empty loading error stale success offline disconnected conflict">
+        <h2 class="gallery-title">States</h2>
+        <div class="grid gallery-states">
+          <article class="card col-3"><div class="empty"><span class="empty-title">Nothing logged</span><span>Add the first entry when ready.</span><button class="btn btn-secondary btn-sm">Add entry</button></div></article>
+          <article class="card col-3"><div class="card-title">Loading</div><div class="skeleton line lg" style="width:55%"></div><div class="skeleton line"></div><div class="skeleton line short"></div></article>
+          <article class="card col-3"><div class="state-banner" data-state="error"><span class="dot red"></span><div><strong>Could not load data</strong><div class="t-cap">Retry when the connection returns.</div></div></div><button class="btn btn-secondary btn-sm">Retry</button></article>
+          <article class="card col-3"><div class="state-banner" data-state="stale"><span class="dot amber"></span><div><strong>Saved data shown</strong><div class="t-cap">Last updated 2 hours ago.</div></div></div><span class="stale">Refresh pending</span></article>
+          <article class="card col-3"><div class="state-banner" data-state="offline"><span class="dot blue"></span><div><strong>Working offline</strong><div class="t-cap">Changes will sync when connected.</div></div></div><span class="badge violet">2 pending</span></article>
+          <article class="card col-3"><div class="state-banner" data-state="disconnected"><span class="dot blue"></span><div><strong>Source disconnected</strong><div class="t-cap">Reconnect to resume automatic imports.</div></div></div><button class="btn btn-secondary btn-sm">Reconnect</button></article>
+          <article class="card col-3"><div class="state-banner" data-state="success"><span class="dot green"></span><div><strong>Everything is synced</strong><div class="t-cap">All records are available on this device.</div></div></div><span class="badge green">Current</span></article>
+          <article class="card col-3"><div class="state-banner" data-state="conflict"><span class="dot amber"></span><div><strong>Review sync conflict</strong><div class="t-cap">Both versions are preserved.</div></div></div><button class="btn btn-secondary btn-sm">Review</button></article>
+        </div>
+      </section>
+
+      <section class="gallery-section" id="overlays" data-component-group="overlays sheets dialogs confirmation toast menu">
+        <h2 class="gallery-title">Overlays</h2>
+        <div class="card"><div class="gallery-demo">
+          <button class="btn btn-secondary" id="openSheet">Sheet</button>
+          <button class="btn btn-secondary" id="openDialog">Dialog</button>
+          <button class="btn btn-danger" id="openConfirm">Confirmation</button>
+          <button class="btn btn-secondary" id="openToast">Toast</button>
+          <button class="btn btn-secondary" id="openErrorToast">Error toast</button>
+          <button class="btn btn-secondary" id="openMenu" aria-haspopup="menu">Menu</button>
+        </div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="ui.js"></script>
+<script src="shell.js"></script>
+<script>
+(function () {
+  'use strict';
+  UI.chart('#galleryChart', {
+    title: 'Readiness trend',
+    summary: 'Readiness improved from 62 to 78 over seven daily observations, with a target of 75.',
+    color: 'var(--chart-1)',
+    data: [
+      { label: 'Monday', value: 62 },
+      { label: 'Tuesday', value: 67 },
+      { label: 'Wednesday', value: 65 },
+      { label: 'Thursday', value: 71 },
+      { label: 'Friday', value: 74 },
+      { label: 'Saturday', value: 73 },
+      { label: 'Sunday', value: 78 }
+    ]
+  });
+  var search = document.getElementById('componentSearch');
+  search.addEventListener('input', function () {
+    var query = search.value.trim().toLowerCase();
+    document.querySelectorAll('[data-component-group]').forEach(function (section) {
+      section.hidden = !!query && section.dataset.componentGroup.indexOf(query) < 0 && section.textContent.toLowerCase().indexOf(query) < 0;
+    });
+  });
+  document.getElementById('openSheet').onclick = function () { UI.sheet({ title: 'Sheet', body: '<div class="field"><span class="label">Value</span><input class="input" placeholder="Enter a value"></div>', primaryLabel: 'Save', onSubmit: function () { UI.toast('Saved'); } }); };
+  document.getElementById('openDialog').onclick = function () { UI.dialog({ title: 'Dialog', body: '<div class="field"><span class="label">Value</span><input class="input" placeholder="Enter a value"></div>', onConfirm: function () { UI.toast('Saved'); } }); };
+  document.getElementById('openConfirm').onclick = function () { UI.confirm({ title: 'Delete item?', body: 'The item will enter the Undo window.', onConfirm: function () { UI.toast('Confirmed'); } }); };
+  document.getElementById('openToast').onclick = function () { UI.toast('Saved'); };
+  document.getElementById('openErrorToast').onclick = function () { UI.toast('Could not save', { type: 'error' }); };
+  document.getElementById('openMenu').onclick = function (event) { UI.menu(event.currentTarget, [{ label: 'Edit', onClick: function () { UI.toast('Edit selected'); } }, { label: 'Duplicate', onClick: function () { UI.toast('Duplicated'); } }, 'hr', { label: 'Delete', danger: true, onClick: function () { UI.toast('Delete selected'); } }]); };
+  document.getElementById('deleteSpecimen').onclick = function () {
+    var row = document.getElementById('undoRow');
+    if (!row) return;
+    row.hidden = true;
+    UI.undo({ message: 'Row deleted', onUndo: function () { row.hidden = false; }, onCommit: function () { row.remove(); } });
+  };
+})();
+</script>
+</body>
+</html>

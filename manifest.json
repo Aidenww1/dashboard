@@ -1,43 +1,63 @@
 {
-  "name": "Life OS",
-  "short_name": "Life OS",
-  "description": "Your all-in-one life tracking, planning and coaching dashboard",
-  "start_url": "/ui/today.html",
-  "scope": "/",
-  "display": "standalone",
-  "background_color": "#050506",
-  "theme_color": "#050506",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%23E07658' rx='100'/><rect x='56' y='56' width='176' height='176' rx='28' fill='white'/><rect x='280' y='56' width='176' height='176' rx='28' fill='white'/><rect x='56' y='280' width='176' height='176' rx='28' fill='white'/><rect x='280' y='280' width='176' height='176' rx='28' fill='white'/></svg>",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    { "name": "Log weight", "short_name": "Weight", "url": "/index.html?qa=log-weight", "description": "Quick-log your weight" },
-    { "name": "Log meal", "short_name": "Meal", "url": "/index.html?qa=log-meal", "description": "Quick-log a meal" },
-    { "name": "Start focus", "short_name": "Focus", "url": "/index.html?qa=focus", "description": "Start a deep-work session" },
-    { "name": "Ask Claude", "short_name": "Ask", "url": "/index.html?qa=ask", "description": "Ask anything about your life data" },
-    { "name": "Check orders", "short_name": "Orders", "url": "/mail.html?qa=orders", "description": "See active orders and deliveries" },
-    { "name": "Clean inbox", "short_name": "Inbox", "url": "/mail.html?qa=cleanup", "description": "Run the inbox cleanup plan" },
-    { "name": "Progress photo", "short_name": "Progress", "url": "/body.html?qa=photo", "description": "Take a body progress photo" },
-    { "name": "Skin photo", "short_name": "Skin", "url": "/skin.html?qa=photo", "description": "Take a skin check photo" },
-    { "name": "Analyze photo", "short_name": "Analyze", "url": "/body.html?qa=analyze", "description": "Analyze a progress photo" }
-  ],
-  "share_target": {
-    "action": "/share.html",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        { "name": "media", "accept": ["image/*"] }
-      ]
-    }
-  }
+    "name":  "Life OS",
+    "short_name":  "Life OS",
+    "description":  "Your all-in-one life tracking, planning and coaching dashboard",
+    "start_url":  "/ui/today.html",
+    "scope":  "/",
+    "display":  "standalone",
+    "background_color":  "#050506",
+    "theme_color":  "#050506",
+    "orientation":  "portrait",
+    "icons":  [
+                  {
+                      "src":  "/ui/assets/life-os-icon.svg",
+                      "sizes":  "any",
+                      "type":  "image/svg+xml",
+                      "purpose":  "any maskable"
+                  }
+              ],
+    "shortcuts":  [
+                      {
+                          "name":  "Log food",
+                          "short_name":  "Food",
+                          "url":  "/ui/log.html#food",
+                          "description":  "Open food logging"
+                      },
+                      {
+                          "name":  "Log body",
+                          "short_name":  "Body",
+                          "url":  "/ui/log.html#body",
+                          "description":  "Open body logging"
+                      },
+                      {
+                          "name":  "Ask Coach",
+                          "short_name":  "Coach",
+                          "url":  "/ui/coach.html#ask",
+                          "description":  "Ask about your Life OS data"
+                      },
+                      {
+                          "name":  "Open Money",
+                          "short_name":  "Money",
+                          "url":  "/ui/money.html#overview",
+                          "description":  "Review your finances"
+                      }
+                  ],
+    "share_target":  {
+                         "action":  "/share.html",
+                         "method":  "POST",
+                         "enctype":  "multipart/form-data",
+                         "params":  {
+                                        "title":  "title",
+                                        "text":  "text",
+                                        "url":  "url",
+                                        "files":  [
+                                                      {
+                                                          "name":  "media",
+                                                          "accept":  [
+                                                                         "image/*"
+                                                                     ]
+                                                      }
+                                                  ]
+                                    }
+                     }
 }

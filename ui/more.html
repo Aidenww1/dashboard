@@ -3,36 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>More — Life OS</title>
+<title>More - Life OS</title>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="components.css">
 <style>
-  body[data-page="more"] .content { max-width: 1420px; padding-top: 0; }
-  body[data-page="more"] .page-head { align-items: center; margin-bottom: 16px; }
-  body[data-page="more"] .page-date { margin-top: 2px; display: flex; align-items: center; gap: 8px; }
-  body[data-page="more"] .page-head-r { min-width: min(60vw, 900px); }
-  body[data-page="more"] .search { flex: 1; max-width: 640px; height: 44px; }
-  body[data-page="more"] .grid { gap: 12px; align-content: start; }
-  body[data-page="more"] .card { padding: 16px 14px; gap: 4px; }
-  body[data-page="more"] .mr-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; padding: 0 4px 6px; }
-  body[data-page="more"] .mr-row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 6px; border-radius: 10px; color: inherit; text-decoration: none; }
-  body[data-page="more"] .mr-row:hover { background: rgba(255,255,255,0.035); }
-  body[data-page="more"] .mr-ic { width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
-  body[data-page="more"] .mr-ic svg { width: 17px; height: 17px; }
-  body[data-page="more"] .mr-b { flex: 1; min-width: 0; }
-  body[data-page="more"] .mr-b .t { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  body[data-page="more"] .mr-b .s { font-size: 12px; color: var(--text-3); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  body[data-page="more"] .mr-chev { color: var(--text-4); flex-shrink: 0; }
-  body[data-page="more"] .mr-chev svg { width: 16px; height: 16px; }
-  body[data-page="more"] .mr-row .badge { flex-shrink: 0; font-size: 10px; }
-  body[data-page="more"] .mr-tip { flex-direction: row; align-items: center; gap: 14px; }
-  body[data-page="more"] .mr-tip .mr-tb { flex: 1; min-width: 0; }
-  body[data-page="more"] .mr-tip b { font-size: 13.5px; font-weight: 600; }
-  body[data-page="more"] .mr-tip p { margin: 2px 0 0; font-size: 12.5px; color: var(--text-3); }
-  body[data-page="more"] .mr-tip .mr-ic { width: 40px; height: 40px; border-radius: 11px; }
-  body[data-page="more"] .mr-tip .mr-ic svg { width: 19px; height: 19px; }
-  @media (max-width: 900px) {
-    body[data-page="more"] .page-head-r { min-width: 0; }
+  body[data-page="more"] .content{max-width:1420px;padding-top:0}
+  body[data-page="more"] .page-head{align-items:center;margin-bottom:4px}
+  body[data-page="more"] .page-head-r{min-width:min(58vw,820px)}
+  body[data-page="more"] .search{flex:1;max-width:620px;height:44px}
+  .mr-tabs{display:flex;align-items:center;gap:4px;min-height:46px;margin:10px 0 14px;padding:5px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+  .mr-tabs button{flex:1 1 0;min-width:96px;height:36px;border:0;border-radius:6px;background:transparent;color:var(--text-2);font:inherit;font-size:13px;cursor:pointer}
+  .mr-tabs button:hover{color:var(--text);background:var(--surface-hover)}
+  .mr-tabs button[aria-selected="true"]{color:var(--text);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-border)}
+  .mr-view{gap:12px;align-content:start}
+  .mr-view[hidden]{display:none}
+  .mr-view .card{padding:16px;gap:10px}
+  .mr-kpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .mr-kpi{min-height:108px;padding:15px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+  .mr-kpi .label{color:var(--text-3);font-size:11px;text-transform:uppercase}
+  .mr-kpi .value{margin-top:10px;font-size:25px;font-weight:700}
+  .mr-kpi .sub{margin-top:4px;color:var(--text-3);font-size:12px}
+  .mr-row{display:flex;align-items:center;gap:12px;min-height:54px;padding:7px 4px;color:inherit;text-decoration:none;border-bottom:1px solid var(--border)}
+  .mr-row:last-child{border-bottom:0}
+  .mr-row:hover{background:rgba(255,255,255,.025)}
+  .mr-icon{width:34px;height:34px;display:grid;place-items:center;flex:0 0 auto;border:1px solid var(--border);border-radius:8px;color:var(--accent);background:var(--accent-soft)}
+  .mr-icon svg{width:17px;height:17px}
+  .mr-copy{flex:1;min-width:0}
+  .mr-copy strong{display:block;font-size:13.5px}
+  .mr-copy span{display:block;margin-top:2px;color:var(--text-3);font-size:12px}
+  .mr-end{flex:0 0 auto;color:var(--text-3);font-size:12px;text-align:right}
+  .mr-status{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-size:12px}
+  .mr-status.off{color:var(--text-3)}
+  .mr-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .mr-form-row{display:grid;grid-template-columns:minmax(0,1fr) 130px;align-items:center;gap:12px;min-height:52px;border-bottom:1px solid var(--border)}
+  .mr-form-row:last-child{border-bottom:0}
+  .mr-form-row label{font-size:13px}
+  .mr-form-row small{display:block;margin-top:2px;color:var(--text-3)}
+  .mr-form-row .input{width:100%;height:38px}
+  .mr-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .mr-switch{width:42px;height:24px;justify-self:end;border:1px solid var(--border);border-radius:12px;background:var(--surface-raised);cursor:pointer;position:relative}
+  .mr-switch:after{content:"";position:absolute;width:18px;height:18px;left:2px;top:2px;border-radius:50%;background:var(--text-3);transition:.15s}
+  .mr-switch[aria-checked="true"]{background:var(--accent);border-color:var(--accent)}
+  .mr-switch[aria-checked="true"]:after{left:20px;background:white}
+  .mr-note{padding:12px;border:1px solid var(--border);border-radius:7px;color:var(--text-2);font-size:12px;line-height:1.5;background:var(--surface-raised)}
+  .mr-empty{grid-column:1/-1;min-height:220px;display:grid;place-items:center;padding:24px;text-align:center;color:var(--text-3)}
+  .mr-empty strong{display:block;margin-bottom:6px;color:var(--text)}
+  .mr-danger{border-color:rgba(248,113,113,.28)!important}
+  .mr-danger .card-title{color:var(--red)}
+  @media(max-width:900px){
+    body[data-page="more"] .page-head-r{min-width:0}
+    .mr-tabs{flex-wrap:wrap;gap:4px}
+    .mr-tabs button{flex:1 1 30%;min-width:90px}
+    .mr-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  }
+  @media(max-width:620px){
+    .mr-tabs button{min-width:0;font-size:12px}
+    .mr-kpis{gap:8px}
+    .mr-kpi{min-height:98px;padding:13px}
+    .mr-kpi .value{font-size:21px}
+    .mr-form-row{grid-template-columns:minmax(0,1fr) 108px}
+    .mr-row{align-items:flex-start}
+    .mr-end{max-width:92px}
   }
 </style>
 </head>
@@ -41,207 +72,112 @@
   <main class="main">
     <div class="content">
       <header class="page-head">
-        <div class="page-head-l">
-          <h1 class="t-page">More</h1>
-          <div class="page-date" id="mrDate"></div>
-        </div>
+        <div class="page-head-l"><h1 class="t-page">More</h1><div class="page-date" id="mrDate"></div></div>
         <div class="page-head-r">
-          <label class="search">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
-            <input id="q" type="search" placeholder="Quick log (e.g. 10 min meditation, read 20 pages, call mom)" aria-label="Search destinations">
-          </label>
+          <label class="search"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><input id="mrSearch" type="search" placeholder="Search this section..." aria-label="Search this section"></label>
           <a class="btn btn-primary" href="log.html">+ Add</a>
-          <button class="btn btn-icon" id="mrMore" aria-label="More actions">
-            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
-          </button>
         </div>
       </header>
-      <div class="grid" id="groups"></div>
-      <div id="none" class="empty" style="display:none"><span class="empty-title">No matches</span><span>Try a different word.</span></div>
+      <nav class="mr-tabs" id="mrTabs" role="tablist" aria-label="More sections"></nav>
+      <div id="mrViews"></div>
     </div>
   </main>
 </div>
-
+<script src="../data-registry.js"></script>
+<script src="../auth.js"></script>
+<script src="compatibility-store.js"></script>
+<script src="../canonical-events.js"></script>
+<script src="../event-repository.js"></script>
+<script src="../canonical-sync.js"></script>
+<script src="../projection-engine.js"></script>
+<script src="../bloodwork-model-registry.js"></script>
+<script src="../bloodwork-outlook.js"></script>
+<script src="../projection-definitions.js"></script>
 <script src="ui.js"></script>
 <script src="shell.js"></script>
+<script src="canonical-runtime.js"></script>
 <script>
-(function () {
+(function(){
   'use strict';
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
-  function has(k) { try { var v = localStorage.getItem(k); return v != null && v !== '' && v !== '[]' && v !== '{}'; } catch (e) { return false; } }
+  var tabs=[['settings','Settings'],['integrations','Integrations'],['notifications','Notifications'],['data','Data'],['life','Life'],['about','About']];
+  var settingsKey='settings:v1';
+  var root=document.getElementById('mrViews');
+  var tabsRoot=document.getElementById('mrTabs');
+  var search=document.getElementById('mrSearch');
+  var systemState=null;
+  var systemLoading=false;
 
-  // integration status from best-effort local signals
-  function statusBadge(kind) {
-    var on = false;
-    if (kind === 'gmail') on = has('mail:summary:v1') || has('gmail:token') || has('gmail:connected');
-    else if (kind === 'calendar') on = has('gcal:token') || has('gcal:events') || has('calendar:events');
-    else if (kind === 'push') on = has('push:subs:v1') || has('push:enabled');
-    else if (kind === 'activity') on = has('activity:today') || has('aw:today');
-    return on ? '<span class="badge green">Connected</span>' : '';
+  function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function read(key,fallback){try{var raw=localStorage.getItem(key);return raw==null?fallback:JSON.parse(raw);}catch(e){return fallback;}}
+  function write(key,value){window.LifeOSCompatibilityStore.set(key,value);}
+  function has(key){var value=localStorage.getItem(key);return value!=null&&value!==''&&value!=='[]'&&value!=='{}';}
+  function active(){var id=location.hash.slice(1);return tabs.some(function(t){return t[0]===id;})?id:'settings';}
+  function icon(name){
+    var paths={settings:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>',link:'<path d="M9.5 14.5l5-5"/><path d="M7 17H5a4 4 0 010-8h3M17 7h2a4 4 0 010 8h-3"/>',bell:'<path d="M6 10a6 6 0 0112 0c0 4 2 5 2 5H4s2-1 2-5"/><path d="M10 19h4"/>',database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',heart:'<path d="M20 8c0 5-8 11-8 11S4 13 4 8a4 4 0 017-3 4 4 0 019 3z"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/>',bank:'<path d="M3 10l9-6 9 6M5 10v9M10 10v9M14 10v9M19 10v9M3 20h18"/>',watch:'<circle cx="12" cy="12" r="5"/><path d="M9 3h6l1 4M9 21h6l1-4"/>',download:'<path d="M12 4v11M8 11l4 4 4-4M4 20h16"/>',tool:'<path d="M14 6a4 4 0 01-5 5L4 16l4 4 5-5a4 4 0 005-5z"/>',shield:'<path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/>',task:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/>',book:'<path d="M4 5a3 3 0 013-2h5v17H7a3 3 0 00-3 1zM20 5a3 3 0 00-3-2h-5v17h5a3 3 0 013 1z"/>',users:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20a6 6 0 0112 0M15 15a5 5 0 016 5"/>',review:'<path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4"/>'};
+    return '<span class="mr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(paths[name]||paths.info)+'</svg></span>';
   }
+  function card(title,body,cls){return '<section class="card '+(cls||'col-6')+'"><div class="card-title">'+esc(title)+'</div>'+body+'</section>';}
+  function row(ic,title,sub,end,href){var tag=href?'a':'div';return '<'+tag+' class="mr-row" '+(href?'href="'+esc(href)+'"':'')+' data-search="'+esc((title+' '+sub).toLowerCase())+'">'+icon(ic)+'<span class="mr-copy"><strong>'+esc(title)+'</strong><span>'+esc(sub)+'</span></span><span class="mr-end">'+(end||'')+'</span></'+tag+'>';}
+  function status(on,label){return '<span class="mr-status '+(on?'':'off')+'"><i class="mr-dot"></i>'+esc(label)+'</span>';}
+  function kpi(label,value,sub){return '<div class="mr-kpi"><div class="label">'+esc(label)+'</div><div class="value">'+esc(value)+'</div><div class="sub">'+esc(sub)+'</div></div>';}
+  function formRow(label,sub,control){return '<div class="mr-form-row"><label>'+esc(label)+'<small>'+esc(sub)+'</small></label>'+control+'</div>';}
+  function input(id,value,type,step){return '<input class="input" id="'+id+'" type="'+(type||'number')+'" '+(step?'step="'+step+'"':'')+' value="'+esc(value||'')+'">';}
+  function switcher(id,on){return '<button class="mr-switch" id="'+id+'" role="switch" aria-checked="'+(on?'true':'false')+'" aria-label="Toggle"></button>';}
 
-  var DEV = /^(localhost|127\.|192\.168\.|\[::1\])/.test(location.hostname) || /[?&]dev/.test(location.search);
-
-  var P = {
-    tasks: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.2l2.3 2.3 4.7-5"/>',
-    cal: '<rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
-    notes: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h6M9 16h4"/>',
-    focus: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/>',
-    habit: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
-    sleep: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8.2 8.2 0 1 0 10.5 10.5z"/>',
-    mind: '<path d="M12 4a5 5 0 0 1 5 5c0 2-1 3-1 5H8c0-2-1-3-1-5a5 5 0 0 1 5-5z"/><path d="M9.5 18h5M10.5 21h3"/>',
-    nutrition: '<path d="M12 21c-3.5 0-6-3.4-6-7.4C6 9.9 8 7.5 10.4 7.5c1 0 1.6.6 1.6.6s.6-.6 1.6-.6C16 7.5 18 9.9 18 13.6 18 17.6 15.5 21 12 21z"/><path d="M12 7.5V4"/>',
-    lifestyle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="4"/>',
-    vitals: '<path d="M3.5 12h4l2-5 3 10 2.2-5H20.5"/>',
-    people: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
-    messages: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/>',
-    mentor: '<circle cx="12" cy="8" r="3.2"/><path d="M6 20a6 6 0 0 1 12 0"/><path d="M12 2.5v1.6"/>',
-    groups: '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M16 15a5 5 0 0 1 5 4"/>',
-    account2: '<path d="M12 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10z" transform="scale(0.8) translate(3 1)"/><circle cx="12" cy="12" r="8.5"/><path d="M12 9.5v5M9.5 12h5"/>',
-    library: '<path d="M5 4h6v16H5z"/><path d="M13 4h6v16h-6z"/><path d="M5 8h6M13 8h6"/>',
-    templates: '<rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/>',
-    courses: '<path d="M3 8l9-4 9 4-9 4z"/><path d="M6 11v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/>',
-    tools: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
-    download: '<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/>',
-    journal: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/>',
-    photos: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.6"/><path d="M4 17l5-4.5 4 3.5 3-2.5 4 3.5"/>',
-    travel: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.6 3.6 5.5 3.6 8.5S14.4 18.4 12 20.5C9.6 18.4 8.4 15.5 8.4 12S9.6 6.1 12 3.5z"/>',
-    goals: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
-    bucket: '<path d="M5 8h14l-1.4 11.2a2 2 0 0 1-2 1.8H8.4a2 2 0 0 1-2-1.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
-    prefs: '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.6M12 18.8v2.6M21.4 12h-2.6M5.2 12H2.6M18.6 5.4l-1.8 1.8M7.2 16.8l-1.8 1.8M18.6 18.6l-1.8-1.8M7.2 7.2L5.4 5.4"/>',
-    integrations: '<circle cx="12" cy="12" r="8.5"/><path d="M12 8.5v7M8.5 12h7"/>',
-    bell: '<path d="M6.5 10a5.5 5.5 0 0 1 11 0c0 4 1.5 5.5 1.5 5.5H5S6.5 14 6.5 10z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
-    privacy: '<path d="M12 3l7 3v6c0 4.4-3 7.9-7 9-4-1.1-7-4.6-7-9V6z"/><path d="M12 9.5v3M12 15.5h.01"/>',
-    account: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
-    reports: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 13v4M12 9v8M16 15v2"/>',
-    trends: '<path d="M4 16l5-5 3.5 3L20 6"/><path d="M20 10V6h-4"/>',
-    history: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/>',
-    export: '<path d="M12 4v11"/><path d="M8 11l4 4 4-4"/><path d="M4 19h16"/>',
-    backup: '<path d="M12 20a6 6 0 1 0 0-12"/><path d="M12 3v6l3-3"/><path d="M6 8a6 6 0 0 0 6 12"/>',
-    help: '<circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.5a2.3 2.3 0 1 1 3 2.2c-.5.2-.7.7-.7 1.3"/><circle cx="12" cy="16.4" r="0.8" fill="currentColor" stroke="none"/>',
-    sparkle: '<path d="M12 4l1.6 4.4L18 10l-4.4 1.6L12 16l-1.6-4.4L6 10l4.4-1.6z"/><path d="M18 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
-    feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10h7"/>',
-    roadmap: '<path d="M4 6h9M4 12h16M4 18h9"/><circle cx="17" cy="6" r="2"/><circle cx="17" cy="18" r="2"/>',
-    support: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 10h8M8 14h5"/>',
-    bulb: '<path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 1 3.6 10.8c-.6.5-1 1.2-1.1 2H9.5c-.1-.8-.5-1.5-1.1-2A6 6 0 0 1 12 3z"/>',
-    chev: '<path d="M9 6l6 6-6 6"/>'
-  };
-  function ic(n) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' + (P[n] || '') + '</svg>'; }
-
-  // [icon, label, sub, href, badge?]
-  var GROUPS = [
-    { title: 'Productivity', rows: [
-      ['tasks', 'Tasks', 'Manage tasks and to-dos', 'tasks.html'],
-      ['cal', 'Calendar', 'View your schedule', '../calendar.html'],
-      ['notes', 'Notes', 'Capture ideas and notes', '../review.html'],
-      ['focus', 'Focus Sessions', 'Start a deep work session', '../usage.html'],
-      ['habit', 'Habit Tracker', 'Track and build habits', '../habits.html'],
-    ] },
-    { title: 'Health & Lifestyle', rows: [
-      ['sleep', 'Sleep', 'Track your sleep quality', 'log.html#recovery'],
-      ['mind', 'Mind', 'Meditation, mood and clarity', 'mood.html'],
-      ['nutrition', 'Nutrition', 'Meals, calories and macros', '../nutrition.html'],
-      ['lifestyle', 'Lifestyle', 'Daily routines and score', 'glowlab.html'],
-      ['vitals', 'Vitals', 'Heart rate, HRV and more', '../health.html'],
-    ] },
-    { title: 'Connections', rows: [
-      ['people', 'People', 'Your network and contacts', 'social.html'],
-      ['messages', 'Messages', 'Notes and conversations', '../mail.html', statusBadge('gmail')],
-      ['mentor', 'Mentor', 'Guidance and insights', 'coach.html'],
-      ['groups', 'Groups', 'Communities and circles', 'social.html'],
-      ['account2', 'Accountability', 'Check-ins and progress', '../review.html'],
-    ] },
-    { title: 'Resources', rows: [
-      ['library', 'Library', 'Books, articles and resources', 'library.html'],
-      ['templates', 'Templates', 'Workflows and templates', '../gym.html'],
-      ['courses', 'Courses', 'Learn and grow', 'library.html'],
-      ['tools', 'Tools', 'Calculators and utilities', DEV ? 'gallery.html' : 'fix.html'],
-      ['download', 'Downloads', 'Files and exports', '../export.html'],
-    ] },
-    { title: 'Personal', rows: [
-      ['journal', 'Journal', 'Daily reflections', 'mood.html'],
-      ['photos', 'Photos', 'Your memories', 'log.html#body'],
-      ['travel', 'Travel', 'Trips and experiences', 'travel.html'],
-      ['goals', 'Goals', 'Your long-term goals', 'money.html#planning'],
-      ['bucket', 'Bucket List', 'Experiences to look forward to', 'travel.html'],
-    ] },
-    { title: 'Settings & Account', rows: [
-      ['prefs', 'Preferences', 'Customize Life OS', 'settings.html'],
-      ['integrations', 'Integrations', 'Connect your apps', 'settings.html', statusBadge('calendar')],
-      ['bell', 'Notifications', 'Manage alerts', '../reminders.html', statusBadge('push')],
-      ['privacy', 'Privacy & Security', 'Your data, your control', 'privacy.html'],
-      ['account', 'Account', 'Profile and subscription', 'settings.html'],
-    ] },
-    { title: 'Data & Insights', rows: [
-      ['reports', 'Reports', 'Detailed analytics', '../review.html'],
-      ['trends', 'Trends', 'Track patterns over time', '../radar.html'],
-      ['history', 'Life Score History', 'See your progress', 'coach.html'],
-      ['export', 'Export Data', 'Download your data', '../export.html'],
-      ['backup', 'Backup', 'Sync and backup settings', '../export.html'],
-    ] },
-    { title: 'Support', rows: [
-      ['help', 'Help Center', 'Guides and documentation', 'privacy.html'],
-      ['sparkle', "What's New", 'Latest updates', 'settings.html', '', 'ver'],
-      ['feedback', 'Feedback', 'Share your feedback', 'settings.html'],
-      ['roadmap', 'Roadmap', "See what's coming", 'settings.html'],
-      ['support', 'Contact Support', 'Get in touch', 'privacy.html'],
-    ] },
-  ];
-
-  var groupsEl = document.getElementById('groups'), noneEl = document.getElementById('none');
-  groupsEl.innerHTML = GROUPS.map(function (g) {
-    var rows = g.rows.map(function (r) {
-      var search = (g.title + ' ' + r[1] + ' ' + r[2]).toLowerCase();
-      return '<a class="mr-row" href="' + r[3] + '" data-s="' + esc(search) + '">'
-        + '<span class="mr-ic">' + ic(r[0]) + '</span>'
-        + '<span class="mr-b"><span class="t">' + esc(r[1]) + '</span>'
-        + '<span class="s"' + (r[5] ? ' id="' + r[5] + '"' : '') + '>' + esc(r[2]) + '</span></span>'
-        + (r[4] || '')
-        + '<span class="mr-chev">' + ic('chev') + '</span></a>';
-    }).join('');
-    return '<div class="card col-3" data-group><div class="mr-title">' + esc(g.title) + '</div>' + rows + '</div>';
-  }).join('')
-  + '<div class="card col-12 mr-tip" data-tip><span class="mr-ic">' + ic('bulb') + '</span>'
-  + '<div class="mr-tb"><b>Tip: Customize Life OS to fit your life.</b>'
-  + '<p>Use templates, connect your tools and build systems that support your goals.</p></div>'
-  + '<a class="btn btn-secondary" href="settings.html">Explore templates</a></div>';
-
-  // live search: filter rows, hide empty groups
-  var q = document.getElementById('q');
-  q.addEventListener('input', function () {
-    var v = q.value.trim().toLowerCase(), anyShown = 0;
-    groupsEl.querySelectorAll('[data-group]').forEach(function (grp) {
-      var shown = 0;
-      grp.querySelectorAll('[data-s]').forEach(function (row) {
-        var hit = !v || row.getAttribute('data-s').indexOf(v) !== -1;
-        row.style.display = hit ? '' : 'none'; if (hit) shown++;
-      });
-      grp.style.display = shown ? '' : 'none'; anyShown += shown;
-    });
-    groupsEl.querySelector('[data-tip]').style.display = v ? 'none' : '';
-    noneEl.style.display = anyShown ? 'none' : 'flex';
-  });
-
-  var d = new Date();
-  document.getElementById('mrDate').innerHTML =
-    '<span>' + d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) + '</span>'
-    + '<span style="color:var(--text-4)">•</span><span>' + d.toLocaleDateString('en-US', { weekday: 'long' }) + '</span>';
-
-  document.getElementById('mrMore').addEventListener('click', function (e) {
-    UI.menu(e.currentTarget, [
-      { label: 'Fix my data', onClick: function () { location.href = 'fix.html'; } },
-      { label: 'API usage', onClick: function () { location.href = 'usage.html'; } },
-      'hr',
-      { label: 'Component gallery', onClick: function () { location.href = 'gallery.html'; } }
-    ]);
-  });
-
-  // version from the service worker cache name (dashboard-vNN)
-  fetch('../sw.js').then(function (r) { return r.text(); }).then(function (t) {
-    var m = t.match(/dashboard-v(\d+)/);
-    var el = document.getElementById('ver');
-    if (el && m) el.textContent = 'Latest updates — build ' + m[1];
-  }).catch(function () {});
+  function settingsView(){
+    var s=read(settingsKey,{});var nt=read('nt:tdee',{});
+    return card('Daily targets',formRow('Calories','Daily nutrition target',input('setCalories',s.goalCalories||nt.calories||''))+formRow('Protein','Grams per day',input('setProtein',s.goalProtein||nt.protein||''))+formRow('Sleep','Hours per night',input('setSleep',s.goalSleep||'','number','0.5'))+formRow('Water','Bottles per day',input('setWater',s.goalWater||''))+'<div class="mr-actions"><button class="btn btn-primary" data-save-targets>Save targets</button><span class="mr-status" id="targetStatus"></span></div>','col-6')+
+      card('Coach context',formRow('Context window','Days included in Coach context',input('setContext',s.aiContextDays||14))+formRow('Include finance','Allow Coach to read finance summaries',switcher('setFinance',s.aiIncludeFinance===true))+formRow('Include bloodwork','Allow Coach to read lab summaries',switcher('setBlood',s.aiIncludeBloodwork!==false))+'<div class="mr-actions"><button class="btn btn-primary" data-save-context>Save context</button><span class="mr-status" id="contextStatus"></span></div>','col-6')+
+      card('Preferences',row('settings','Water settings','Units, bottle size, profile and target','','log.html#water')+row('bank','Money preferences','Currency and financial targets','','money.html#overview')+row('shield','Privacy controls','Review local storage and connected services','','privacy.html'),'col-12');
+  }
+  function integrationsView(){
+    var recorded=systemState&&systemState.connections||{};
+    var remote=systemState&&systemState.cross_device_sync||{};
+    var items=[
+      ['calendar','Google Calendar','Schedule and day-plan events',recorded.calendar||has('gcal:token')||has('gcal:events')||has('calendar:events'),'../calendar.html'],
+      ['mail','Mail','Inbox, bills, orders and reply summaries',recorded.mail||has('mail:summary:v1')||has('gmail:connected'),'../mail.html'],
+      ['bank','Bank import','Accounts and transaction imports',recorded.finance||has('ing:tx')||has('fin:accounts:v1'),'../finance.html#accounts'],
+      ['watch','Health data','Wearable, sleep and recovery metrics',recorded.health||has('health:metrics:v1')||has('aw:today')||has('activity:today'),'../health.html'],
+      ['bell','Browser notifications','Local and phone push reminders',typeof Notification!=='undefined'&&Notification.permission==='granted','../reminders.html']
+    ];
+    var connected=items.filter(function(item){return item[3];}).length;
+    var syncLabel=remote.state||'Checking';
+    var syncActions='<div class="mr-actions">'+(!remote.authenticated?'<button class="btn btn-primary" data-sync-auth>Sign in</button>':'')+'<button class="btn '+(remote.enabled?'btn-secondary':'btn-primary')+'" data-sync-toggle>'+(remote.enabled?'Disable sync':'Enable cross-device sync')+'</button>'+(remote.enabled?'<button class="btn btn-secondary" data-sync-now>Sync now</button>':'')+'</div>';
+    return '<div class="mr-kpis">'+kpi('Configured',connected,'of '+items.length+' recorded')+kpi('Mail',items[1][3]?'Configured':'Not connected','Live reachability is checked in Mail')+kpi('Calendar',items[0][3]?'Configured':'Not connected','Live reachability is checked in Calendar')+kpi('Cross-device sync',syncLabel,remote.pending?remote.pending+' event(s) pending':'Owner-scoped canonical ledger')+'</div>'+card('Connections',items.map(function(item){return row(item[0],item[1],item[2],status(item[3],item[3]?'Configured':'Not connected'),item[4]);}).join('')+'<div class="mr-note">A configured connection means Life OS has recorded credentials or imported facts. It does not prove the provider is reachable right now.</div>','col-8')+card('Cross-device continuity','<div class="mr-note">Canonical sync is off until you sign in and explicitly enable it. Remote rows are scoped to that owner; conflicts are retained instead of silently overwriting either device.</div>'+syncActions,'col-4');
+  }
+  function notificationsView(){
+    var reminders=read('reminders:v1',{});var builtin=reminders.builtin||{};var custom=Array.isArray(reminders.custom)?reminders.custom:[];var activeBuiltins=Object.keys(builtin).filter(function(key){return builtin[key]&&builtin[key].enabled;}).length;var brief=localStorage.getItem('briefing:enabled:v1')==='1';var permission=typeof Notification==='undefined'?'Unavailable':Notification.permission;
+    return '<div class="mr-kpis">'+kpi('Permission',permission,'Browser notification status')+kpi('Daily reminders',activeBuiltins,'Enabled schedules')+kpi('Custom reminders',custom.length,'Saved reminders')+kpi('Morning briefing',brief?'On':'Off',localStorage.getItem('briefing:waketime:v1')||'07:00')+'</div>'+card('Notification settings',row('bell','Morning briefing','One readiness, food, training, orders and money summary',status(brief,brief?'Enabled':'Disabled'),'../reminders.html')+row('calendar','Daily reminders','Water, training, sleep, medicines and habits',status(activeBuiltins>0,activeBuiltins+' active'),'../reminders.html')+row('review','Custom reminders','Your own times and weekday schedules',custom.length+' saved','../reminders.html'),'col-8')+card('Delivery status','<div class="mr-note">Notifications require browser permission. Local schedules work while the app is open or installed; phone push also requires the server connection shown on the Reminders page.</div><div class="mr-actions"><a class="btn btn-primary" href="../reminders.html">Manage notifications</a></div>','col-4');
+  }
+  function dataStats(){var chars=0;for(var i=0;i<localStorage.length;i++){chars+=(localStorage.getItem(localStorage.key(i))||'').length;}return{keys:localStorage.length,kb:Math.max(0,Math.round(chars/1024))};}
+  function dataView(){var stat=dataStats();var eventCount=systemState?systemState.canonical_events:0;var pending=systemState?systemState.pending_sync:0;var backup=systemState&&systemState.backup;return '<div class="mr-kpis">'+kpi('Canonical events',eventCount,'IndexedDB source records')+kpi('Device cache',stat.kb+' KB',stat.keys+' compatibility keys')+kpi('Sync queue',pending,pending?'Waiting for acknowledgement':'Nothing pending')+kpi('Last backup',backup&&backup.created_at?String(backup.created_at).slice(0,10):'Not recorded','Verified metadata only')+'</div>'+card('Data tools',row('download','Export and restore','Download JSON, CSV, or a full ZIP backup','','../export.html')+row('tool','Fix invalid data','Scan gym and body logs for impossible values','','fix.html')+row('shield','Privacy and security','Review device storage, sync, and AI context','','privacy.html'),'col-8')+card('Complete device snapshot','<div class="mr-note">Export or restore canonical events, pending sync records, and compatibility storage. Authentication tokens are never included.</div><div class="mr-actions"><button class="btn btn-primary" data-export>Export JSON</button><label class="btn btn-secondary" style="cursor:pointer">Restore JSON<input type="file" accept="application/json,.json" data-restore-file hidden></label></div>','col-4')+card('Danger zone','<div class="mr-note">Clearing this device removes its canonical database and compatibility storage. Synced records may return after sign-in; this does not delete remote data.</div><div class="mr-actions"><button class="btn btn-danger" data-clear>Clear this device</button></div>','col-12 mr-danger');}
+  function lifeView(){return card('Plan and focus',row('task','Tasks','Manage tasks and to-dos','','tasks.html')+row('calendar','Calendar','Schedule, goals and day plan','','../calendar.html')+row('review','Weekly review','Reflect on logged outcomes and create plans','','../review.html'),'col-4')+card('Health records',row('watch','Health details','Sleep, HRV, heart rate and recovery','','../health.html')+row('heart','Body and labs','Measurements, recovery, photos and lab history','','log.html#body')+row('shield','Data quality','Review missing, stale, and conflicting records','','fix.html'),'col-4')+card('Library and experiences',row('book','Library','Books, articles and learning resources','','library.html')+row('info','Travel','Trips, packing and experiences','','travel.html')+row('download','Exports','Your generated data files and backups','','../export.html'),'col-4');}
+  function aboutView(){var stat=dataStats();var device=systemState&&systemState.device_id||'Checking';var pending=systemState?systemState.pending_sync:0;return '<div class="mr-kpis">'+kpi('Product','Life OS','Personal operating system')+kpi('Build','Checking...','Service worker cache')+kpi('Device ID',device,'Canonical device identity')+kpi('Sync',pending?pending+' pending':'Device current','Cross-device needs authenticated sync')+'</div>'+card('About Life OS','<div class="mr-note">Life OS combines health, training, nutrition, money, planning, and personal records. The device cache works offline; cross-device continuity depends on the configured sync service. Empty modules remain explicit instead of inventing answers.</div>'+row('shield','Privacy','How device data, sync, backup and AI context work','','privacy.html')+row('info','API usage','See model requests and cached responses','','usage.html'),'col-8')+card('System',row('database','Device storage',stat.kb+' KB across '+stat.keys+' compatibility keys',status(true,'Available'),'')+row('link','Service worker','Offline shell and cached assets','<span id="buildStatus">Checking</span>',''),'col-4');}
+  var views={settings:settingsView,integrations:integrationsView,notifications:notificationsView,data:dataView,life:lifeView,about:aboutView};
+  function paintTabs(id){tabsRoot.innerHTML=tabs.map(function(tab){return '<button id="tab-'+tab[0]+'" type="button" role="tab" data-tab="'+tab[0]+'" aria-selected="'+(tab[0]===id)+'" tabindex="'+(tab[0]===id?'0':'-1')+'">'+tab[1]+'</button>';}).join('');}
+  function render(){var id=active();paintTabs(id);try{root.innerHTML='<section class="grid mr-view" role="tabpanel" aria-labelledby="tab-'+id+'">'+views[id]()+'</section>';}catch(e){root.innerHTML='<div class="mr-empty"><div><strong>This section could not load</strong><span>Your data was not changed.</span><div class="mr-actions"><button class="btn" data-retry>Retry</button></div></div></div>';}search.value='';if(id==='about')loadBuild();}
+  function go(id){if(location.hash==='#'+id)render();else location.hash=id;}
+  function loadBuild(){fetch('../sw.js').then(function(response){return response.text();}).then(function(text){var match=text.match(/dashboard-v(\d+)/);var status=document.getElementById('buildStatus');if(status)status.textContent=match?'Build '+match[1]:'Current';var cards=root.querySelectorAll('.mr-kpi .value');if(cards[1])cards[1].textContent=match?'Build '+match[1]:'Current';}).catch(function(){var status=document.getElementById('buildStatus');if(status)status.textContent='Unavailable';});}
+  function flash(id,message){var el=document.getElementById(id);if(el){el.textContent=message;setTimeout(function(){el.textContent='';},2500);}}
+  function saveTargets(){var s=read(settingsKey,{});s.goalCalories=parseInt(document.getElementById('setCalories').value)||null;s.goalProtein=parseInt(document.getElementById('setProtein').value)||null;s.goalSleep=parseFloat(document.getElementById('setSleep').value)||null;s.goalWater=parseInt(document.getElementById('setWater').value)||null;write(settingsKey,s);var nt=read('nt:tdee',{});if(s.goalCalories)nt.calories=s.goalCalories;if(s.goalProtein)nt.protein=s.goalProtein;write('nt:tdee',nt);flash('targetStatus','Saved');}
+  function saveContext(){var s=read(settingsKey,{});s.aiContextDays=parseInt(document.getElementById('setContext').value)||14;s.aiIncludeFinance=document.getElementById('setFinance').getAttribute('aria-checked')==='true';s.aiIncludeBloodwork=document.getElementById('setBlood').getAttribute('aria-checked')==='true';write(settingsKey,s);flash('contextStatus','Saved');}
+  function downloadJson(out){var link=document.createElement('a');link.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)],{type:'application/json'}));link.download='lifeos-export-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(function(){URL.revokeObjectURL(link.href);},0);}
+  function exportJson(){if(window.CanonicalRuntime&&CanonicalRuntime.exportSnapshot){CanonicalRuntime.exportSnapshot().then(downloadJson,function(){if(window.UI)UI.toast('The complete export could not be created.');});return;}var out={schema_version:1,exported_at:new Date().toISOString(),canonical_events:[],pending_outbox:[],local_storage:{}};for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);try{out.local_storage[key]=JSON.parse(localStorage.getItem(key));}catch(e){out.local_storage[key]=localStorage.getItem(key);}}downloadJson(out);}
+  function loadSystemStatus(){if(!window.CanonicalRuntime||!CanonicalRuntime.systemStatus||systemLoading)return;systemLoading=true;CanonicalRuntime.systemStatus().then(function(state){systemState=state;systemLoading=false;render();},function(){systemLoading=false;});}
+  function authSheet(){var close=UI.sheet({title:'Sign in for cross-device sync',body:'<div class="field"><span class="label">Email</span><input class="input" id="syncEmail" type="email" autocomplete="username"></div><div class="field" style="margin-top:var(--s3)"><span class="label">Password</span><input class="input" id="syncPassword" type="password" autocomplete="current-password"></div><div class="mr-note" id="syncAuthError" role="alert" style="margin-top:var(--s3)">Your session is used only for owner-scoped synchronization.</div>',primaryLabel:'Sign in',onSubmit:function(sheet){var err=sheet.querySelector('#syncAuthError');window.LifeOSAuth.login(sheet.querySelector('#syncEmail').value,sheet.querySelector('#syncPassword').value).then(function(result){if(result.error){err.textContent=result.error.message||'Sign-in failed';return;}close();UI.toast('Signed in');setTimeout(function(){location.reload();},200);});return false;}});}
+  function toggleSync(){if(!window.CanonicalRuntime||!CanonicalRuntime.setSyncEnabled)return;var enabled=!!(systemState&&systemState.cross_device_sync&&systemState.cross_device_sync.enabled);CanonicalRuntime.setSyncEnabled(!enabled).then(function(result){UI.toast(result.status==='current'?'Cross-device sync is current':String(result.status||'Sync setting saved').replace(/-/g,' '));loadSystemStatus();},function(error){UI.toast(error.message||'Could not change sync setting',{type:'error'});});}
+  function syncNow(){if(!window.CanonicalRuntime||!CanonicalRuntime.syncNow)return;CanonicalRuntime.syncNow().then(function(result){UI.toast(String(result.status||'Sync finished').replace(/-/g,' '));loadSystemStatus();},function(error){UI.toast(error.message||'Sync failed',{type:'error'});});}
+  function restoreFile(file){if(!file||file.size>10*1024*1024){UI.toast('Choose a Life OS JSON snapshot under 10 MB',{type:'error'});return;}file.text().then(function(text){var snapshot=JSON.parse(text);UI.confirm({title:'Restore this device snapshot?',body:'The current canonical device state will be replaced after validation. A rollback snapshot is kept in memory if the restore fails.',confirmLabel:'Restore snapshot',onConfirm:function(){CanonicalRuntime.restoreSnapshot(snapshot).then(function(result){UI.toast(result.restored_events+' canonical events restored');loadSystemStatus();},function(error){UI.toast(error.message||'Restore failed',{type:'error'});});}});}).catch(function(){UI.toast('The selected JSON file is invalid',{type:'error'});});}
+  function clearDevice(){var clear=window.CanonicalRuntime&&CanonicalRuntime.clearDeviceData?CanonicalRuntime.clearDeviceData():Promise.resolve().then(function(){window.LifeOSCompatibilityStore.clear();});clear.then(function(){location.href='today.html';},function(){if(window.UI)UI.toast('Device data could not be cleared.');});}
+  tabsRoot.addEventListener('click',function(e){var button=e.target.closest('[data-tab]');if(button)go(button.dataset.tab);});
+  tabsRoot.addEventListener('keydown',function(e){var buttons=[].slice.call(tabsRoot.querySelectorAll('[data-tab]'));var index=buttons.indexOf(document.activeElement);if(index<0)return;var next=e.key==='ArrowRight'?index+1:e.key==='ArrowLeft'?index-1:-1;if(next<0||next>=buttons.length)return;e.preventDefault();buttons[next].focus();go(buttons[next].dataset.tab);});
+  root.addEventListener('click',function(e){var sw=e.target.closest('.mr-switch');if(sw){sw.setAttribute('aria-checked',sw.getAttribute('aria-checked')!=='true');return;}if(e.target.closest('[data-save-targets]'))saveTargets();if(e.target.closest('[data-save-context]'))saveContext();if(e.target.closest('[data-export]'))exportJson();if(e.target.closest('[data-sync-auth]'))authSheet();if(e.target.closest('[data-sync-toggle]'))toggleSync();if(e.target.closest('[data-sync-now]'))syncNow();if(e.target.closest('[data-retry]'))render();if(e.target.closest('[data-clear]'))UI.confirm({title:'Clear ALL device data?',body:'Canonical events and compatibility storage on this device will be removed. Remote data is not deleted and may return after sync.',confirmLabel:'Clear this device',danger:true,onConfirm:clearDevice});});
+  root.addEventListener('change',function(e){if(e.target.matches('[data-restore-file]'))restoreFile(e.target.files&&e.target.files[0]);});
+  search.addEventListener('input',function(){var query=search.value.trim().toLowerCase();var rows=root.querySelectorAll('[data-search]');var visible=0;rows.forEach(function(item){var show=!query||item.getAttribute('data-search').indexOf(query)!==-1;item.style.display=show?'':'none';if(show)visible++;});var old=root.querySelector('[data-search-empty]');if(old)old.remove();if(query&&!visible){var empty=document.createElement('div');empty.className='mr-empty';empty.setAttribute('data-search-empty','');empty.innerHTML='<div><strong>No matches in this section</strong><span>Try another word or choose a different tab.</span></div>';root.querySelector('.mr-view').appendChild(empty);}});
+  window.addEventListener('hashchange',render);
+  document.getElementById('mrDate').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  render();
+  loadSystemStatus();
 })();
 </script>
 </body>

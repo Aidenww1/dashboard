@@ -86,12 +86,12 @@ export default async function handler(req, res) {
     });
     if (!r.ok) {
       const err = await r.text();
-      console.error(`Insert failed for ${table}:`, err);
+      console.error('Health metric insert failed', { table, error: err });
       return res.status(500).json({ error: err });
     }
     return res.json({ ok: true });
   } catch (e) {
-    console.error(`Error inserting into ${table}:`, e.message);
+    console.error('Health metric insert error', { table, error: e.message });
     return res.status(500).json({ error: e.message });
   }
 }

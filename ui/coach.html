@@ -76,6 +76,66 @@
   .ch-foot { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s4); color: var(--text-3); font-size: 13px; }
   .ch-foot .inline svg { width: 16px; height: 16px; }
 
+.ch-tabs{display:flex;align-items:center;gap:4px;margin:0 0 14px;padding:5px;border:1px solid var(--border);background:var(--surface);border-radius:8px;min-height:46px}
+.ch-tabs button{flex:1 1 0;min-width:100px;height:36px;border:0;border-radius:6px;background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer}
+.ch-tabs button:hover{color:var(--text);background:var(--surface-2)}
+.ch-tabs button[aria-selected="true"]{color:var(--text);background:rgba(124,58,237,.24);box-shadow:inset 0 0 0 1px rgba(168,85,247,.24)}
+.ch-view-title{grid-column:1/-1;display:flex;align-items:end;justify-content:space-between;gap:16px;margin:2px 2px -2px}
+.ch-view-title h2{margin:0;font-size:18px;letter-spacing:0}
+.ch-view-title p{margin:4px 0 0;color:var(--muted);font-size:12px}
+#coach>.card{grid-column:span 4}
+#coach>.card.ch-wide{grid-column:span 8}
+#coach>.card.ch-full{grid-column:1/-1}
+.ch-kpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.ch-kpi{min-height:116px;padding:16px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.ch-kpi-label{color:var(--muted);font-size:11px;text-transform:uppercase}
+.ch-kpi-value{margin-top:12px;font-size:26px;font-weight:700}
+.ch-kpi-sub{margin-top:5px;color:var(--muted);font-size:12px}
+.ch-list{display:grid;gap:0}
+.ch-row{display:grid;grid-template-columns:minmax(120px,.75fr) minmax(0,1.8fr) auto;align-items:center;gap:14px;min-height:48px;padding:9px 0;border-bottom:1px solid var(--border)}
+.ch-row:last-child{border-bottom:0}
+.ch-row strong{font-size:13px}
+.ch-row span,.ch-row small{color:var(--muted);font-size:12px}
+.ch-row .ch-action{color:var(--accent);white-space:nowrap}
+.ch-empty{display:grid;place-items:center;min-height:190px;padding:28px;text-align:center;color:var(--muted)}
+.ch-empty strong{display:block;margin-bottom:7px;color:var(--text);font-size:15px}
+.ch-empty .btn{margin-top:15px}
+.ch-meter{height:7px;margin-top:10px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.ch-meter span{display:block;height:100%;border-radius:inherit;background:var(--green)}
+.ch-driver-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ch-driver-card{padding:13px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2)}
+.ch-driver-card header{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px}
+.ch-driver-card strong{color:var(--text);font-size:16px}
+.ch-ask-panel{min-height:420px}
+.ch-prompts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:18px 0}
+.ch-prompt{min-height:42px;padding:9px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.ch-prompt:hover{border-color:var(--accent);color:var(--accent)}
+.ch-answer{min-height:92px;margin:14px 0;padding:15px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--muted);line-height:1.55}
+.ch-ask-form{display:grid;grid-template-columns:1fr auto;gap:8px}
+.ch-ask-form input{min-width:0}
+.ch-status{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-size:12px}
+.ch-status.off{color:var(--muted)}
+.ch-review-card{display:grid;grid-template-columns:120px 1fr auto;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)}
+.ch-review-card:last-child{border-bottom:0}
+.ch-error{grid-column:1/-1;padding:28px;border:1px solid var(--red);border-radius:8px;background:var(--surface);text-align:center}
+@media (max-width:900px){
+  .ch-tabs{flex-wrap:wrap;gap:4px}
+  .ch-tabs button{flex:1 1 30%;min-width:92px}
+  .ch-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #coach>.card,#coach>.card.ch-wide,#coach>.card.ch-full{grid-column:1/-1}
+}
+@media (max-width:620px){
+  .ch-tabs button{flex:1 1 30%;min-width:0;font-size:12px}
+  .ch-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .ch-kpi{min-height:102px;padding:13px}
+  .ch-kpi-value{font-size:22px}
+  .ch-driver-grid,.ch-prompts{grid-template-columns:1fr}
+  .ch-row{grid-template-columns:1fr auto;gap:5px 10px}
+  .ch-row span{grid-column:1/-1}
+  .ch-review-card{grid-template-columns:1fr auto}
+  .ch-review-card span{grid-column:1/-1}
+  .ch-ask-form{grid-template-columns:1fr}
+}
   @media (max-width: 1180px) {
     .ch-signals { grid-template-columns: repeat(3, 1fr); }
     .ch-ask { grid-row: auto; }
@@ -102,7 +162,8 @@
           <button class="btn btn-primary" id="ask-top"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9l-4.4 3.5 1 5.8L12 15.6 7.9 18.3l1-5.8L4.5 9l5.6-1.4z"/></svg>Ask coach</button>
         </div>
       </header>
-      <div class="grid" id="coach"></div>
+      <nav class="ch-tabs" id="coach-tabs" role="tablist" aria-label="Coach views"></nav>
+<div class="grid" id="coach" role="tabpanel" aria-live="polite"></div>
     </div>
   </main>
 </div>
@@ -113,184 +174,387 @@
 <script src="../bus.js"></script>
 <script src="../claude.js"></script>
 <script src="../command.js"></script>
-<script src="data.js"></script>
+<script src="../data-registry.js"></script>
+<script src="../auth.js"></script>
+<script src="compatibility-store.js"></script>
+<script src="../canonical-events.js"></script>
+<script src="../event-repository.js"></script>
+<script src="../canonical-sync.js"></script>
+<script src="../projection-engine.js"></script>
+<script src="../bloodwork-model-registry.js"></script>
+<script src="../bloodwork-outlook.js"></script>
+<script src="../projection-definitions.js"></script>
+<script src="data.js?v=phase-e"></script>
 <script src="ui.js"></script>
 <script src="shell.js"></script>
+<script src="canonical-runtime.js"></script>
 <script>
 (function () {
   'use strict';
-  var L = window.LifeOS || {}, D = L.data || {}, root = document.getElementById('coach');
 
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function ls(k, d) { try { var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } }
-  function icon(p) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; }
-  function card(cls, html) { var d = document.createElement('section'); d.className = 'card ' + cls; d.innerHTML = html; root.appendChild(d); return d; }
-  function head(t, right) { return '<div class="card-head"><span class="card-title">' + esc(t) + '</span>' + (right || '') + '</div>'; }
-  function headIc(t, ic, right) { return '<div class="card-head"><span class="card-title"><span class="card-ic">' + ic + '</span>' + esc(t) + '</span>' + (right || '') + '</div>'; }
-  function viewAll(href, label) { return '<a class="btn btn-ghost btn-sm" href="' + href + '">' + (label || 'View all') + ' →</a>'; }
-
-  var IC = {
-    spark: '<path d="M12 3l1.7 5L19 9.7l-4.2 3.4.9 5.5L12 15.9 8.3 18.6l.9-5.5L5 9.7 10.3 8z"/>',
-    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/>',
-    alert: '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
-    lock: '<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
-    dumbbell: '<path d="M3 9v6M7 6v12M17 6v12M21 9v6M7 12h10"/>',
-    fork: '<path d="M6 3v7a2 2 0 0 0 4 0V3M8 10v11M18 3c-1.6 1.4-2 3.4-2 5.5 0 1.6.7 2.5 2 2.5v10"/>',
-    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
-    pill: '<path d="m10.5 20.5 9-9a3.5 3.5 0 0 0-5-5l-9 9a3.5 3.5 0 0 0 5 5z"/><path d="m8.5 8.5 7 7"/>',
-    cal: '<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9h18M8 2v4M16 2v4"/>',
-    mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3 7 9 6 9-6"/>',
-    doc: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
-    heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/>',
-    wallet: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/>',
-    flask: '<path d="M9 3h6M10 3v6L4.6 18a2 2 0 0 0 1.7 3h11.4a2 2 0 0 0 1.7-3L14 9V3"/>',
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-    db: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
-    shield: '<path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/>',
-    flame: '<path d="M12 3c3 4 6 5.5 6 9a6 6 0 0 1-12 0c0-2 1-3.5 2.5-5C9 8.5 10 6 12 3z"/>',
-    drop: '<path d="M12 3s6 6.3 6 10.2A6 6 0 0 1 6 13.2C6 9.3 12 3 12 3z"/>',
-    brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.8V16a3 3 0 0 0 4 2.8M15 4a3 3 0 0 1 3 3 3 3 0 0 1 1 5.8V16a3 3 0 0 1-4 2.8M12 4v16"/>',
-    trend: '<path d="M3 17l6-6 4 4 8-8"/><path d="M21 7h-5M21 7v5"/>'
-  };
-
-  document.getElementById('date').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-
-  function ask(q) {
-    if (window.LifeOSCmd && LifeOSCmd.ask) LifeOSCmd.ask(q || '');
-    else if (window.UI) UI.toast('AI unavailable — check your connection');
-  }
-  document.getElementById('ask-top').addEventListener('click', function () { ask(document.getElementById('q').value.trim()); });
-  document.getElementById('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') ask(this.value.trim()); });
-
-  // deterministic reads — zero token
-  var rd = {}; try { rd = (L.readiness && L.readiness()) || {}; } catch (e) {}
-  // briefing() returns {date, readiness, lines, push} — we want the lines array
-  var lines = []; try { lines = ((L.briefing && L.briefing()) || {}).lines || []; } catch (e) {}
-  var attention = (D.attention && D.attention()) || [];
-  if (!Array.isArray(attention)) attention = [];
-  var mail = ls('mail:summary:v1'), radar = ls('radar:summary:v1');
-
-  function spark(seed, color) {
-    var s = (seed || []).filter(function (v) { return typeof v === 'number' && !isNaN(v); }).slice(-12);
-    if (s.length < 3) return '';
-    var min = Math.min.apply(null, s), max = Math.max.apply(null, s), rng = max - min || 1;
-    var pts = s.map(function (v, i) { return (i / (s.length - 1) * 100).toFixed(1) + ',' + (44 - (v - min) / rng * 38).toFixed(1); }).join(' ');
-    var last = pts.split(' ').pop().split(',');
-    return '<div class="ch-spark" style="color:' + color + '"><svg viewBox="0 0 100 48" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/><circle cx="' + last[0] + '" cy="' + last[1] + '" r="1.9" fill="currentColor"/></svg></div>';
-  }
-
-  /* ===== top strip ===== */
-  var rdCol = rd.label === 'Low' ? 'var(--amber)' : 'var(--green)';
-  card('ch-stat col-3 accent-green', head('Readiness score')
-    + '<div class="ch-stat-body"><div><div class="metric-row"><span class="ch-big" style="color:' + rdCol + '">' + (rd.score != null ? rd.score : '—') + '</span><span class="metric-unit">/100</span></div>'
-    + '<div class="ch-sub" style="color:' + rdCol + '">' + esc(rd.label || 'No data') + '</div></div>'
-    + spark(ls('lifeos:hist:readiness', []).map(function (p) { return p.v; }), rdCol) + '</div>');
-
-  var focus = rd.advice || (lines[0] && lines[0].value) || 'Log a few things to unlock guidance';
-  card('ch-stat col-3 accent-violet', head("Today's focus")
-    + '<a class="ch-stat-body ch-stat-link" href="#coach-brief"><span class="ch-icbox" style="color:var(--accent)">' + icon(IC.target) + '</span>'
-    + '<div style="flex:1;min-width:0"><div class="row-title">' + esc(focus) + '</div></div><span class="ch-chev">›</span></a>');
-
-  card('ch-stat col-3 accent-amber', head('Health attention')
-    + '<a class="ch-stat-body ch-stat-link" href="#coach-followup"><div><div class="ch-big">' + attention.length + '</div>'
-    + '<div class="ch-sub" style="color:var(--amber)">' + (attention.length ? 'Items need attention' : 'Nothing pending') + '</div></div><span class="ch-chev">›</span></a>');
-
-  card('ch-stat col-3', head('Coach tokens')
-    + '<div class="ch-stat-body"><span class="ch-icbox" style="color:var(--accent)">' + icon(IC.lock) + '</span>'
-    + '<div style="flex:1;min-width:0"><div class="row-title">No tokens spent until you ask</div><div class="t-cap">Your data stays private</div></div></div>');
-
-  /* ===== ask panel ===== */
-  var prompts = [
-    { q: 'What should I focus on today?', ic: IC.trend },
-    { q: "How's my recovery?", ic: IC.heart },
-    { q: 'What needs attention?', ic: IC.alert },
-    { q: 'How should I adjust training?', ic: IC.dumbbell }
+  var L = window.LifeOS || {};
+  var root = document.getElementById('coach');
+  var tabsRoot = document.getElementById('coach-tabs');
+  var answer = '';
+  var asking = false;
+  var coachPhase = {};
+  var coachUnsubscribe = null;
+  var views = [
+    ['briefing', 'Briefing'],
+    ['readiness', 'Readiness'],
+    ['ask', 'Ask'],
+    ['inbox', 'Inbox'],
+    ['opportunities', 'Opportunities'],
+    ['reviews', 'Reviews']
   ];
-  var ask$ = card('ch-ask col-7 accent-violet', head('Ask Coach')
-    + '<div class="ch-hello"><span class="ch-icbox">' + icon(IC.spark) + '</span>'
-    + '<div><div class="t-h2" style="font-size:17px">Ask anything about your health, training, or lifestyle.</div>'
-    + '<div class="t-2" style="margin-top:4px">Full context plus the operator — risky actions ask before running. AI runs only when you tap.</div></div></div>'
-    + '<div class="ch-chips">' + prompts.map(function (p) { return '<button class="ch-chip" data-q="' + esc(p.q) + '">' + icon(p.ic) + esc(p.q) + '</button>'; }).join('') + '</div>'
-    + '<form class="ch-ask-form" id="ask-form"><input class="input" id="ask-in" placeholder="Ask anything..." aria-label="Ask coach">'
-    + '<button class="btn btn-primary ch-send" type="submit" aria-label="Send">' + icon('<path d="M4 12h15M13 6l6 6-6 6"/>') + '</button></form>');
-  ask$.querySelectorAll('[data-q]').forEach(function (b) { b.addEventListener('click', function () { ask(b.getAttribute('data-q')); }); });
-  ask$.querySelector('#ask-form').addEventListener('submit', function (e) { e.preventDefault(); ask(ask$.querySelector('#ask-in').value.trim()); });
 
-  /* ===== today's briefing ===== */
-  var brief = card('col-5', headIc("Today's briefing", icon(IC.doc), viewAll('../review.html', 'View full plan')));
-  brief.id = 'coach-brief';
-  brief.insertAdjacentHTML('beforeend', lines.length
-    ? lines.map(function (l) { return '<div class="ch-line"><span class="ch-lic">' + icon(IC.doc) + '</span><span class="lbl">' + esc(l.label) + '</span><span class="val">' + esc(l.value) + '</span></div>'; }).join('')
-    : '<div class="empty"><span class="empty-title">Not enough data yet</span><span>Log a few days and the briefing fills in.</span></div>');
-
-  /* ===== signals & inbox ===== */
-  function tile(href, ic, label, n, sub) {
-    return '<a class="ch-tile" href="' + href + '">' + icon(ic) + '<span class="t-cap">' + esc(label) + '</span><span class="n">' + n + '</span><span class="t-cap">' + esc(sub) + '</span></a>';
+  function esc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (char) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char];
+    });
   }
-  // mail:summary:v1 stores counts (needs_reply, total_inbox); radar:summary:v1 stores shown[]
-  var mailN = (mail && (mail.needs_reply || 0)) || 0;
-  var radarN = (radar && ((radar.shown && radar.shown.length) || radar.total_found || 0)) || 0;
-  var moneyD = (D.money && D.money()) || {};
-  var openTasksN = ls('tasks:v1', []).filter(function (t) { return t && !t.done; }).length;
-  card('col-5', headIc('Signals & inbox', icon(IC.spark))
-    + '<div class="ch-signals">'
-    + tile('../mail.html', IC.mail, 'Inbox', mailN, 'New items')
-    + tile('../radar.html', IC.target, 'Opportunities', radarN, 'Actionable')
-    + tile('tasks.html', IC.doc, 'Tasks', openTasksN, 'Open')
-    + tile('../health.html', IC.heart, 'Body alerts', attention.length, 'Monitor')
-    + tile('money.html', IC.wallet, 'Money', moneyD.accounts || 0, 'Accounts')
-    + '</div>');
 
-  /* ===== recent plans ===== */
-  var plans = ls('coach:plans:v1', []);
-  card('col-5', headIc('Recent plans', icon(IC.cal), viewAll('../review.html'))
-    + (plans.length
-      ? plans.slice(0, 4).map(function (p) { return '<div class="ch-line"><span class="ch-lic">' + icon(IC.doc) + '</span><span class="val">' + esc(p.title) + '</span><span class="end">' + esc(p.status || '') + '</span></div>'; }).join('')
-      : '<div class="empty"><span class="empty-title">No saved plans</span><span>Ask the coach for a plan and save it here.</span></div>'));
+  function read(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch (error) {
+      return fallback;
+    }
+  }
 
-  /* ===== recommendations by area ===== */
-  var recIcons = { Training: IC.dumbbell, Nutrition: IC.fork, Recovery: IC.moon, Sleep: IC.moon, Supplements: IC.pill, Labs: IC.flask, Money: IC.wallet, Schedule: IC.cal };
-  var recCol = { Training: 'var(--blue)', Nutrition: 'var(--green)', Recovery: 'var(--accent)', Sleep: 'var(--accent)', Supplements: 'var(--amber)', Labs: 'var(--red)', Money: 'var(--green)', Schedule: 'var(--text-3)' };
-  card('col-4', headIc('Recommendations by area', icon(IC.spark), viewAll('#coach-brief'))
-    + (lines.length
-      ? lines.slice(0, 5).map(function (l) {
-          var k = l.label, c = recCol[k] || 'var(--text-3)';
-          return '<div class="ch-rec"><span style="color:' + c + '">' + icon(recIcons[k] || IC.doc) + '</span>'
-            + '<span>' + esc(k) + '</span><span class="txt">' + esc(l.value) + '</span></div>';
-        }).join('')
-      : '<div class="empty"><span>Nothing to recommend yet.</span></div>'));
+  function arr(value) { return Array.isArray(value) ? value : []; }
+  function obj(value) { return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; }
+  function phaseValue(id) { return obj(coachPhase[id] && coachPhase[id].value); }
+  function currentView() {
+    var hash = location.hash.replace('#', '').toLowerCase();
+    return views.some(function (item) { return item[0] === hash; }) ? hash : 'briefing';
+  }
 
-  /* ===== readiness drivers ===== */
-  var dIcons = { Sleep: IC.moon, HRV: IC.heart, Soreness: IC.dumbbell, Calories: IC.flame, Hydration: IC.drop, Stress: IC.brain, Training: IC.dumbbell };
-  var parts = rd.parts || [];
-  card('col-4', headIc('Readiness drivers', icon(IC.heart), viewAll('log.html#recovery', 'View details'))
-    + (parts.length
-      ? parts.map(function (p) {
-          var w = p.max ? Math.round(p.pts / p.max * 100) : 0;
-          var c = w >= 66 ? 'var(--green)' : (w >= 33 ? 'var(--amber)' : 'var(--red)');
-          var lvl = w >= 66 ? 'Good' : (w >= 33 ? 'Okay' : 'Low');
-          return '<div class="ch-driver">' + icon(dIcons[p.label] || IC.trend)
-            + '<span class="t-cap">' + esc(p.label || p.key) + '</span>'
-            + '<div class="bar"><i style="width:' + w + '%;background:' + c + '"></i></div>'
-            + '<span class="t-cap num" style="text-align:right">' + p.pts + '/' + p.max + '</span>'
-            + '<span class="t-cap lvl" style="color:' + c + ';text-align:right">' + lvl + '</span></div>';
-        }).join('')
-      : '<div class="empty"><span>No readiness inputs logged.</span></div>'));
+  function card(title, body, cls, action) {
+    return '<section class="card ' + (cls || '') + '"><div class="card-head"><h2>' + esc(title) + '</h2>' + (action || '') + '</div>' + body + '</section>';
+  }
 
-  /* ===== follow-up queue ===== */
-  var fu = card('col-4', headIc('Follow-up queue', icon(IC.clock), attention.length ? '<span class="badge amber">' + attention.length + '</span>' : ''));
-  fu.id = 'coach-followup';
-  fu.insertAdjacentHTML('beforeend', attention.length
-    ? attention.slice(0, 6).map(function (a, i) {
-        return '<div class="ch-fu"><span class="idx">' + (i + 1) + '</span><span>' + esc(a.title) + '</span>'
-          + '<span class="tag">' + esc(a.tag || '') + '</span><span class="when">' + esc(a.when || a.sub || '') + '</span></div>';
-      }).join('')
-    : '<div class="empty"><span class="empty-title">Queue clear</span><span>Nothing needs a follow-up.</span></div>');
+  function title(name, detail, action) {
+    return '<div class="ch-view-title"><div><h2>' + esc(name) + '</h2><p>' + esc(detail) + '</p></div>' + (action || '') + '</div>';
+  }
 
-  /* ===== footer ===== */
-  card('ch-foot col-12', '<span class="inline">' + icon(IC.clock) + 'Last updated: ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + '</span>'
-    + '<span class="inline">' + icon(IC.db) + 'Data stays on device unless you ask</span>'
-    + '<span class="inline" style="color:var(--text-2)">' + icon(IC.shield) + 'Risky actions require your confirmation before running.</span>');
+  function kpi(label, value, sub) {
+    return '<div class="ch-kpi"><div class="ch-kpi-label">' + esc(label) + '</div><div class="ch-kpi-value">' + esc(value) + '</div><div class="ch-kpi-sub">' + esc(sub || '') + '</div></div>';
+  }
+
+  function empty(heading, detail, href, label) {
+    return '<div class="ch-empty"><div><strong>' + esc(heading) + '</strong><div>' + esc(detail) + '</div>' + (href ? '<a class="btn btn-secondary btn-sm" href="' + esc(href) + '">' + esc(label) + '</a>' : '') + '</div></div>';
+  }
+
+  function textOf(line) {
+    if (typeof line === 'string') return line;
+    line = obj(line);
+    var value = line.text || line.detail || line.message || line.value || '';
+    if (value && typeof value === 'object') {
+      value = value.subject || value.label || value.title || value.message || value.detail || '';
+    }
+    return value;
+  }
+
+  function labelOf(line) {
+    line = obj(line);
+    return line.area || line.title || line.label || line.type || 'Briefing';
+  }
+
+  function safeReadiness() {
+    var canonical = phaseValue('readiness.daily');
+    if (Object.keys(canonical).length) return canonical;
+    try { return obj(typeof L.readiness === 'function' ? L.readiness() : {}); }
+    catch (error) { return {}; }
+  }
+
+  function safeBriefing() {
+    var canonical = phaseValue('coach.briefing');
+    if (Object.keys(canonical).length) return canonical;
+    try { return obj(typeof L.briefing === 'function' ? L.briefing() : {}); }
+    catch (error) { return {}; }
+  }
+
+  function safeAttention() {
+    var canonical = phaseValue('coach.followups');
+    if (Array.isArray(canonical.items)) return canonical.items;
+    try {
+      return arr(L.data && typeof L.data.attention === 'function' ? L.data.attention() : []);
+    } catch (error) { return []; }
+  }
+  function safeInbox() {
+    var canonical = phaseValue('communications.inbox');
+    return Object.keys(canonical).length ? canonical : obj(read('mail:summary:v1', {}));
+  }
+  function safeOpportunities() {
+    var canonical = phaseValue('coach.opportunities');
+    return Object.keys(canonical).length ? canonical : obj(read('radar:summary:v1', {}));
+  }
+  function safeReviews() {
+    var canonical = phaseValue('coach.reviews');
+    if (Object.keys(canonical).length) return canonical;
+    var ritual = obj(read('review:ritual:v1', {}));
+    return { weeks: Object.keys(ritual).sort().reverse().map(function (date) { return { date: date, answers: ritual[date] }; }), plans: arr(read('coach:plans:v1', [])) };
+  }
+
+  function briefingView() {
+    var readiness = safeReadiness();
+    var briefing = safeBriefing();
+    var lines = arr(briefing.lines);
+    var attention = safeAttention();
+    var mail = safeInbox();
+    var radar = safeOpportunities();
+    var plans = arr(safeReviews().plans);
+    var score = Number(readiness.score);
+    var briefingRows = lines.length ? lines.map(function (line) {
+      return '<div class="ch-row"><strong>' + esc(labelOf(line)) + '</strong><span>' + esc(textOf(line)) + '</span><small>Today</small></div>';
+    }).join('') : empty('No briefing yet', 'Log health, training, nutrition, or schedule data to build today\'s briefing.');
+    var attentionRows = attention.slice(0, 6).map(function (item) {
+      item = obj(item);
+      return '<div class="ch-row"><strong>' + esc(item.title || item.label || item.area || 'Attention') + '</strong><span>' + esc(item.detail || item.sub || item.text || item.message || 'Review this signal.') + '</span><small>' + esc(item.status || item.level || '') + '</small></div>';
+    }).join('');
+    var planRows = plans.slice(0, 5).map(function (plan) {
+      plan = obj(plan);
+      return '<div class="ch-row"><strong>' + esc(plan.title || plan.name || 'Coach plan') + '</strong><span>' + esc(plan.detail || plan.description || plan.status || '') + '</span><small>' + esc(plan.due || plan.date || '') + '</small></div>';
+    }).join('');
+
+    return title('Today\'s briefing', 'A deterministic summary of the data already in Life OS.') +
+      '<div class="ch-kpis">' +
+        kpi('Readiness', isFinite(score) ? Math.round(score) + '/100' : 'Not enough data', readiness.label || readiness.status || '') +
+        kpi('Health attention', attention.length, attention.length ? 'Items to review' : 'Nothing flagged') +
+        kpi('Inbox', mail.total_inbox == null ? 'Not connected' : mail.total_inbox, mail.total_inbox == null ? 'Connect Mail to summarize it' : arr(mail.needs_reply).length + ' need a reply') +
+        kpi('Opportunities', radar.total_found == null ? 'Not scanned' : radar.total_found, radar.total_found == null ? 'Run Radar to populate this' : arr(radar.shown).length + ' shown') +
+      '</div>' +
+      card('Briefing', '<div class="ch-list">' + briefingRows + '</div>', 'ch-wide', '<button class="btn small" data-view="ask">Ask about this</button>') +
+      card('Signals and inbox', attentionRows ? '<div class="ch-list">' + attentionRows + '</div>' : empty('No active signals', 'Nothing currently needs attention.'), '', '<button class="btn small" data-view="inbox">Open Inbox</button>') +
+      card('Recent plans', planRows ? '<div class="ch-list">' + planRows + '</div>' : empty('No coach plans', 'Plans created by Coach will appear here.'), 'ch-wide') +
+      card('Follow-up queue', attentionRows ? '<div class="ch-list">' + attentionRows + '</div>' : empty('Queue clear', 'There are no follow-ups waiting.'), '', '<button class="btn small" data-view="reviews">Reviews</button>');
+  }
+
+  function readinessView() {
+    var readiness = safeReadiness();
+    var briefing = safeBriefing();
+    var attention = safeAttention();
+    var parts = obj(readiness.parts || readiness.drivers || readiness.factors);
+    var entries = Object.keys(parts).map(function (key) { return [key, parts[key]]; });
+    var score = Number(readiness.score);
+    var driverHtml = entries.length ? '<div class="ch-driver-grid">' + entries.map(function (entry) {
+      var raw = obj(entry[1]);
+      var value = typeof entry[1] === 'number' ? entry[1] : Number(raw.score == null ? raw.value : raw.score);
+      var pct = isFinite(value) ? Math.max(0, Math.min(100, value <= 1 ? value * 100 : value)) : 0;
+      var display = isFinite(value) ? Math.round(value <= 1 ? value * 100 : value) : 'No data';
+      return '<div class="ch-driver-card"><header><span>' + esc(entry[0]) + '</span><strong>' + esc(display) + '</strong></header><div class="ch-meter"><span style="width:' + pct + '%"></span></div></div>';
+    }).join('') + '</div>' : empty('Not enough readiness data', 'Log sleep, recovery, nutrition, hydration, and training to reveal the drivers.');
+    var relevant = arr(briefing.lines).filter(function (line) {
+      var haystack = (labelOf(line) + ' ' + textOf(line)).toLowerCase();
+      return /sleep|recover|train|hydr|stress|body/.test(haystack);
+    });
+    var guidance = relevant.map(function (line) {
+      return '<div class="ch-row"><strong>' + esc(labelOf(line)) + '</strong><span>' + esc(textOf(line)) + '</span><small>Current</small></div>';
+    }).join('');
+    return title('Readiness', 'Understand the inputs behind today\'s score.') +
+      '<div class="ch-kpis">' +
+        kpi('Score', isFinite(score) ? Math.round(score) : 'No score', readiness.label || readiness.status || '') +
+        kpi('Drivers available', entries.length, entries.length ? 'Calculated from logged data' : 'More data needed') +
+        kpi('Attention items', attention.length, attention.length ? 'Review before acting' : 'No warnings') +
+        kpi('Data mode', 'Local', 'No AI call is required') +
+      '</div>' +
+      card('Readiness drivers', driverHtml, 'ch-wide') +
+      card('Guidance', guidance ? '<div class="ch-list">' + guidance + '</div>' : empty('No guidance yet', 'Today\'s briefing has no recovery-specific guidance.'), '') +
+      card('How this works', '<div class="ch-empty"><div><strong>Calculated from your logged data</strong><div>The score changes only when its source data changes. Missing inputs remain missing.</div><a class="btn" href="log.html#body">Open Body log</a></div></div>', 'ch-full');
+  }
+
+  function askView() {
+    var readiness = safeReadiness();
+    var mail = safeInbox();
+    var radar = safeOpportunities();
+    return title('Ask Coach', 'Coach runs only after you submit a question.') +
+      card('Ask anything about your data', '<div class="ch-ask-panel"><p class="muted">Use one prompt or write your own. Nothing is sent until you press Ask.</p><div class="ch-prompts">' +
+        ['What should I focus on today?','How is my recovery?','What needs attention?','How should I adjust training?'].map(function (prompt) { return '<button class="ch-prompt" data-prompt="' + esc(prompt) + '">' + esc(prompt) + '</button>'; }).join('') +
+        '</div><div class="ch-answer" id="coach-answer">' + (answer ? esc(answer) : 'Your answer will appear here.') + '</div><form class="ch-ask-form" id="coach-ask-form"><input id="coach-question" type="text" autocomplete="off" placeholder="Ask Coach..." aria-label="Ask Coach"><button class="btn primary" type="submit" ' + (asking ? 'disabled' : '') + '>' + (asking ? 'Asking...' : 'Ask') + '</button></form></div>', 'ch-wide') +
+      card('Available context', '<div class="ch-list">' +
+        '<div class="ch-row"><strong>Readiness</strong><span>' + esc(readiness.score == null ? 'Not enough data' : Math.round(Number(readiness.score)) + '/100') + '</span><small class="ch-status' + (readiness.score == null ? ' off' : '') + '">' + (readiness.score == null ? 'Missing' : 'Available') + '</small></div>' +
+        '<div class="ch-row"><strong>Inbox</strong><span>' + esc(mail.total_inbox == null ? 'Mail not connected' : mail.total_inbox + ' messages summarized') + '</span><small class="ch-status' + (mail.total_inbox == null ? ' off' : '') + '">' + (mail.total_inbox == null ? 'Missing' : 'Available') + '</small></div>' +
+        '<div class="ch-row"><strong>Opportunities</strong><span>' + esc(radar.total_found == null ? 'Radar not scanned' : radar.total_found + ' found') + '</span><small class="ch-status' + (radar.total_found == null ? ' off' : '') + '">' + (radar.total_found == null ? 'Missing' : 'Available') + '</small></div>' +
+      '</div>', '');
+  }
+
+  function inboxView() {
+    var mail = safeInbox();
+    var connected = mail.connected === true || mail.total_inbox != null;
+    if (!connected) {
+      return title('Inbox', 'Important messages without pretending Mail is connected.') + card('Mail connection', empty('Inbox not connected', 'Connect and open Mail to create a real inbox summary.', '../mail.html', 'Open Mail'), 'ch-full');
+    }
+    var needsReply = arr(mail.needs_reply);
+    var bills = arr(mail.bills);
+    var opportunities = arr(mail.opportunities);
+    function mailRows(items, type) {
+      return items.map(function (item) {
+        item = typeof item === 'string' ? {subject:item} : obj(item);
+        return '<div class="ch-row"><strong>' + esc(item.from || type) + '</strong><span>' + esc(item.subject || item.label || '') + '</span><small>' + esc(type) + '</small></div>';
+      }).join('');
+    }
+    return title('Inbox', 'A summary from the connected Mail workflow.', '<a class="btn small" href="../mail.html">Open Mail</a>') +
+      '<div class="ch-kpis">' + kpi('Total inbox', mail.total_inbox, 'Last stored summary') + kpi('Needs reply', needsReply.length, 'Actionable') + kpi('Active orders', mail.orders_active || 0, 'Tracked deliveries') + kpi('Promotions', mail.newsletters_promo || 0, 'Newsletters and promos') + '</div>' +
+      card('Needs reply', needsReply.length ? '<div class="ch-list">' + mailRows(needsReply, 'Reply') + '</div>' : empty('No replies waiting', 'The stored summary has no messages marked for reply.'), 'ch-wide') +
+      card('Bills and receipts', bills.length ? '<div class="ch-list">' + mailRows(bills, 'Bill') + '</div>' : empty('No bills found', 'No bills are present in the stored summary.'), '') +
+      card('Mail opportunities', opportunities.length ? '<div class="ch-list">' + mailRows(opportunities, 'Opportunity') + '</div>' : empty('No mail opportunities', 'No opportunities are present in the stored summary.'), 'ch-full');
+  }
+
+  function opportunitiesView() {
+    var radar = safeOpportunities();
+    var shown = arr(radar.shown);
+    if (radar.available === false || radar.total_found == null) {
+      return title('Opportunities', 'Results appear only after a real Radar scan.') + card('Radar status', empty('No scan available', 'Run Radar to discover and rank opportunities.', '../radar.html', 'Open Radar'), 'ch-full');
+    }
+    var categories = {};
+    shown.forEach(function (item) { item = obj(item); categories[item.cat || 'Other'] = true; });
+    var rows = shown.map(function (item) {
+      item = obj(item);
+      return '<div class="ch-row"><strong>' + esc(item.cat || 'Opportunity') + '</strong><span>' + esc(item.title || item.label || '') + '</span><small class="ch-action">' + esc(item.action || 'Review') + '</small></div>';
+    }).join('');
+    return title('Opportunities', 'Stored results from the latest Radar scan.', '<a class="btn small" href="../radar.html">Open Radar</a>') +
+      '<div class="ch-kpis">' + kpi('Found', radar.total_found, 'Latest scan') + kpi('Shown', shown.length, 'Stored shortlist') + kpi('Categories', Object.keys(categories).length, 'Across the shortlist') + kpi('Generated', radar.generated_at ? new Date(radar.generated_at).toLocaleDateString() : 'Unknown', 'Summary timestamp') + '</div>' +
+      card('Opportunity shortlist', rows ? '<div class="ch-list">' + rows + '</div>' : empty('Shortlist empty', 'The scan found items but did not store a shortlist.'), 'ch-full');
+  }
+
+  function countAnswers(review) {
+    var total = 0;
+    Object.keys(obj(review)).forEach(function (key) {
+      var value = review[key];
+      if (typeof value === 'string' && value.trim()) total += 1;
+      else if (typeof value === 'number' || typeof value === 'boolean') total += 1;
+      else if (value && typeof value === 'object') total += countAnswers(value);
+    });
+    return total;
+  }
+
+  function reviewsView() {
+    var projected = safeReviews();
+    var weeks = arr(projected.weeks);
+    var keys = weeks.map(function (week) { return week.date; });
+    var plans = arr(projected.plans);
+    var latest = weeks.length ? obj(weeks[0].answers) : {};
+    var latestAnswers = countAnswers(latest);
+    var reviews = weeks.map(function (week) {
+      var review = obj(week.answers);
+      return '<div class="ch-review-card"><strong>Week of ' + esc(week.date) + '</strong><span>' + esc(countAnswers(review) + ' answers saved') + '</span><a class="ch-action" href="../review.html">Open review</a></div>';
+    }).join('');
+    var planRows = plans.map(function (plan) {
+      plan = obj(plan);
+      return '<div class="ch-row"><strong>' + esc(plan.title || plan.name || 'Coach plan') + '</strong><span>' + esc(plan.detail || plan.description || '') + '</span><small>' + esc(plan.status || plan.due || '') + '</small></div>';
+    }).join('');
+    return title('Reviews', 'Weekly reflections and the plans they produce.', '<a class="btn btn-secondary btn-sm" href="../review.html">Open weekly review</a>') +
+      '<div class="ch-kpis">' + kpi('Weekly reviews', keys.length, keys.length ? 'Saved locally' : 'None completed') + kpi('Latest week', keys[0] || 'No review', keys.length ? 'Most recent entry' : 'Start your first review') + kpi('Latest answers', latestAnswers, latestAnswers ? 'Questions answered' : 'No answers saved') + kpi('Coach plans', plans.length, plans.length ? 'Created plans' : 'No plans yet') + '</div>' +
+      card('Review history', reviews ? '<div class="ch-list">' + reviews + '</div>' : empty('No weekly reviews', 'Complete the weekly ritual to create a review history.', '../review.html', 'Start review'), 'ch-wide') +
+      card('Plans from Coach', planRows ? '<div class="ch-list">' + planRows + '</div>' : empty('No plans yet', 'Plans created from Coach will be listed here.'), '');
+  }
+
+  var renderers = {briefing:briefingView, readiness:readinessView, ask:askView, inbox:inboxView, opportunities:opportunitiesView, reviews:reviewsView};
+
+  function paintTabs(active) {
+    tabsRoot.innerHTML = views.map(function (item) {
+      return '<button type="button" role="tab" data-view="' + item[0] + '" aria-selected="' + (active === item[0]) + '" tabindex="' + (active === item[0] ? '0' : '-1') + '">' + item[1] + '</button>';
+    }).join('');
+  }
+
+  function render() {
+    var active = currentView();
+    paintTabs(active);
+    try {
+      root.innerHTML = renderers[active]();
+    } catch (error) {
+      root.innerHTML = '<div class="ch-error"><h2>This Coach view could not load</h2><p class="muted">Your data was not changed.</p><button class="btn" id="coach-retry">Retry</button></div>';
+    }
+    if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+  }
+
+  function go(view) {
+    if (!renderers[view]) return;
+    if (location.hash === '#' + view) render();
+    else location.hash = view;
+  }
+
+  async function askCoach(question) {
+    question = String(question || '').trim();
+    if (!question || asking) return;
+    go('ask');
+    asking = true;
+    answer = 'Coach is reviewing your logged data...';
+    render();
+    try {
+      if (!window.LifeOSCmd || typeof window.LifeOSCmd.ask !== 'function') throw new Error('Coach engine is unavailable.');
+      var response = await window.LifeOSCmd.ask(question);
+      answer = typeof response === 'string' ? response : (response && (response.answer || response.text || response.message)) || 'Coach returned no answer.';
+    } catch (error) {
+      answer = error && error.message ? error.message : 'Coach could not answer right now.';
+    } finally {
+      asking = false;
+      render();
+    }
+  }
+
+  document.addEventListener('click', function (event) {
+    var viewButton = event.target.closest('[data-view]');
+    if (viewButton) { go(viewButton.getAttribute('data-view')); return; }
+    var prompt = event.target.closest('[data-prompt]');
+    if (prompt) {
+      go('ask');
+      requestAnimationFrame(function () {
+        var input = document.getElementById('coach-question');
+        if (input) { input.value = prompt.getAttribute('data-prompt'); input.focus(); }
+      });
+      return;
+    }
+    if (event.target.closest('#coach-retry')) render();
+  });
+
+  tabsRoot.addEventListener('keydown', function (event) {
+    var tabs = [].slice.call(tabsRoot.querySelectorAll('[role="tab"]'));
+    var index = tabs.indexOf(document.activeElement);
+    if (index < 0) return;
+    var next = null;
+    if (event.key === 'ArrowRight') next = tabs[(index + 1) % tabs.length];
+    if (event.key === 'ArrowLeft') next = tabs[(index - 1 + tabs.length) % tabs.length];
+    if (event.key === 'Home') next = tabs[0];
+    if (event.key === 'End') next = tabs[tabs.length - 1];
+    if (!next) return;
+    event.preventDefault();
+    next.focus();
+    go(next.getAttribute('data-view'));
+  });
+  document.addEventListener('submit', function (event) {
+    if (event.target.id !== 'coach-ask-form') return;
+    event.preventDefault();
+    var input = document.getElementById('coach-question');
+    askCoach(input && input.value);
+  });
+
+  var topAsk = document.getElementById('ask-top');
+  var topQuestion = document.getElementById('q');
+  if (topAsk) topAsk.addEventListener('click', function () { askCoach(topQuestion && topQuestion.value); });
+  if (topQuestion) topQuestion.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') { event.preventDefault(); askCoach(topQuestion.value); }
+  });
+  window.addEventListener('hashchange', render);
+
+  function loadCanonicalCoach() {
+    var api = window.LifeOS && window.LifeOS.canonical;
+    if (!api || typeof api.phaseH !== 'function') return;
+    api.phaseH().then(function (state) { coachPhase = state || {}; render(); }).catch(function () {});
+    if (!coachUnsubscribe && typeof api.subscribePhaseH === 'function') {
+      coachUnsubscribe = api.subscribePhaseH(function () {
+        api.phaseH().then(function (state) { coachPhase = state || {}; render(); }).catch(function () {});
+      });
+    }
+  }
+  window.addEventListener('lifeos:canonical-ready', loadCanonicalCoach);
+
+  var date = document.getElementById('date');
+  if (date) date.textContent = new Date().toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
+  render();
+  loadCanonicalCoach();
 })();
 </script>
 </body>

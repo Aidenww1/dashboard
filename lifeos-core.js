@@ -1175,7 +1175,9 @@
           var prev = localStorage.getItem('wearable:today:v1');
           var next = JSON.stringify(sum);
           // ignore syncTime-only churn
-          var prevCmp = prev ? JSON.stringify(Object.assign(JSON.parse(prev), { syncTime: 0 })) : null;
+          var prevObj = prev ? JSON.parse(prev) : null;
+          if (prevObj && typeof prevObj === 'object') prevObj.syncTime = 0;
+          var prevCmp = prevObj ? JSON.stringify(prevObj) : null;
           if (prevCmp !== JSON.stringify(Object.assign({}, sum, { syncTime: 0 }))) {
             localStorage.setItem('wearable:today:v1', next);
             window.dispatchEvent(new CustomEvent('lifeos:wearable'));

@@ -1,17 +1,16 @@
 /* ============================================================
-   Life OS — frontend rewrite design tokens (Phase 0).
-   Read from the desktop + mobile reference mockups. ISOLATED:
-   loaded only by ui/gallery.html, not by any production page.
-   One namespace, one accent (violet), semantic colors for state.
+   Life OS shared production design tokens.
+   Used by the responsive shell, component reference, and migrated pages.
+   One application accent, with semantic colors reserved for meaning.
    ============================================================ */
 :root {
   /* ---- canvas + surfaces (max 3 levels) ---- */
-  --bg:             #07070A;            /* application canvas */
-  --surface:        #121216;            /* standard content surface (cards) */
-  --surface-raised: #1A1A20;            /* raised / interactive surface */
-  --surface-hover:  #222229;
-  --border:         rgba(255,255,255,0.085);
-  --border-strong:  rgba(255,255,255,0.18);
+  --bg:             #05080C;            /* application canvas */
+  --surface:        #0D1218;            /* standard content surface (cards) */
+  --surface-raised: #131920;            /* raised / interactive surface */
+  --surface-hover:  #1A222C;
+  --border:         rgba(196,211,230,0.105);
+  --border-strong:  rgba(210,222,238,0.20);
 
   /* ---- text ---- */
   --text:    #F6F6F8;                   /* strong */
@@ -31,10 +30,19 @@
   --amber: #F5A524; --amber-soft: rgba(245,165,36,0.13);
   --red:   #F2555A; --red-soft:   rgba(242,85,90,0.13);
   --blue:  #5B9DFF; --blue-soft:  rgba(91,157,255,0.13);
+  --cyan:  #2DD4BF; --cyan-soft:  rgba(45,212,191,0.13);
+
+  /* ---- chart series (semantic order, not page themes) ---- */
+  --chart-1: #9B6CFF;
+  --chart-2: #34D399;
+  --chart-3: #5B9DFF;
+  --chart-4: #F5A524;
+  --chart-5: #F2555A;
+  --chart-grid: rgba(196,211,230,0.09);
 
   /* ---- radius ---- */
-  --r-card:    14px;
-  --r-control: 9px;
+  --r-card:    8px;
+  --r-control: 8px;
   --r-pill:    999px;
 
   /* ---- spacing scale (4-point) ---- */
@@ -63,16 +71,26 @@
 
   /* ---- layout ---- */
   --sidebar-w: 210px;
-  --content-max: 1364px;
-  --tabbar-h: 60px;
+  --content-max: 1470px;
+  --content-pad: 28px;
+  --grid-gap: 10px;
+  --header-h: 64px;
+  --tabbar-h: 64px;
+  --control-h: 40px;
+  --touch-min: 44px;
+  --card-pad-x: 16px;
+  --card-pad-y: 12px;
+  --metric-card-h: 116px;
+  --chart-h: 190px;
+  --table-row-h: 42px;
 }
 
 /* type scale (utility classes; tabular numerals on metrics) */
-.t-page    { font-size: 32px; font-weight: 700; letter-spacing: -0.02em;  line-height: 1.1; }
-.t-h2      { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
-.t-card    { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; }
-.t-metric  { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.05; }
-.t-metric-sm { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+.t-page    { font-size: 32px; font-weight: 700; letter-spacing: 0; line-height: 1.1; }
+.t-h2      { font-size: 20px; font-weight: 600; letter-spacing: 0; line-height: 1.2; }
+.t-card    { font-size: 15px; font-weight: 600; letter-spacing: 0; }
+.t-metric  { font-size: 30px; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.t-metric-sm { font-size: 22px; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; }
 .t-body    { font-size: 14px; font-weight: 400; line-height: 1.45; }
 .t-2       { font-size: 13px; font-weight: 400; color: var(--text-2); }
 .t-cap     { font-size: 12px; font-weight: 500; color: var(--text-3); }
